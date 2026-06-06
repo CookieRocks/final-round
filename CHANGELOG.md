@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.0 RC1 - Release Candidate Stabilization
+
+Released: 2026-06-06
+
+### Overview
+
+`v1.0 RC1` prepares Final Round for a first release candidate by stabilizing the existing loop, documenting the current feature set, and validating the Windows build path. This pass avoids new mechanics and keeps gameplay balance unchanged.
+
+### Polished
+
+- Updated visible build label to `Prototype v1.0 RC1`.
+- Reviewed interview content, company profiles, pressure behavior, Prep Cards, Recovery Choices, random events, final outcome framing, and badge conditions for obvious release-blocking issues.
+- Kept balance unchanged after review; strong, mixed, and chaos/burnout paths still land in the intended outcome bands.
+- Confirmed Settings flow remains scoped to the existing menu/pause overlay behavior.
+- Updated README with a fuller release-candidate overview, controls, settings, build instructions, build readiness notes, and known limitations.
+- Removed stale documentation that described Reduce Motion as Inspector-only.
+
+### Validation
+
+- `dotnet build Assembly-CSharp.csproj` passes with 0 warnings and 0 errors.
+- Windows standalone batch build succeeded and produced `Builds/v1.0-rc1/Final Round.exe`.
+
 ## v0.9 - Settings Screen
 
 Released: 2026-06-06
