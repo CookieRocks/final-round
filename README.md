@@ -1,8 +1,8 @@
 # Final Round
 
-Prototype version: `Prototype v0.5`
+Prototype version: `Prototype v0.7`
 
-Final Round is a Unity prototype about surviving a multi-stage Sales Engineering interview loop. Each run includes randomized answer order, company-specific process rules, an Interview Pressure meter, Prep Cards, between-round recovery choices, between-stage events, lightweight UI animation, a cosmetic 3D interview-room viewport, and a final report-card summary.
+Final Round is a Unity prototype about surviving a multi-stage Sales Engineering interview loop. Each run includes randomized answer order, company-specific process rules, an Interview Pressure meter, Prep Cards, between-round recovery choices, between-stage events, lightweight UI animation, an animated video-call interview viewport, end-of-run badges, and a final report-card summary.
 
 ## Current Features
 
@@ -13,8 +13,8 @@ Final Round is a Unity prototype about surviving a multi-stage Sales Engineering
 - Between-round recovery choices.
 - Non-repeating between-stage random events.
 - Process ID/run seed support for repeatable testing.
-- Final summary with outcome, stats, style, pressure, prep/recovery/event highlights, and company rule context.
-- Runtime-generated UI and 3D viewport with lightweight transitions and feedback animation.
+- Final summary with outcome, stats, style, pressure, prep/recovery/event highlights, badges, and company rule context.
+- Runtime-generated UI and animated video-call viewport with lightweight transitions and feedback animation.
 
 ## Run In Unity
 
@@ -43,14 +43,14 @@ Final Round is a Unity prototype about surviving a multi-stage Sales Engineering
 
 - The active build scene is `Assets/Scenes/InterviewRoom.unity`.
 - The project uses Unity's Input System backend; keyboard shortcuts use `Keyboard.current` in that mode.
-- Runtime UI and the 3D backdrop are generated from scripts at play/build time.
+- Runtime UI and the animated video-call backdrop are generated from scripts at play/build time.
 - Optional UI audio hooks exist, but no sound files are required.
 - `reduceMotion` is available as an Inspector-only toggle for reducing pulse/scale animation.
 
 ## Known Limitations
 
 - Prototype balance is intentionally lightweight and may still need more full-run testing.
-- The 3D interview room is cosmetic only.
+- The video-call viewport is cosmetic only.
 - The game is built around 1920x1080 and 1366x768 style layouts; unusual aspect ratios may need more UI tuning.
 - No save system, localization, or controller support yet.
 - Accessibility is currently limited to the Inspector-only `reduceMotion` toggle.

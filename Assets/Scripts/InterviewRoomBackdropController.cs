@@ -4,6 +4,7 @@ using UnityEngine;
 public class InterviewRoomBackdropController : MonoBehaviour
 {
     public static readonly bool debugBackdropVisibility = false;
+    public static readonly bool enable3DViewportFallback = false;
 
     private const string ControllerName = "Final Round Interview Room Backdrop Controller";
     private const string RootName = "Final Round 3D Backdrop";
@@ -38,6 +39,21 @@ public class InterviewRoomBackdropController : MonoBehaviour
     private Renderer laptopScreenRenderer;
     private TMP_Text wallStageText;
     private Light rimLight;
+    private GameObject videoCallRoot;
+    private Renderer callScreenRenderer;
+    private Renderer callHeaderRenderer;
+    private Renderer callGlowRenderer;
+    private Renderer[] callBackgroundAccentRenderers;
+    private Renderer statusCardRenderer;
+    private TMP_Text callStageText;
+    private TMP_Text callStatusText;
+    private TMP_Text callStatusBodyText;
+    private ParticipantTile[] participantTiles;
+    private Color activeCallAccentColor = new Color32(92, 188, 164, 255);
+    private Color inactiveTileColor = new Color32(28, 34, 46, 255);
+    private Color activeTileColor = new Color32(43, 72, 82, 255);
+    private string activeStageName = "Main Menu";
+    private bool interviewerSpeaking = true;
     private GameObject startupMessProps;
     private GameObject securityOpsProps;
     private GameObject aiHypeProps;
@@ -48,9 +64,20 @@ public class InterviewRoomBackdropController : MonoBehaviour
 
     public RenderTexture ViewportTexture => viewportTexture;
 
+    private void Update()
+    {
+        AnimateVideoCall(Time.time);
+    }
+
     private void Awake()
     {
         gameObject.name = ControllerName;
+
+        if (!enable3DViewportFallback)
+        {
+            enabled = false;
+            return;
+        }
 
         if (activeController != null && activeController != this)
         {
@@ -89,16 +116,28 @@ public class InterviewRoomBackdropController : MonoBehaviour
     {
         activeCompanyProfileName = companyProfileName ?? string.Empty;
         activeInterviewPressure = Mathf.Clamp(interviewPressure, 0, 100);
+        interviewerSpeaking = IsInterviewStage(stageName);
         SetStageAtmosphere(stageName);
+    }
+
+    public void SetInterviewerSpeaking(bool isSpeaking)
+    {
+        interviewerSpeaking = isSpeaking;
+
+        if (callStatusText != null && IsInterviewStage(activeStageName))
+        {
+            callStatusText.text = interviewerSpeaking ? "LIVE PANEL" : "PANEL MUTED";
+        }
     }
 
     public void SetStageAtmosphere(string stageName)
     {
-        if (mainLight == null || accentLight == null || rimLight == null || wallStageText == null)
+        if (mainLight == null || accentLight == null || rimLight == null)
         {
             return;
         }
 
+        activeStageName = string.IsNullOrEmpty(stageName) ? "Main Menu" : stageName;
         Color mainColor = new Color32(255, 242, 220, 255);
         Color accentColor = new Color32(74, 143, 166, 255);
         float mainIntensity = 1.55f;
@@ -189,8 +228,12 @@ public class InterviewRoomBackdropController : MonoBehaviour
         rimLight.color = Color.Lerp(accentColor, Color.white, 0.28f);
         rimLight.intensity = debugBackdropVisibility ? rimIntensity + 0.65f : rimIntensity;
         laptopLight.intensity = debugBackdropVisibility ? laptopIntensity + 0.65f : laptopIntensity;
-        wallStageText.text = displayText;
-        wallStageText.fontSize = debugBackdropVisibility ? 9f : 7f;
+        if (wallStageText != null)
+        {
+            wallStageText.text = displayText;
+            wallStageText.fontSize = debugBackdropVisibility ? 9f : 7f;
+        }
+        ConfigureParticipantTiles(stageName, displayText, accentColor);
 
         if (wallPanelRenderer != null)
         {
@@ -201,6 +244,8 @@ public class InterviewRoomBackdropController : MonoBehaviour
         {
             laptopScreenRenderer.material.color = new Color(accentColor.r * 0.9f, accentColor.g * 0.9f, accentColor.b * 0.9f, 1f);
         }
+
+        ApplyCallTheme(stageName, accentColor);
 
         if (debugBackdropVisibility)
         {
@@ -329,6 +374,7 @@ public class InterviewRoomBackdropController : MonoBehaviour
         ApplyRendererColor(deskEdgeRenderer, Color.Lerp(desk, Color.white, 0.18f));
         ApplyRendererColors(chairRenderers, chair);
         ApplyRendererColors(silhouetteRenderers, silhouette);
+        ApplyRendererColor(callScreenRenderer, Color.Lerp(wall, Color.black, 0.36f));
 
         if (roomCamera != null)
         {
@@ -415,6 +461,22 @@ public class InterviewRoomBackdropController : MonoBehaviour
         }
     }
 
+    private void SetCallDecorationsVisible(bool visible)
+    {
+        if (callBackgroundAccentRenderers == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < callBackgroundAccentRenderers.Length; i++)
+        {
+            if (callBackgroundAccentRenderers[i] != null)
+            {
+                callBackgroundAccentRenderers[i].gameObject.SetActive(visible);
+            }
+        }
+    }
+
     private void BuildRoom()
     {
         RemoveExistingBackdropRoots();
@@ -428,11 +490,7 @@ public class InterviewRoomBackdropController : MonoBehaviour
         CreateCamera();
         CreateLighting();
         CreateRoomShell();
-        CreateFurniture();
-        CreateLaptop();
-        CreateInterviewerSilhouette();
-        CreateWallDisplay();
-        CreateCompanyIdentityProps();
+        CreateVideoCallScene();
     }
 
     private void CleanupLegacySceneObjects()
@@ -502,14 +560,15 @@ public class InterviewRoomBackdropController : MonoBehaviour
         GameObject cameraObject = new GameObject("Backdrop Camera", typeof(Camera));
         cameraObject.transform.SetParent(roomRoot.transform, false);
         cameraObject.tag = "Untagged";
-        cameraObject.transform.position = new Vector3(0f, 1.6f, -3.85f);
-        cameraObject.transform.LookAt(new Vector3(0f, 1.38f, 1.18f));
+        cameraObject.transform.position = new Vector3(0f, 1.55f, -1.28f);
+        cameraObject.transform.LookAt(new Vector3(0f, 1.55f, 1.78f));
 
         roomCamera = cameraObject.GetComponent<Camera>();
         roomCamera.enabled = true;
         roomCamera.clearFlags = CameraClearFlags.SolidColor;
         roomCamera.backgroundColor = debugBackdropVisibility ? new Color32(18, 21, 28, 255) : new Color32(12, 14, 19, 255);
-        roomCamera.fieldOfView = debugBackdropVisibility ? 58f : 52f;
+        roomCamera.orthographic = true;
+        roomCamera.orthographicSize = debugBackdropVisibility ? 1.68f : 1.52f;
         roomCamera.nearClipPlane = 0.05f;
         roomCamera.farClipPlane = 50f;
         roomCamera.depth = 0f;
@@ -692,6 +751,11 @@ public class InterviewRoomBackdropController : MonoBehaviour
             CreateCube("Interviewer Left Arm", new Vector3(-0.34f, 1.15f, 1.2f), new Vector3(0.16f, 0.58f, 0.18f), silhouetteColor).GetComponent<Renderer>(),
             CreateCube("Interviewer Right Arm", new Vector3(0.7f, 1.15f, 1.2f), new Vector3(0.16f, 0.58f, 0.18f), silhouetteColor).GetComponent<Renderer>()
         };
+
+        for (int i = 0; i < silhouetteRenderers.Length; i++)
+        {
+            silhouetteRenderers[i].gameObject.SetActive(false);
+        }
     }
 
     private void CreateWallDisplay()
@@ -712,6 +776,539 @@ public class InterviewRoomBackdropController : MonoBehaviour
         wallStageText.alignment = TextAlignmentOptions.Center;
         wallStageText.color = new Color32(232, 244, 250, 255);
         wallStageText.rectTransform.sizeDelta = new Vector2(62f, 14f);
+    }
+
+    private void CreateVideoCallScene()
+    {
+        videoCallRoot = new GameObject("Animated Video Call Viewport");
+        videoCallRoot.transform.SetParent(roomRoot.transform, false);
+
+        callGlowRenderer = CreateCallCube("Video Call Outer Frame", new Vector3(0f, 1.55f, 1.95f), new Vector3(5.04f, 2.68f, 0.035f), new Color32(45, 70, 82, 255), videoCallRoot.transform).GetComponent<Renderer>();
+        callScreenRenderer = CreateCallCube("Video Call Screen", new Vector3(0f, 1.55f, 1.9f), new Vector3(4.88f, 2.52f, 0.05f), new Color32(22, 38, 58, 255), videoCallRoot.transform).GetComponent<Renderer>();
+        callHeaderRenderer = CreateCallCube("Video Call Top Bar", new Vector3(0f, 2.64f, 1.34f), new Vector3(4.42f, 0.22f, 0.04f), new Color32(36, 48, 64, 255), videoCallRoot.transform).GetComponent<Renderer>();
+
+        callStageText = CreateWorldText(
+            "Video Call Stage Label",
+            new Vector3(-2.02f, 2.64f, 1.12f),
+            new Vector2(30f, 4f),
+            "FINAL ROUND",
+            3.6f,
+            TextAlignmentOptions.Left,
+            videoCallRoot.transform);
+
+        callStatusText = CreateWorldText(
+            "Video Call Status Label",
+            new Vector3(2.02f, 2.64f, 1.12f),
+            new Vector2(22f, 4f),
+            "LIVE CALL",
+            2.9f,
+            TextAlignmentOptions.Right,
+            videoCallRoot.transform);
+        callStatusText.color = new Color32(172, 224, 214, 255);
+
+        callBackgroundAccentRenderers = new Renderer[]
+        {
+            CreateCallCube("Call Background Accent Left", new Vector3(-2.34f, 1.47f, 1.62f), new Vector3(0.07f, 1.86f, 0.04f), new Color32(92, 188, 164, 255), videoCallRoot.transform).GetComponent<Renderer>(),
+            CreateCallCube("Call Background Accent Right", new Vector3(2.34f, 1.47f, 1.62f), new Vector3(0.07f, 1.86f, 0.04f), new Color32(92, 188, 164, 255), videoCallRoot.transform).GetComponent<Renderer>(),
+            CreateCallCube("Call Background Signal Bar", new Vector3(0f, 0.32f, 1.62f), new Vector3(4.24f, 0.06f, 0.04f), new Color32(92, 188, 164, 255), videoCallRoot.transform).GetComponent<Renderer>()
+        };
+        SetCallDecorationsVisible(false);
+
+        statusCardRenderer = CreateCallCube("Call Standby Status Card", new Vector3(0f, 1.42f, 1.2f), new Vector3(3.5f, 1.25f, 0.035f), new Color32(68, 82, 104, 255), videoCallRoot.transform).GetComponent<Renderer>();
+        callStatusBodyText = CreateWorldText(
+            "Call Standby Status Text",
+            new Vector3(0f, 1.42f, 0.98f),
+            new Vector2(44f, 10f),
+            "BETWEEN ROUNDS",
+            4.8f,
+            TextAlignmentOptions.Center,
+            videoCallRoot.transform);
+
+        participantTiles = new ParticipantTile[3];
+        participantTiles[0] = CreateParticipantTile(0);
+        participantTiles[1] = CreateParticipantTile(1);
+        participantTiles[2] = CreateParticipantTile(2);
+        ConfigureParticipantTiles(activeStageName, "FINAL ROUND", activeCallAccentColor);
+    }
+
+    private ParticipantTile CreateParticipantTile(int index)
+    {
+        GameObject tileRoot = new GameObject($"Video Call Participant {index + 1}");
+        tileRoot.transform.SetParent(videoCallRoot.transform, false);
+
+        ParticipantTile tile = new ParticipantTile
+        {
+            Root = tileRoot.transform,
+            TileRenderer = CreateCallCube($"Participant {index + 1} Tile", Vector3.zero, new Vector3(1f, 0.78f, 0.035f), new Color32(84, 102, 128, 255), tileRoot.transform).GetComponent<Renderer>(),
+            InnerRenderer = CreateCallCube($"Participant {index + 1} Inner Panel", new Vector3(0f, 0.02f, -0.035f), new Vector3(0.88f, 0.58f, 0.025f), new Color32(40, 52, 68, 255), tileRoot.transform).GetComponent<Renderer>(),
+            LabelPlateRenderer = CreateCallCube($"Participant {index + 1} Label Plate", new Vector3(0f, -0.31f, -0.3f), new Vector3(0.72f, 0.14f, 0.025f), new Color32(12, 18, 28, 255), tileRoot.transform).GetComponent<Renderer>(),
+            AvatarRoot = new GameObject($"Participant {index + 1} Avatar").transform,
+            Label = CreateWorldText(
+                $"Participant {index + 1} Label",
+                new Vector3(0f, -0.31f, -0.44f),
+                new Vector2(48f, 8f),
+                "Interviewer",
+                8f,
+                TextAlignmentOptions.Center,
+                tileRoot.transform),
+            StatusDotRenderer = CreateCallSphere($"Participant {index + 1} Camera Status Dot", new Vector3(0.42f, 0.31f, -0.24f), new Vector3(0.055f, 0.055f, 0.055f), new Color32(122, 224, 159, 255), tileRoot.transform).GetComponent<Renderer>()
+        };
+        tile.TileIndex = index;
+
+        tile.BorderRenderers = new Renderer[]
+        {
+            CreateCallCube($"Participant {index + 1} Top Active Border", new Vector3(0f, 0.41f, -0.24f), new Vector3(1.04f, 0.035f, 0.025f), activeCallAccentColor, tileRoot.transform).GetComponent<Renderer>(),
+            CreateCallCube($"Participant {index + 1} Bottom Active Border", new Vector3(0f, -0.41f, -0.24f), new Vector3(1.04f, 0.035f, 0.025f), activeCallAccentColor, tileRoot.transform).GetComponent<Renderer>(),
+            CreateCallCube($"Participant {index + 1} Left Active Border", new Vector3(-0.52f, 0f, -0.24f), new Vector3(0.035f, 0.82f, 0.025f), activeCallAccentColor, tileRoot.transform).GetComponent<Renderer>(),
+            CreateCallCube($"Participant {index + 1} Right Active Border", new Vector3(0.52f, 0f, -0.24f), new Vector3(0.035f, 0.82f, 0.025f), activeCallAccentColor, tileRoot.transform).GetComponent<Renderer>()
+        };
+
+        tile.AvatarRoot.SetParent(tileRoot.transform, false);
+        tile.HeadRenderer = CreateCallSphere($"Participant {index + 1} Head", new Vector3(0f, 0.13f, -0.26f), new Vector3(0.24f, 0.24f, 0.24f), new Color32(232, 238, 246, 255), tile.AvatarRoot).GetComponent<Renderer>();
+        tile.BodyRenderer = CreateCallCapsule($"Participant {index + 1} Shoulders", new Vector3(0f, -0.15f, -0.26f), new Vector3(0.42f, 0.34f, 0.24f), new Color32(104, 138, 176, 255), tile.AvatarRoot).GetComponent<Renderer>();
+        tile.InnerRenderer.gameObject.SetActive(false);
+        tile.StatusDotRenderer.gameObject.SetActive(false);
+
+        return tile;
+    }
+
+    private TMP_Text CreateWorldText(string name, Vector3 localPosition, Vector2 sizeDelta, string text, float fontSize, TextAlignmentOptions alignment, Transform parent)
+    {
+        GameObject textObject = new GameObject(name, typeof(TextMeshPro));
+        textObject.transform.SetParent(parent, false);
+        textObject.transform.localPosition = localPosition;
+        textObject.transform.localRotation = Quaternion.identity;
+        textObject.transform.localScale = new Vector3(0.16f, 0.16f, 0.16f);
+
+        TMP_Text label = textObject.GetComponent<TMP_Text>();
+        label.text = text;
+        label.fontSize = fontSize;
+        label.fontStyle = FontStyles.Bold;
+        label.alignment = alignment;
+        label.color = new Color32(232, 244, 250, 255);
+        label.rectTransform.sizeDelta = sizeDelta;
+        return label;
+    }
+
+    private void ConfigureParticipantTiles(string stageName, string displayText, Color accentColor)
+    {
+        if (participantTiles == null)
+        {
+            return;
+        }
+
+        int participantCount = GetParticipantCount(stageName);
+        string[] labels = GetParticipantLabels(stageName);
+        Vector3[] positions = GetParticipantPositions(participantCount);
+        Vector3[] scales = GetParticipantScales(participantCount);
+        bool showParticipants = participantCount > 0;
+        activeCallAccentColor = accentColor;
+        activeTileColor = Color.Lerp(new Color32(35, 46, 62, 255), accentColor, 0.32f);
+
+        if (statusCardRenderer != null)
+        {
+            statusCardRenderer.gameObject.SetActive(!showParticipants);
+            statusCardRenderer.material.color = Color.Lerp(new Color32(30, 38, 50, 255), accentColor, 0.16f);
+        }
+
+        if (callStatusBodyText != null)
+        {
+            callStatusBodyText.gameObject.SetActive(!showParticipants);
+            callStatusBodyText.text = stageName == "Final Outcome" ? "FINAL DECISION" : "BETWEEN ROUNDS";
+            callStatusBodyText.color = Color.Lerp(new Color32(232, 244, 250, 255), accentColor, 0.18f);
+        }
+
+        for (int i = 0; i < participantTiles.Length; i++)
+        {
+            ParticipantTile tile = participantTiles[i];
+            bool isVisible = showParticipants && i < participantCount;
+            tile.Root.gameObject.SetActive(isVisible);
+
+            if (!isVisible)
+            {
+                continue;
+            }
+
+            tile.Root.localPosition = positions[i];
+            tile.Root.localScale = Vector3.one;
+            ApplyParticipantTileLayout(tile, scales[i]);
+            tile.Label.text = labels[i];
+            tile.TileRenderer.material.color = Color.Lerp(GetParticipantTileColor(i), accentColor, 0.08f);
+            tile.LabelPlateRenderer.material.color = Color.Lerp(new Color32(10, 15, 24, 255), accentColor, 0.08f);
+            ApplyRendererColors(tile.BorderRenderers, accentColor);
+            SetBorderActive(tile, i == 0 && interviewerSpeaking);
+            tile.BodyRenderer.material.color = Color.Lerp(GetParticipantBodyColor(i), accentColor, 0.24f + i * 0.05f);
+            tile.HeadRenderer.material.color = GetParticipantHeadColor(i);
+        }
+
+        if (callStageText != null)
+        {
+            callStageText.text = GetCallTitle(stageName);
+        }
+
+        if (callStatusText != null)
+        {
+            callStatusText.text = showParticipants ? GetParticipantStatusText(participantCount) : "STANDBY";
+        }
+    }
+
+    private int GetParticipantCount(string stageName)
+    {
+        switch (stageName)
+        {
+            case "Technical Panel":
+                return 3;
+            case "VP Round":
+                return 2;
+            case "Recruiter Screen":
+            case "Hiring Manager":
+                return 1;
+            default:
+                return 0;
+        }
+    }
+
+    private string[] GetParticipantLabels(string stageName)
+    {
+        switch (stageName)
+        {
+            case "Recruiter Screen":
+                return new[] { "Recruiter", string.Empty, string.Empty };
+            case "Hiring Manager":
+                return new[] { "Hiring Manager", string.Empty, string.Empty };
+            case "Technical Panel":
+                return new[] { "Solutions Lead", "Security Architect", "SE Manager" };
+            case "VP Round":
+                return new[] { "VP Sales Engineering", "Regional Director", string.Empty };
+            case "Final Outcome":
+                return new[] { "Decision Room", string.Empty, string.Empty };
+            default:
+                return new[] { "Waiting Room", string.Empty, string.Empty };
+        }
+    }
+
+    private string GetCallTitle(string stageName)
+    {
+        switch (stageName)
+        {
+            case "Recruiter Screen":
+                return "ONE-TO-ONE SCREEN";
+            case "Hiring Manager":
+                return "HIRING MANAGER CALL";
+            case "Technical Panel":
+                return "TECHNICAL PANEL";
+            case "VP Round":
+                return "FINAL LEADERSHIP CALL";
+            case "Final Outcome":
+                return "FINAL DECISION";
+            case "Between Rounds":
+                return "BETWEEN ROUNDS";
+            default:
+                return "LIVE INTERVIEW";
+        }
+    }
+
+    private string GetParticipantStatusText(int participantCount)
+    {
+        if (participantCount <= 1)
+        {
+                return "LIVE CALL";
+        }
+
+        return $"LIVE CALL  {participantCount}";
+    }
+
+    private Color GetParticipantTileColor(int participantIndex)
+    {
+        switch (participantIndex)
+        {
+            case 1:
+                return new Color32(62, 76, 96, 255);
+            case 2:
+                return new Color32(55, 70, 78, 255);
+            default:
+                return new Color32(70, 86, 108, 255);
+        }
+    }
+
+    private Color GetParticipantBodyColor(int participantIndex)
+    {
+        switch (participantIndex)
+        {
+            case 1:
+                return new Color32(90, 116, 150, 255);
+            case 2:
+                return new Color32(100, 126, 116, 255);
+            default:
+                return new Color32(108, 136, 172, 255);
+        }
+    }
+
+    private Color GetParticipantHeadColor(int participantIndex)
+    {
+        switch (participantIndex)
+        {
+            case 1:
+                return new Color32(226, 232, 236, 255);
+            case 2:
+                return new Color32(218, 228, 220, 255);
+            default:
+                return new Color32(232, 238, 246, 255);
+        }
+    }
+
+    private Vector3[] GetParticipantPositions(int participantCount)
+    {
+        if (participantCount == 1)
+        {
+            return new[]
+            {
+                new Vector3(0f, 1.50f, 1.74f),
+                Vector3.zero,
+                Vector3.zero
+            };
+        }
+
+        if (participantCount == 2)
+        {
+            return new[]
+            {
+                new Vector3(-1.16f, 1.48f, 1.74f),
+                new Vector3(1.16f, 1.48f, 1.74f),
+                Vector3.zero
+            };
+        }
+
+        return new[]
+        {
+            new Vector3(-1.58f, 1.50f, 1.74f),
+            new Vector3(0f, 1.50f, 1.74f),
+            new Vector3(1.58f, 1.50f, 1.74f)
+        };
+    }
+
+    private Vector3[] GetParticipantScales(int participantCount)
+    {
+        if (participantCount == 1)
+        {
+            return new[]
+            {
+                new Vector3(4.5f, 2.64f, 1f),
+                Vector3.one,
+                Vector3.one
+            };
+        }
+
+        if (participantCount == 2)
+        {
+            return new[]
+            {
+                new Vector3(2.16f, 2.34f, 1f),
+                new Vector3(2.16f, 2.34f, 1f),
+                Vector3.one
+            };
+        }
+
+        return new[]
+        {
+            new Vector3(1.42f, 2.22f, 1f),
+            new Vector3(1.42f, 2.22f, 1f),
+            new Vector3(1.42f, 2.22f, 1f)
+        };
+    }
+
+    private void ApplyCallTheme(string stageName, Color accentColor)
+    {
+        Color baseScreen = Color.Lerp(new Color32(18, 23, 32, 255), accentColor, 0.09f);
+        Color header = Color.Lerp(new Color32(29, 37, 49, 255), accentColor, 0.16f);
+
+        switch (activeCompanyProfileName)
+        {
+            case "Big SaaS Vendor":
+                baseScreen = Color.Lerp(new Color32(31, 38, 48, 255), new Color32(114, 158, 202, 255), 0.16f);
+                header = new Color32(45, 56, 70, 255);
+                break;
+            case "Startup Rocketship":
+                baseScreen = Color.Lerp(new Color32(48, 35, 34, 255), new Color32(255, 116, 72, 255), 0.15f);
+                header = new Color32(72, 48, 42, 255);
+                break;
+            case "Security Vendor":
+                baseScreen = Color.Lerp(new Color32(12, 24, 30, 255), new Color32(58, 220, 172, 255), 0.1f);
+                header = new Color32(22, 44, 52, 255);
+                break;
+            case "AI Hype Company":
+                baseScreen = Color.Lerp(new Color32(28, 22, 45, 255), new Color32(116, 236, 255, 255), 0.15f);
+                header = new Color32(42, 30, 68, 255);
+                break;
+            case "Legacy Enterprise":
+                baseScreen = new Color32(54, 53, 49, 255);
+                header = new Color32(68, 66, 60, 255);
+                break;
+        }
+
+        float pressureTension = Mathf.InverseLerp(50f, 100f, activeInterviewPressure);
+        baseScreen = Color.Lerp(baseScreen, new Color32(46, 34, 46, 255), pressureTension * 0.12f);
+        header = Color.Lerp(header, accentColor, 0.12f + pressureTension * 0.16f);
+
+        ApplyRendererColor(callScreenRenderer, baseScreen);
+        ApplyRendererColor(callHeaderRenderer, header);
+        ApplyRendererColor(callGlowRenderer, Color.Lerp(accentColor, new Color32(18, 22, 30, 255), 0.62f));
+        ApplyRendererColors(callBackgroundAccentRenderers, accentColor);
+
+        if (callStageText != null)
+        {
+            callStageText.color = Color.Lerp(new Color32(232, 244, 250, 255), accentColor, 0.18f);
+        }
+
+        if (callStatusText != null)
+        {
+            callStatusText.color = IsInterviewStage(stageName)
+                ? Color.Lerp(new Color32(178, 234, 220, 255), accentColor, 0.38f)
+                : new Color32(178, 186, 198, 255);
+        }
+    }
+
+    private void AnimateVideoCall(float time)
+    {
+        if (participantTiles == null)
+        {
+            return;
+        }
+
+        float pressureTension = Mathf.InverseLerp(35f, 100f, activeInterviewPressure);
+        float idleSpeed = Mathf.Lerp(0.8f, 1.9f, pressureTension);
+        float idleAmount = Mathf.Lerp(0.012f, 0.038f, pressureTension);
+        int activeSpeakerIndex = GetActiveSpeakerIndex(time);
+
+        for (int i = 0; i < participantTiles.Length; i++)
+        {
+            ParticipantTile tile = participantTiles[i];
+            if (tile == null || tile.Root == null || !tile.Root.gameObject.activeSelf)
+            {
+                continue;
+            }
+
+            bool activeSpeaker = interviewerSpeaking && i == activeSpeakerIndex && IsInterviewStage(activeStageName);
+            float bob = Mathf.Sin(time * idleSpeed + i * 1.7f) * idleAmount;
+            float nod = activeSpeaker ? Mathf.Sin(time * (1.4f + pressureTension) + i) * Mathf.Lerp(0.35f, 0.9f, pressureTension) : 0f;
+            tile.AvatarRoot.localPosition = new Vector3(0f, bob, -0.1f);
+            tile.AvatarRoot.localRotation = Quaternion.Euler(nod, 0f, 0f);
+
+            float pulse = activeSpeaker ? 0.55f + Mathf.Sin(time * Mathf.Lerp(2.8f, 5.5f, pressureTension)) * 0.22f : 0f;
+            Color baseTileColor = GetParticipantTileColor(tile.TileIndex);
+            tile.TileRenderer.material.color = activeSpeaker
+                ? Color.Lerp(baseTileColor, activeCallAccentColor, 0.16f + Mathf.Clamp01(pulse) * Mathf.Lerp(0.03f, 0.1f, pressureTension))
+                : Color.Lerp(Color.Lerp(baseTileColor, Color.black, 0.22f), activeCallAccentColor, pressureTension * 0.035f);
+            SetBorderActive(tile, activeSpeaker);
+            SetBorderPulse(tile, 1f + pulse * Mathf.Lerp(0.025f, 0.055f, pressureTension));
+        }
+
+        if (callGlowRenderer != null)
+        {
+            float glowPulse = 0.5f + Mathf.Sin(time * Mathf.Lerp(1.0f, 3.6f, pressureTension)) * 0.5f;
+            callGlowRenderer.material.color = Color.Lerp(
+                Color.Lerp(activeCallAccentColor, Color.black, 0.76f),
+                Color.Lerp(new Color32(224, 66, 120, 255), activeCallAccentColor, 0.35f),
+                pressureTension * glowPulse * 0.36f);
+        }
+
+        SetCallDecorationsVisible(false);
+    }
+
+    private int GetActiveSpeakerIndex(float time)
+    {
+        int participantCount = GetParticipantCount(activeStageName);
+        if (participantCount <= 1)
+        {
+            return 0;
+        }
+
+        float interval = Mathf.Lerp(4.5f, 2.4f, Mathf.InverseLerp(50f, 100f, activeInterviewPressure));
+        return Mathf.FloorToInt(time / interval) % participantCount;
+    }
+
+    private bool IsInterviewStage(string stageName)
+    {
+        return stageName == "Recruiter Screen"
+            || stageName == "Hiring Manager"
+            || stageName == "Technical Panel"
+            || stageName == "VP Round";
+    }
+
+    private void SetBorderActive(ParticipantTile tile, bool active)
+    {
+        if (tile == null || tile.BorderRenderers == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < tile.BorderRenderers.Length; i++)
+        {
+            if (tile.BorderRenderers[i] != null)
+            {
+                tile.BorderRenderers[i].gameObject.SetActive(active && i == 0);
+            }
+        }
+    }
+
+    private void ApplyParticipantTileLayout(ParticipantTile tile, Vector3 size)
+    {
+        if (tile == null)
+        {
+            return;
+        }
+
+        float width = size.x;
+        float height = size.y;
+        float avatarVariant = tile.TileIndex == 1 ? 0.92f : tile.TileIndex == 2 ? 1.06f : 1f;
+        float avatarSize = Mathf.Min(width, height) * 0.22f * avatarVariant;
+        float shoulderWidth = Mathf.Min(width, height) * (tile.TileIndex == 1 ? 0.38f : tile.TileIndex == 2 ? 0.46f : 0.42f);
+        float borderThickness = 0.085f;
+
+        tile.TileRenderer.transform.localPosition = Vector3.zero;
+        tile.TileRenderer.transform.localScale = new Vector3(width, height, 0.035f);
+        tile.HeadRenderer.transform.localPosition = new Vector3(0f, height * 0.14f, -0.72f);
+        tile.HeadRenderer.transform.localScale = new Vector3(avatarSize * (tile.TileIndex == 2 ? 0.92f : 1f), avatarSize, avatarSize);
+        tile.BodyRenderer.transform.localPosition = new Vector3(0f, -height * 0.08f, -0.72f);
+        tile.BodyRenderer.transform.localScale = new Vector3(shoulderWidth, height * (tile.TileIndex == 1 ? 0.21f : 0.24f), avatarSize);
+        tile.LabelPlateRenderer.transform.localPosition = new Vector3(0f, -height * 0.35f, -1.02f);
+        tile.LabelPlateRenderer.transform.localScale = new Vector3(width * 0.92f, height * 0.24f, 0.025f);
+        tile.Label.transform.localPosition = new Vector3(0f, -height * 0.355f, -1.18f);
+        tile.Label.fontSize = height >= 2.3f ? 9.6f : 6.2f;
+        tile.Label.rectTransform.sizeDelta = new Vector2(width * 12f, 7f);
+
+        if (tile.BorderRenderers == null || tile.BorderRenderers.Length < 4)
+        {
+            return;
+        }
+
+        tile.BorderRenderers[0].transform.localPosition = new Vector3(0f, height * 0.5f, -0.86f);
+        tile.BorderRenderers[0].transform.localScale = new Vector3(width + borderThickness, borderThickness, 0.025f);
+        tile.BorderRenderers[1].transform.localPosition = new Vector3(0f, -height * 0.5f, -0.86f);
+        tile.BorderRenderers[1].transform.localScale = new Vector3(width + borderThickness, borderThickness, 0.025f);
+        tile.BorderRenderers[2].transform.localPosition = new Vector3(-width * 0.5f, 0f, -0.86f);
+        tile.BorderRenderers[2].transform.localScale = new Vector3(borderThickness, height + borderThickness, 0.025f);
+        tile.BorderRenderers[3].transform.localPosition = new Vector3(width * 0.5f, 0f, -0.86f);
+        tile.BorderRenderers[3].transform.localScale = new Vector3(borderThickness, height + borderThickness, 0.025f);
+    }
+
+    private void SetBorderPulse(ParticipantTile tile, float scale)
+    {
+        if (tile == null || tile.BorderRenderers == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < tile.BorderRenderers.Length; i++)
+        {
+            if (tile.BorderRenderers[i] != null)
+            {
+                tile.BorderRenderers[i].transform.localScale = new Vector3(
+                    tile.BorderRenderers[i].transform.localScale.x,
+                    tile.BorderRenderers[i].transform.localScale.y,
+                    0.025f * scale);
+            }
+        }
     }
 
     private void CreateCompanyIdentityProps()
@@ -752,6 +1349,42 @@ public class InterviewRoomBackdropController : MonoBehaviour
         propRoot.transform.localRotation = Quaternion.identity;
         propRoot.transform.localScale = Vector3.one;
         return propRoot;
+    }
+
+    private GameObject CreateCallCube(string name, Vector3 position, Vector3 scale, Color color, Transform parent)
+    {
+        GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        cube.name = name;
+        cube.transform.SetParent(parent, false);
+        cube.transform.localPosition = position;
+        cube.transform.localScale = scale;
+        cube.GetComponent<Renderer>().material = CreateFlatMaterial(name + " Material", color);
+        RemoveCollider(cube);
+        return cube;
+    }
+
+    private GameObject CreateCallSphere(string name, Vector3 position, Vector3 scale, Color color, Transform parent)
+    {
+        GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        sphere.name = name;
+        sphere.transform.SetParent(parent, false);
+        sphere.transform.localPosition = position;
+        sphere.transform.localScale = scale;
+        sphere.GetComponent<Renderer>().material = CreateFlatMaterial(name + " Material", color);
+        RemoveCollider(sphere);
+        return sphere;
+    }
+
+    private GameObject CreateCallCapsule(string name, Vector3 position, Vector3 scale, Color color, Transform parent)
+    {
+        GameObject capsule = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        capsule.name = name;
+        capsule.transform.SetParent(parent, false);
+        capsule.transform.localPosition = position;
+        capsule.transform.localScale = scale;
+        capsule.GetComponent<Renderer>().material = CreateFlatMaterial(name + " Material", color);
+        RemoveCollider(capsule);
+        return capsule;
     }
 
     private GameObject CreateCube(string name, Vector3 position, Vector3 scale, Color color, Transform parent = null)
@@ -812,7 +1445,53 @@ public class InterviewRoomBackdropController : MonoBehaviour
         Material material = new Material(shader);
         material.name = name;
         material.color = color;
+
+        if (material.HasProperty("_BaseColor"))
+        {
+            material.SetColor("_BaseColor", color);
+        }
+
+        if (material.HasProperty("_Color"))
+        {
+            material.SetColor("_Color", color);
+        }
+
         return material;
+    }
+
+    private Material CreateFlatMaterial(string name, Color color)
+    {
+        Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+
+        if (shader == null)
+        {
+            shader = Shader.Find("Unlit/Color");
+        }
+
+        if (shader == null)
+        {
+            shader = Shader.Find("Standard");
+        }
+
+        Material material = new Material(shader);
+        material.name = name;
+        material.color = color;
+        return material;
+    }
+
+    private sealed class ParticipantTile
+    {
+        public int TileIndex;
+        public Transform Root;
+        public Transform AvatarRoot;
+        public Renderer TileRenderer;
+        public Renderer InnerRenderer;
+        public Renderer LabelPlateRenderer;
+        public Renderer[] BorderRenderers;
+        public Renderer StatusDotRenderer;
+        public Renderer HeadRenderer;
+        public Renderer BodyRenderer;
+        public TMP_Text Label;
     }
 
     private void LogBackdropState(string action)

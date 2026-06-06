@@ -7,7 +7,10 @@ public class InterviewStyleTracker
     private int chaoticStyle;
     private int burnedOutStyle;
 
+    public int CommercialStyle => commercialStyle;
+    public int TechnicalStyle => technicalStyle;
     public int ChaoticStyle => chaoticStyle;
+    public int BurnedOutStyle => burnedOutStyle;
 
     public void Reset()
     {

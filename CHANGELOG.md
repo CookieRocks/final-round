@@ -1,5 +1,182 @@
 # Changelog
 
+## v0.7 - End-of-Run Badges
+
+Released: 2026-06-06
+
+### Overview
+
+`v0.7` adds compact end-of-run badges to the final outcome screen. Badges summarize outcome strength, dominant interview style, performance signals, risky/funny choices, and pressure recovery without changing scoring, questions, company rules, Prep Cards, Recovery Choices, random events, or run seed behavior.
+
+### Added
+
+- Added `RunBadge` data with name, short description, type, and accent color.
+- Added a `BADGES EARNED` section to the final outcome screen.
+- Added badge priority logic:
+  - outcome badge first when relevant
+  - dominant style badge
+  - one risk/funny badge
+  - one performance badge
+  - remaining qualifying badges up to the display cap
+- Added final-run debug logging for earned badges.
+- Added badge conditions for strong offers, dominant style reads, commercial alignment, high-pressure survival, no-damage event runs, recovery choices, stat shape, and VP/final confidence signal.
+
+### Validation
+
+- `dotnet build Assembly-CSharp.csproj` passes with 0 warnings and 0 errors.
+- Windows standalone batch build was attempted, but Unity aborted because this project is already open in another Unity instance.
+
+## v0.6.4 - 2D Call Panel Polish
+
+Released: 2026-06-06
+
+### Overview
+
+`v0.6.4` lightly polishes the 2D call panel introduced in v0.6.3. It keeps the same UI structure while making participant tiles larger, avatar silhouettes cleaner, and tile surfaces a little less placeholder-like.
+
+### Changed
+
+- Updated in-game prototype label to `Prototype v0.6.4`.
+- Reduced unused padding in the call participant area.
+- Enlarged one-, two-, and three-participant tile layouts.
+- Replaced the text-glyph avatar head with generated UI image shapes.
+- Added a simple shoulder highlight layer for more readable silhouettes.
+- Lightened participant tile backgrounds and preserved inactive tile dimming.
+- Kept the existing single active-speaker border concept.
+
+### Validation
+
+- `dotnet build Assembly-CSharp.csproj` passes with 0 warnings and 0 errors.
+- Windows standalone batch build was attempted, but Unity aborted because this project is already open in another Unity instance.
+
+## v0.6.3 - 2D Call Panel Replacement
+
+Released: 2026-06-06
+
+### Overview
+
+`v0.6.3` replaces the normal player-facing 3D RenderTexture interview viewport with a clean generated 2D Unity UI call panel in the existing right-side viewport area. The old 3D backdrop controller remains in the project as a disabled fallback path.
+
+### Changed
+
+- Updated in-game prototype label to `Prototype v0.6.3`.
+- Replaced the RawImage/RenderTexture viewport content with a generated 2D call panel inside the runtime canvas.
+- Disabled normal 3D viewport generation by default to avoid unnecessary backdrop camera and RenderTexture work.
+- Added runtime cleanup for legacy 3D/sample scene objects and forced the display camera to render UI-only so old environments cannot appear behind the game.
+- Added 2D call structure:
+  - themed panel background
+  - top bar with stage label and `LIVE CALL`/`STANDBY`
+  - participant tiles
+  - simple avatar silhouettes
+  - role label bars
+  - active speaker border
+- Preserved stage-specific participant layouts:
+  - Recruiter Screen: 1 tile
+  - Hiring Manager: 1 tile
+  - Technical Panel: 3 tiles
+  - VP Round: 2 tiles
+- Kept feedback state hiding the call panel for readability.
+- Moved company flavor and pressure reaction into 2D UI colors, dimming, and active-border pulse.
+
+### Validation
+
+- `dotnet build Assembly-CSharp.csproj` passes with 0 warnings and 0 errors.
+- Windows standalone batch build was attempted, but Unity aborted because this project is already open in another Unity instance.
+
+## v0.6.2 - Viewport Polish Tune
+
+Released: 2026-06-06
+
+### Overview
+
+`v0.6.2` lightly polishes the readable video-call viewport without changing its architecture. It tones down the frame, keeps call chrome simple, improves active/inactive tile contrast, and strengthens company flavor through color rather than extra geometry.
+
+### Changed
+
+- Updated in-game prototype label to `Prototype v0.6.2`.
+- Lightened the outer call frame so participant tiles remain the focus.
+- Kept the top call bar readable with a stage title and simple `LIVE CALL` status.
+- Tuned inactive tile dimming and active speaker tile intensity.
+- Made the active speaker effect a single clearer top edge with subtle pressure-sensitive pulse.
+- Refined participant tile/body/head color variation to reduce clone-like panels.
+- Kept company flavor in top bar, background tone, tile accents, and active border colors.
+- Reduced high-pressure frame glow intensity to keep the viewport calm.
+
+### Validation
+
+- `dotnet build Assembly-CSharp.csproj` passes with 0 warnings and 0 errors.
+- Windows standalone batch build was attempted, but Unity aborted because this project is already open in another Unity instance.
+
+## v0.6.1 - Video-Call Viewport Polish
+
+Released: 2026-06-06
+
+### Overview
+
+`v0.6.1` polishes the v0.6 video-call viewport after readability testing. It keeps the call-first generated RenderTexture scene but reduces visual clutter, improves role labels, and makes stage/company/pressure cues feel more like a lightweight interview-call UI.
+
+### Changed
+
+- Updated in-game prototype label to `Prototype v0.6.1`.
+- Reduced outer viewport clutter to a single clean call frame and a readable top call bar.
+- Kept participant tiles as the focus by removing tiny status text, side rails, signal lines, status dots, inner panels, and competing highlight effects.
+- Enlarged single-participant, two-participant, and three-participant layouts so cards fill the viewport more confidently.
+- Improved bottom role label bars and font sizing for readability at in-game viewport size.
+- Added subtle per-participant avatar and tile color variation.
+- Added clear stage chrome:
+  - `ONE-TO-ONE SCREEN`
+  - `HIRING MANAGER CALL`
+  - `TECHNICAL PANEL`
+  - `FINAL LEADERSHIP CALL`
+- Kept company flavor in background, tile, top-bar, and accent colors rather than extra geometry.
+- Kept pressure effects subtle by tightening active tile/frame color and pulse intensity without flicker.
+
+### Validation
+
+- `dotnet build Assembly-CSharp.csproj` passes with 0 warnings and 0 errors.
+- Windows standalone batch build was attempted, but Unity aborted because this project is already open in another Unity instance.
+
+## v0.6.0 - Animated Video-Call Viewport
+
+Released: 2026-06-06
+
+### Overview
+
+`v0.6.0` evolves the decorative 3D interview room into a stylized animated video-call viewport. The new generated scene keeps the existing RenderTexture architecture and gameplay systems intact while making the viewport reflect the active stage, company process, and Interview Pressure.
+
+### Added
+
+- Added a fake remote-interview call screen inside the existing viewport.
+- Added generated interviewer participant tiles with simple head-and-shoulders avatars.
+- Added stage-specific panel layouts:
+  - Recruiter Screen: 1 recruiter tile.
+  - Hiring Manager: 1 hiring manager tile.
+  - Technical Panel: 3 technical panel tiles.
+  - VP Round: 2 executive panel tiles.
+- Added company-specific call backgrounds and accent treatments.
+- Added active-speaker pulse behavior during question screens.
+- Added pressure-based viewport tension through glow, pulse speed, accent color, and high-pressure flicker.
+- Added subtle avatar bob/nod animation.
+- Added standby/muted visual state for non-question screens.
+
+### Changed
+
+- Updated in-game prototype label to `Prototype v0.6`.
+- Updated README feature text from a generic 3D room viewport to the animated video-call viewport.
+- Reframed the viewport as the video call itself, with a near orthographic camera on the call board instead of a room/laptop composition.
+- Stopped generating the desk, laptop, wall display, and old interviewer silhouette for the viewport scene.
+- Enlarged participant tile layouts so roles are readable at normal viewport size.
+- Replaced the solid active-speaker overlay with thin border bars, high-contrast unlit participant cards, larger foreground avatars, clearer role labels, status dots, and a simple standby card.
+- Rebuilt participant tile layout so cards, avatars, labels, dots, and borders are positioned explicitly instead of relying on parent scaling that could hide the contents behind the tile face.
+- Added high-contrast label plates and oversized foreground role text so single-participant stages clearly read as Recruiter or Hiring Manager.
+- Simplified the video-call viewport down to one call frame, larger participant cards, avatar silhouettes, bottom role bars, and a single active-speaker top edge; removed tiny headers, status text, side rails, signal lines, status dots, inner panels, and extra highlight clutter.
+- Kept feedback screen viewport hiding behavior so answer feedback remains readable.
+
+### Validation
+
+- `dotnet build Assembly-CSharp.csproj` passes with 0 warnings and 0 errors.
+- Windows standalone batch build was attempted, but Unity aborted because this project is already open in another Unity instance.
+
 ## v0.5.0 - Pressure And UI Juice Pass
 
 Released: 2026-06-06

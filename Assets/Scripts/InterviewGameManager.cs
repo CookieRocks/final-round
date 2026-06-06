@@ -18,7 +18,8 @@ public class InterviewGameManager : MonoBehaviour
     private const int StartingInterviewPressure = 35;
     private const float BetweenStageEventChance = 0.6f;
     private const float ScreenFadeDuration = 0.16f;
-    private const string BuildVersion = "Prototype v0.5";
+    private const string BuildVersion = "Prototype v0.7";
+    private const int MaxDisplayedRunBadges = 4;
 
     private static InterviewGameManager activeManager;
 
@@ -74,6 +75,7 @@ public class InterviewGameManager : MonoBehaviour
     private TMP_Text outcomeBodyText;
     private TMP_Text outcomeStatsText;
     private TMP_Text outcomeHighlightsText;
+    private TMP_Text outcomeBadgesText;
     private TMP_Text outcomeAdviceText;
     private TMP_Text versionText;
 
@@ -105,10 +107,20 @@ public class InterviewGameManager : MonoBehaviour
     private GameObject outcomeScreen;
     private GameObject outcomeStatsPanel;
     private GameObject outcomeHighlightsPanel;
+    private GameObject outcomeBadgesPanel;
     private GameObject outcomeAdvicePanel;
     private GameObject outcomeButtonRow;
     private GameObject pauseOverlay;
     private GameObject backdropViewportPanel;
+    private GameObject callPanelRoot;
+    private GameObject callStandbyCard;
+    private Image callPanelBackgroundImage;
+    private Image callPanelFrameImage;
+    private Image callTopBarImage;
+    private TMP_Text callStageLabelText;
+    private TMP_Text callStatusLabelText;
+    private TMP_Text callStandbyText;
+    private CallParticipantTile[] callParticipantTiles;
     private InterviewRoomBackdropController roomBackdrop;
     private AudioSource uiAudioSource;
     private Coroutine activeFadeCoroutine;
@@ -161,6 +173,8 @@ public class InterviewGameManager : MonoBehaviour
     private int strongAnswerCount;
     private int riskyAnswerCount;
     private int interviewPressure;
+    private string activeCallStageName = "Main Menu";
+    private bool callInterviewerSpeaking;
     private bool firstChaoticAnswerBonusApplied;
     private readonly List<string> activeRuleRunNotes = new List<string>();
 
@@ -199,7 +213,8 @@ public class InterviewGameManager : MonoBehaviour
         }
 
         ResetGame(true);
-        EnsureRoomBackdropExists();
+        CleanupLegacySceneObjects();
+        EnsureUiOnlyDisplayCamera();
         EnsureAudioSourceExists();
         LogDemoStart();
 
@@ -221,6 +236,98 @@ public class InterviewGameManager : MonoBehaviour
     private void Update()
     {
         HandleKeyboardShortcuts();
+        AnimateCallPanel();
+    }
+
+    private void CleanupLegacySceneObjects()
+    {
+        string[] legacyObjectNames =
+        {
+            "Geometry",
+            "BackgroundMesh",
+            "Platform",
+            "UnityMaterialBall_Gold",
+            "SamplesSpotlight",
+            "SamplesSpotlightModel",
+            "SamplesFloorSpotlight",
+            "SamplesFixture",
+            "StaticLightingSky",
+            "Adaptive Probe Volume",
+            "ProbeVolumePerSceneData",
+            "Reflection Probe",
+            "Lighting",
+            "Final Round 3D Backdrop",
+            "Interview Room Backdrop",
+            "Final Round Generated Interview Room",
+            "Final Round Backdrop Camera",
+            "Backdrop Camera",
+            "Animated Video Call Viewport"
+        };
+
+        for (int i = 0; i < legacyObjectNames.Length; i++)
+        {
+            DestroyObjectsNamed(legacyObjectNames[i]);
+        }
+    }
+
+    private void DestroyObjectsNamed(string objectName)
+    {
+        GameObject[] sceneObjects = FindObjectsByType<GameObject>(FindObjectsInactive.Include);
+
+        for (int i = 0; i < sceneObjects.Length; i++)
+        {
+            GameObject target = sceneObjects[i];
+            if (target.name == objectName && target != gameObject)
+            {
+                Destroy(target);
+            }
+        }
+    }
+
+    private void EnsureUiOnlyDisplayCamera()
+    {
+        Camera[] cameras = FindObjectsByType<Camera>(FindObjectsInactive.Include);
+        Camera mainCamera = null;
+
+        for (int i = 0; i < cameras.Length; i++)
+        {
+            Camera candidate = cameras[i];
+            if (candidate.targetTexture == null && candidate.gameObject.name == "Main Camera")
+            {
+                mainCamera = candidate;
+                break;
+            }
+        }
+
+        if (mainCamera == null)
+        {
+            GameObject cameraObject = new GameObject("Main Camera", typeof(Camera));
+            mainCamera = cameraObject.GetComponent<Camera>();
+        }
+
+        mainCamera.gameObject.name = "Main Camera";
+        mainCamera.gameObject.tag = "MainCamera";
+        mainCamera.enabled = true;
+        mainCamera.targetTexture = null;
+        mainCamera.targetDisplay = 0;
+        mainCamera.clearFlags = CameraClearFlags.SolidColor;
+        mainCamera.backgroundColor = new Color32(8, 10, 15, 255);
+        mainCamera.cullingMask = 0;
+        mainCamera.depth = -10f;
+        mainCamera.transform.position = new Vector3(0f, 0f, -10f);
+        mainCamera.transform.rotation = Quaternion.identity;
+
+        for (int i = 0; i < cameras.Length; i++)
+        {
+            Camera candidate = cameras[i];
+            if (candidate == mainCamera)
+            {
+                continue;
+            }
+
+            candidate.enabled = false;
+            candidate.gameObject.tag = "Untagged";
+        }
     }
 
     private void EnsureRoomBackdropExists()
@@ -300,6 +407,8 @@ public class InterviewGameManager : MonoBehaviour
             && randomEventContinueButton != null
             && outcomeScreen != null
             && outcomeHighlightsText != null
+            && outcomeBadgesPanel != null
+            && outcomeBadgesText != null
             && outcomeAdviceText != null
             && backdropViewportPanel != null
             && pauseOverlay != null
@@ -492,18 +601,83 @@ public class InterviewGameManager : MonoBehaviour
         backdropViewportPanel = CreatePanel("Backdrop Viewport Panel", parent, panelAccentColor);
         ConfigurePreferredLayoutElement(backdropViewportPanel, 600f, -1f);
 
-        GameObject viewportObject = new GameObject("BackdropViewport", typeof(RectTransform), typeof(RawImage));
-        viewportObject.transform.SetParent(backdropViewportPanel.transform, false);
+        callPanelRoot = new GameObject("2D Interview Call Panel", typeof(RectTransform), typeof(Image), typeof(CanvasGroup));
+        callPanelRoot.transform.SetParent(backdropViewportPanel.transform, false);
+        RectTransform callPanelRect = callPanelRoot.GetComponent<RectTransform>();
+        StretchToParent(callPanelRect);
+        callPanelRect.offsetMin = new Vector2(8f, 8f);
+        callPanelRect.offsetMax = new Vector2(-8f, -8f);
 
-        RawImage viewportImage = viewportObject.GetComponent<RawImage>();
-        viewportImage.texture = roomBackdrop == null ? null : roomBackdrop.ViewportTexture;
-        viewportImage.color = Color.white;
-        viewportImage.raycastTarget = false;
+        callPanelBackgroundImage = callPanelRoot.GetComponent<Image>();
+        callPanelBackgroundImage.color = new Color32(20, 31, 47, 255);
+        callPanelBackgroundImage.raycastTarget = false;
 
-        RectTransform viewportRect = viewportObject.GetComponent<RectTransform>();
-        StretchToParent(viewportRect);
-        viewportRect.offsetMin = new Vector2(8f, 8f);
-        viewportRect.offsetMax = new Vector2(-8f, -8f);
+        callPanelFrameImage = CreateUiImage("Call Frame", callPanelRoot.transform, new Color32(68, 112, 128, 255));
+        RectTransform frameRect = callPanelFrameImage.GetComponent<RectTransform>();
+        StretchToParent(frameRect);
+
+        GameObject innerPanel = new GameObject("Call Inner Surface", typeof(RectTransform), typeof(Image));
+        innerPanel.transform.SetParent(callPanelRoot.transform, false);
+        Image innerImage = innerPanel.GetComponent<Image>();
+        innerImage.color = new Color32(26, 38, 55, 255);
+        innerImage.raycastTarget = false;
+        RectTransform innerRect = innerPanel.GetComponent<RectTransform>();
+        StretchToParent(innerRect);
+        innerRect.offsetMin = new Vector2(8f, 8f);
+        innerRect.offsetMax = new Vector2(-8f, -8f);
+
+        callTopBarImage = CreateUiImage("Call Top Bar", innerPanel.transform, new Color32(40, 54, 72, 255));
+        RectTransform topBarRect = callTopBarImage.GetComponent<RectTransform>();
+        topBarRect.anchorMin = new Vector2(0f, 1f);
+        topBarRect.anchorMax = new Vector2(1f, 1f);
+        topBarRect.pivot = new Vector2(0.5f, 1f);
+        topBarRect.offsetMin = new Vector2(0f, -46f);
+        topBarRect.offsetMax = Vector2.zero;
+
+        callStageLabelText = CreateOverlayText("Call Stage Label", innerPanel.transform, "LIVE INTERVIEW", 23, TextAlignmentOptions.Left);
+        RectTransform stageLabelRect = callStageLabelText.GetComponent<RectTransform>();
+        stageLabelRect.anchorMin = new Vector2(0f, 1f);
+        stageLabelRect.anchorMax = new Vector2(0.68f, 1f);
+        stageLabelRect.pivot = new Vector2(0f, 1f);
+        stageLabelRect.offsetMin = new Vector2(18f, -44f);
+        stageLabelRect.offsetMax = new Vector2(-8f, -4f);
+
+        callStatusLabelText = CreateOverlayText("Call Status Label", innerPanel.transform, "LIVE CALL", 19, TextAlignmentOptions.Right);
+        RectTransform statusLabelRect = callStatusLabelText.GetComponent<RectTransform>();
+        statusLabelRect.anchorMin = new Vector2(0.62f, 1f);
+        statusLabelRect.anchorMax = new Vector2(1f, 1f);
+        statusLabelRect.pivot = new Vector2(1f, 1f);
+        statusLabelRect.offsetMin = new Vector2(8f, -43f);
+        statusLabelRect.offsetMax = new Vector2(-18f, -5f);
+
+        GameObject tileLayer = new GameObject("Call Participant Layer", typeof(RectTransform));
+        tileLayer.transform.SetParent(innerPanel.transform, false);
+        RectTransform tileLayerRect = tileLayer.GetComponent<RectTransform>();
+        StretchToParent(tileLayerRect);
+        tileLayerRect.offsetMin = new Vector2(12f, 12f);
+        tileLayerRect.offsetMax = new Vector2(-12f, -54f);
+
+        callParticipantTiles = new CallParticipantTile[3];
+        for (int i = 0; i < callParticipantTiles.Length; i++)
+        {
+            callParticipantTiles[i] = CreateCallParticipantTile(tileLayer.transform, i);
+        }
+
+        callStandbyCard = new GameObject("Call Standby Card", typeof(RectTransform), typeof(Image));
+        callStandbyCard.transform.SetParent(tileLayer.transform, false);
+        Image standbyImage = callStandbyCard.GetComponent<Image>();
+        standbyImage.color = new Color32(38, 51, 68, 255);
+        standbyImage.raycastTarget = false;
+        RectTransform standbyRect = callStandbyCard.GetComponent<RectTransform>();
+        standbyRect.anchorMin = new Vector2(0.14f, 0.22f);
+        standbyRect.anchorMax = new Vector2(0.86f, 0.78f);
+        standbyRect.offsetMin = Vector2.zero;
+        standbyRect.offsetMax = Vector2.zero;
+
+        callStandbyText = CreateOverlayText("Call Standby Text", callStandbyCard.transform, "BETWEEN ROUNDS", 34, TextAlignmentOptions.Center);
+        StretchToParent(callStandbyText.GetComponent<RectTransform>());
+
+        UpdateCallPanel("Main Menu");
     }
 
     private void CreateMenuScreen(Transform parent)
@@ -534,6 +708,98 @@ public class InterviewGameManager : MonoBehaviour
         quitButton.gameObject.SetActive(!Application.isEditor);
 
         menuScreen.SetActive(false);
+    }
+
+    private CallParticipantTile CreateCallParticipantTile(Transform parent, int tileIndex)
+    {
+        GameObject root = new GameObject($"Call Participant Tile {tileIndex + 1}", typeof(RectTransform), typeof(CanvasGroup));
+        root.transform.SetParent(parent, false);
+
+        Image borderImage = CreateUiImage("Active Border", root.transform, accentColor);
+        RectTransform borderRect = borderImage.GetComponent<RectTransform>();
+        StretchToParent(borderRect);
+
+        Image tileImage = CreateUiImage("Tile Surface", root.transform, new Color32(58, 74, 96, 255));
+        RectTransform tileRect = tileImage.GetComponent<RectTransform>();
+        StretchToParent(tileRect);
+        tileRect.offsetMin = new Vector2(5f, 5f);
+        tileRect.offsetMax = new Vector2(-5f, -5f);
+
+        TMP_Text headText = CreateOverlayText("Avatar Head", root.transform, "●", 74, TextAlignmentOptions.Center);
+        headText.color = GetCallHeadColor(tileIndex);
+        RectTransform headRect = headText.GetComponent<RectTransform>();
+        headRect.anchorMin = new Vector2(0.31f, 0.47f);
+        headRect.anchorMax = new Vector2(0.69f, 0.86f);
+        headRect.offsetMin = Vector2.zero;
+        headRect.offsetMax = Vector2.zero;
+
+        Image bodyImage = CreateUiImage("Avatar Body", root.transform, GetCallBodyColor(tileIndex));
+        RectTransform bodyRect = bodyImage.GetComponent<RectTransform>();
+        bodyRect.anchorMin = new Vector2(0.29f, 0.28f);
+        bodyRect.anchorMax = new Vector2(0.71f, 0.58f);
+        bodyRect.offsetMin = Vector2.zero;
+        bodyRect.offsetMax = Vector2.zero;
+
+        Image shoulderImage = CreateUiImage("Avatar Shoulder Highlight", root.transform, Color.Lerp(GetCallBodyColor(tileIndex), Color.white, 0.08f));
+        RectTransform shoulderRect = shoulderImage.GetComponent<RectTransform>();
+        shoulderRect.anchorMin = new Vector2(0.34f, 0.47f);
+        shoulderRect.anchorMax = new Vector2(0.66f, 0.56f);
+        shoulderRect.offsetMin = Vector2.zero;
+        shoulderRect.offsetMax = Vector2.zero;
+
+        Image headImage = CreateUiImage("Avatar Head Shape", root.transform, GetCallHeadColor(tileIndex));
+        RectTransform headShapeRect = headImage.GetComponent<RectTransform>();
+        headShapeRect.anchorMin = new Vector2(0.34f, 0.55f);
+        headShapeRect.anchorMax = new Vector2(0.66f, 0.82f);
+        headShapeRect.offsetMin = Vector2.zero;
+        headShapeRect.offsetMax = Vector2.zero;
+        headText.gameObject.SetActive(false);
+
+        Image labelBarImage = CreateUiImage("Role Label Bar", root.transform, new Color32(11, 18, 28, 245));
+        RectTransform labelBarRect = labelBarImage.GetComponent<RectTransform>();
+        labelBarRect.anchorMin = new Vector2(0f, 0f);
+        labelBarRect.anchorMax = new Vector2(1f, 0.25f);
+        labelBarRect.offsetMin = new Vector2(5f, 5f);
+        labelBarRect.offsetMax = new Vector2(-5f, -5f);
+
+        TMP_Text roleText = CreateOverlayText("Role Label", labelBarImage.transform, "Interviewer", 27, TextAlignmentOptions.Center);
+        roleText.textWrappingMode = TextWrappingModes.Normal;
+        StretchToParent(roleText.GetComponent<RectTransform>());
+
+        return new CallParticipantTile
+        {
+            Root = root,
+            CanvasGroup = root.GetComponent<CanvasGroup>(),
+            BorderImage = borderImage,
+            TileImage = tileImage,
+            BodyImage = bodyImage,
+            ShoulderImage = shoulderImage,
+            HeadImage = headImage,
+            HeadText = headText,
+            LabelBarImage = labelBarImage,
+            RoleText = roleText,
+            TileIndex = tileIndex
+        };
+    }
+
+    private Image CreateUiImage(string name, Transform parent, Color color)
+    {
+        GameObject imageObject = new GameObject(name, typeof(RectTransform), typeof(Image));
+        imageObject.transform.SetParent(parent, false);
+        Image image = imageObject.GetComponent<Image>();
+        image.color = color;
+        image.raycastTarget = false;
+        return image;
+    }
+
+    private TMP_Text CreateOverlayText(string name, Transform parent, string text, int fontSize, TextAlignmentOptions alignment)
+    {
+        TMP_Text label = CreateText(name, parent, text, fontSize, FontStyles.Bold, alignment);
+        label.color = textColor;
+        label.raycastTarget = false;
+        label.textWrappingMode = TextWrappingModes.NoWrap;
+        label.overflowMode = TextOverflowModes.Ellipsis;
+        return label;
     }
 
     private void CreateProcessBriefingScreen(Transform parent)
@@ -991,6 +1257,20 @@ public class InterviewGameManager : MonoBehaviour
         outcomeHighlightsText.lineSpacing = 8f;
         outcomeHighlightsText.textWrappingMode = TextWrappingModes.Normal;
         ConfigureFlexibleLayoutElement(outcomeHighlightsText.gameObject, 1f);
+
+        outcomeBadgesPanel = CreatePanel("Outcome Badges Panel", outcomeScreen.transform, panelAccentColor);
+        ConfigurePreferredLayoutElement(outcomeBadgesPanel, -1f, 118f);
+        SetMinimumLayoutHeight(outcomeBadgesPanel, 104f);
+        AddPaddingLayout(outcomeBadgesPanel, new RectOffset(24, 24, 14, 16), 8f);
+
+        TMP_Text badgesHeading = CreateText("Outcome Badges Heading", outcomeBadgesPanel.transform, "BADGES EARNED", 21, FontStyles.Bold, TextAlignmentOptions.Left);
+        badgesHeading.color = accentColor;
+
+        outcomeBadgesText = CreateText("Outcome Badges", outcomeBadgesPanel.transform, string.Empty, 20, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        outcomeBadgesText.color = textColor;
+        outcomeBadgesText.textWrappingMode = TextWrappingModes.Normal;
+        outcomeBadgesText.lineSpacing = 7f;
+        ConfigureFlexibleLayoutElement(outcomeBadgesText.gameObject, 1f);
 
         outcomeAdvicePanel = CreatePanel("Outcome Advice Panel", outcomeScreen.transform, transitionPanelColor);
         ConfigurePreferredLayoutElement(outcomeAdvicePanel, -1f, 94f);
@@ -1511,6 +1791,7 @@ public class InterviewGameManager : MonoBehaviour
             outcomeBodyText == null ? null : outcomeBodyText.gameObject,
             outcomeStatsPanel,
             outcomeHighlightsPanel,
+            outcomeBadgesPanel,
             outcomeAdvicePanel,
             outcomeButtonRow
         };
@@ -1557,6 +1838,7 @@ public class InterviewGameManager : MonoBehaviour
             outcomeBodyText == null ? null : outcomeBodyText.gameObject,
             outcomeStatsPanel,
             outcomeHighlightsPanel,
+            outcomeBadgesPanel,
             outcomeAdvicePanel,
             outcomeButtonRow
         };
@@ -2770,6 +3052,7 @@ public class InterviewGameManager : MonoBehaviour
         progressText.text = $"{stage.StageName} - Question {currentQuestionIndex + 1} of {stageQuestions.Length}";
         subtitleText.text = GetCompanyProcessLine();
         UpdateRoomBackdrop(stage.StageName);
+        SetRoomBackdropSpeaking(true);
         questionStageNameText.text = stage.StageName.ToUpperInvariant();
         questionStageIntroText.text = stage.StageIntroText;
         questionText.text = question.QuestionText;
@@ -3175,6 +3458,7 @@ public class InterviewGameManager : MonoBehaviour
 
         feedbackPanel.SetActive(true);
         prepCardsPanel.SetActive(false);
+        SetRoomBackdropSpeaking(false);
         SetBackdropViewportVisible(false);
         RevealFeedbackPanel();
     }
@@ -3195,6 +3479,282 @@ public class InterviewGameManager : MonoBehaviour
         {
             backdropViewportPanel.SetActive(visible);
         }
+    }
+
+    private void UpdateCallPanel(string stageName)
+    {
+        activeCallStageName = string.IsNullOrEmpty(stageName) ? "Main Menu" : stageName;
+
+        if (callPanelRoot == null || callParticipantTiles == null)
+        {
+            return;
+        }
+
+        CallTheme theme = GetCallTheme();
+        int participantCount = GetCallParticipantCount(activeCallStageName);
+        bool showParticipants = participantCount > 0;
+
+        callPanelBackgroundImage.color = theme.BackgroundColor;
+        callPanelFrameImage.color = ApplyPressureToFrameColor(theme.FrameColor);
+        callTopBarImage.color = theme.TopBarColor;
+        callStageLabelText.text = GetCallStageTitle(activeCallStageName);
+        callStageLabelText.color = Color.Lerp(textColor, theme.AccentColor, 0.12f);
+        callStatusLabelText.text = showParticipants ? "LIVE CALL" : "STANDBY";
+        callStatusLabelText.color = Color.Lerp(mutedTextColor, theme.AccentColor, 0.35f);
+
+        string[] labels = GetCallParticipantLabels(activeCallStageName);
+        Rect[] layouts = GetCallParticipantLayout(participantCount);
+
+        for (int i = 0; i < callParticipantTiles.Length; i++)
+        {
+            CallParticipantTile tile = callParticipantTiles[i];
+            bool isVisible = showParticipants && i < participantCount;
+            tile.Root.SetActive(isVisible);
+
+            if (!isVisible)
+            {
+                continue;
+            }
+
+            ApplyTileRect(tile.Root.GetComponent<RectTransform>(), layouts[i]);
+            tile.RoleText.text = labels[i];
+            tile.TileImage.color = Color.Lerp(GetCallTileColor(i), theme.AccentColor, 0.08f);
+            tile.BodyImage.color = Color.Lerp(GetCallBodyColor(i), theme.AccentColor, 0.18f);
+            tile.ShoulderImage.color = Color.Lerp(tile.BodyImage.color, Color.white, 0.08f);
+            tile.HeadImage.color = GetCallHeadColor(i);
+            tile.LabelBarImage.color = Color.Lerp(new Color32(9, 15, 24, 245), theme.AccentColor, 0.08f);
+            tile.RoleText.color = textColor;
+            tile.BorderImage.color = theme.AccentColor;
+            tile.BorderImage.gameObject.SetActive(callInterviewerSpeaking && i == GetCallActiveSpeakerIndex());
+            tile.CanvasGroup.alpha = callInterviewerSpeaking && i != GetCallActiveSpeakerIndex() ? 0.76f : 1f;
+            ApplyAvatarLayout(tile, participantCount);
+        }
+
+        callStandbyCard.SetActive(!showParticipants);
+        if (callStandbyCard.activeSelf)
+        {
+            callStandbyCard.GetComponent<Image>().color = Color.Lerp(new Color32(34, 46, 62, 255), theme.AccentColor, 0.12f);
+            callStandbyText.text = activeCallStageName == "Final Outcome" ? "FINAL DECISION" : "BETWEEN ROUNDS";
+            callStandbyText.color = textColor;
+        }
+    }
+
+    private void AnimateCallPanel()
+    {
+        if (callPanelRoot == null || callParticipantTiles == null || !callPanelRoot.activeInHierarchy)
+        {
+            return;
+        }
+
+        int activeIndex = GetCallActiveSpeakerIndex();
+        float pressureTension = Mathf.InverseLerp(45f, 100f, interviewPressure);
+        float speed = Mathf.Lerp(1.6f, 3.4f, pressureTension);
+        float pulse = callInterviewerSpeaking ? 0.5f + Mathf.Sin(Time.unscaledTime * speed) * 0.5f : 0f;
+        CallTheme theme = GetCallTheme();
+
+        callPanelFrameImage.color = Color.Lerp(
+            ApplyPressureToFrameColor(theme.FrameColor),
+            theme.AccentColor,
+            pressureTension * (0.08f + pulse * 0.1f));
+
+        for (int i = 0; i < callParticipantTiles.Length; i++)
+        {
+            CallParticipantTile tile = callParticipantTiles[i];
+            if (tile == null || !tile.Root.activeSelf)
+            {
+                continue;
+            }
+
+            bool active = callInterviewerSpeaking && i == activeIndex;
+            tile.BorderImage.gameObject.SetActive(active);
+            tile.BorderImage.color = Color.Lerp(theme.AccentColor, Color.white, active ? pulse * 0.18f : 0f);
+            tile.CanvasGroup.alpha = active || !callInterviewerSpeaking ? 1f : 0.74f;
+            tile.TileImage.color = active
+                ? Color.Lerp(GetCallTileColor(i), theme.AccentColor, 0.14f + pressureTension * 0.08f + pulse * 0.04f)
+                : Color.Lerp(GetCallTileColor(i), Color.black, 0.16f);
+        }
+    }
+
+    private void ApplyTileRect(RectTransform rectTransform, Rect normalizedRect)
+    {
+        rectTransform.anchorMin = new Vector2(normalizedRect.xMin, normalizedRect.yMin);
+        rectTransform.anchorMax = new Vector2(normalizedRect.xMax, normalizedRect.yMax);
+        rectTransform.offsetMin = Vector2.zero;
+        rectTransform.offsetMax = Vector2.zero;
+    }
+
+    private void ApplyAvatarLayout(CallParticipantTile tile, int participantCount)
+    {
+        bool largeTile = participantCount == 1;
+        RectTransform bodyRect = tile.BodyImage.GetComponent<RectTransform>();
+        bodyRect.anchorMin = largeTile ? new Vector2(0.34f, 0.32f) : new Vector2(0.27f, 0.3f);
+        bodyRect.anchorMax = largeTile ? new Vector2(0.66f, 0.66f) : new Vector2(0.73f, 0.65f);
+        bodyRect.offsetMin = Vector2.zero;
+        bodyRect.offsetMax = Vector2.zero;
+
+        RectTransform shoulderRect = tile.ShoulderImage.GetComponent<RectTransform>();
+        shoulderRect.anchorMin = largeTile ? new Vector2(0.39f, 0.58f) : new Vector2(0.35f, 0.56f);
+        shoulderRect.anchorMax = largeTile ? new Vector2(0.61f, 0.66f) : new Vector2(0.65f, 0.65f);
+        shoulderRect.offsetMin = Vector2.zero;
+        shoulderRect.offsetMax = Vector2.zero;
+
+        RectTransform headRect = tile.HeadImage.GetComponent<RectTransform>();
+        headRect.anchorMin = largeTile ? new Vector2(0.39f, 0.58f) : new Vector2(0.36f, 0.56f);
+        headRect.anchorMax = largeTile ? new Vector2(0.61f, 0.82f) : new Vector2(0.64f, 0.82f);
+        headRect.offsetMin = Vector2.zero;
+        headRect.offsetMax = Vector2.zero;
+        tile.RoleText.fontSize = largeTile ? 30 : 22;
+    }
+
+    private int GetCallActiveSpeakerIndex()
+    {
+        int participantCount = GetCallParticipantCount(activeCallStageName);
+        if (participantCount <= 1)
+        {
+            return 0;
+        }
+
+        float interval = Mathf.Lerp(4.6f, 2.8f, Mathf.InverseLerp(55f, 100f, interviewPressure));
+        return Mathf.FloorToInt(Time.unscaledTime / interval) % participantCount;
+    }
+
+    private int GetCallParticipantCount(string stageName)
+    {
+        switch (stageName)
+        {
+            case "Recruiter Screen":
+            case "Hiring Manager":
+                return 1;
+            case "Technical Panel":
+                return 3;
+            case "VP Round":
+                return 2;
+            default:
+                return 0;
+        }
+    }
+
+    private string[] GetCallParticipantLabels(string stageName)
+    {
+        switch (stageName)
+        {
+            case "Recruiter Screen":
+                return new[] { "Recruiter", string.Empty, string.Empty };
+            case "Hiring Manager":
+                return new[] { "Hiring Manager", string.Empty, string.Empty };
+            case "Technical Panel":
+                return new[] { "Solutions Lead", "Security Architect", "SE Manager" };
+            case "VP Round":
+                return new[] { "VP Sales Engineering", "Regional Director", string.Empty };
+            default:
+                return new[] { string.Empty, string.Empty, string.Empty };
+        }
+    }
+
+    private Rect[] GetCallParticipantLayout(int participantCount)
+    {
+        if (participantCount == 1)
+        {
+            return new[] { new Rect(0.04f, 0.05f, 0.92f, 0.90f), Rect.zero, Rect.zero };
+        }
+
+        if (participantCount == 2)
+        {
+            return new[] { new Rect(0.025f, 0.055f, 0.465f, 0.89f), new Rect(0.51f, 0.055f, 0.465f, 0.89f), Rect.zero };
+        }
+
+        return new[]
+        {
+            new Rect(0.01f, 0.055f, 0.315f, 0.89f),
+            new Rect(0.3425f, 0.055f, 0.315f, 0.89f),
+            new Rect(0.675f, 0.055f, 0.315f, 0.89f)
+        };
+    }
+
+    private string GetCallStageTitle(string stageName)
+    {
+        switch (stageName)
+        {
+            case "Recruiter Screen":
+                return "RECRUITER SCREEN";
+            case "Hiring Manager":
+                return "HIRING MANAGER CALL";
+            case "Technical Panel":
+                return "TECHNICAL PANEL";
+            case "VP Round":
+                return "VP ROUND";
+            case "Final Outcome":
+                return "FINAL DECISION";
+            case "Between Rounds":
+                return "BETWEEN ROUNDS";
+            default:
+                return "LIVE INTERVIEW";
+        }
+    }
+
+    private Color GetCallTileColor(int participantIndex)
+    {
+        switch (participantIndex)
+        {
+            case 1:
+                return new Color32(64, 78, 98, 255);
+            case 2:
+                return new Color32(62, 82, 92, 255);
+            default:
+                return new Color32(72, 90, 112, 255);
+        }
+    }
+
+    private Color GetCallBodyColor(int participantIndex)
+    {
+        switch (participantIndex)
+        {
+            case 1:
+                return new Color32(88, 118, 152, 255);
+            case 2:
+                return new Color32(92, 128, 120, 255);
+            default:
+                return new Color32(104, 138, 176, 255);
+        }
+    }
+
+    private Color GetCallHeadColor(int participantIndex)
+    {
+        switch (participantIndex)
+        {
+            case 1:
+                return new Color32(226, 232, 236, 255);
+            case 2:
+                return new Color32(218, 228, 220, 255);
+            default:
+                return new Color32(232, 238, 246, 255);
+        }
+    }
+
+    private CallTheme GetCallTheme()
+    {
+        string companyName = activeCompanyProfile == null ? string.Empty : activeCompanyProfile.CompanyName;
+        switch (companyName)
+        {
+            case "Startup Rocketship":
+                return new CallTheme(new Color32(42, 34, 38, 255), new Color32(74, 48, 42, 255), new Color32(235, 112, 72, 255), new Color32(92, 58, 48, 255));
+            case "Security Vendor":
+                return new CallTheme(new Color32(16, 28, 36, 255), new Color32(20, 48, 54, 255), new Color32(64, 220, 166, 255), new Color32(42, 90, 92, 255));
+            case "AI Hype Company":
+                return new CallTheme(new Color32(28, 24, 46, 255), new Color32(44, 32, 76, 255), new Color32(116, 236, 255, 255), new Color32(72, 48, 112, 255));
+            case "Legacy Enterprise":
+                return new CallTheme(new Color32(56, 54, 50, 255), new Color32(68, 66, 60, 255), new Color32(166, 158, 138, 255), new Color32(92, 88, 78, 255));
+            case "Big SaaS Vendor":
+                return new CallTheme(new Color32(26, 38, 52, 255), new Color32(42, 56, 74, 255), new Color32(92, 154, 218, 255), new Color32(58, 94, 126, 255));
+            default:
+                return new CallTheme(new Color32(20, 31, 47, 255), new Color32(40, 54, 72, 255), accentColor, new Color32(68, 112, 128, 255));
+        }
+    }
+
+    private Color ApplyPressureToFrameColor(Color baseColor)
+    {
+        float pressureTension = Mathf.InverseLerp(55f, 100f, interviewPressure);
+        return Color.Lerp(baseColor, new Color32(210, 80, 112, 255), pressureTension * 0.28f);
     }
 
     private string FormatStatChange(string statName, int change)
@@ -3307,6 +3867,7 @@ public class InterviewGameManager : MonoBehaviour
         progressText.text = $"{stage.StageName} complete";
         subtitleText.text = "Quick reset before the next conversation.";
         UpdateRoomBackdrop(stage.StageName);
+        SetRoomBackdropSpeaking(false);
         stageTransitionNameText.text = stage.StageName;
         stageTransitionBodyText.text = BuildStageFeedback(stage);
         stageTransitionStatsText.text =
@@ -3861,7 +4422,7 @@ public class InterviewGameManager : MonoBehaviour
         interviewPressure = Mathf.Clamp(interviewPressure + pressureChange, 0, 100);
         int actualChange = interviewPressure - pressureBefore;
 
-        if (actualChange != 0 && roomBackdrop != null)
+        if (actualChange != 0)
         {
             UpdateRoomBackdrop(GetCurrentBackdropStageName());
         }
@@ -3993,14 +4554,17 @@ public class InterviewGameManager : MonoBehaviour
                 styleResult);
         }
 
+        List<RunBadge> earnedBadges = BuildEarnedBadges(outcomeName, styleResult);
+
         outcomeStatsText.text = BuildFinalReadSummary(outcomeName, styleResult);
         outcomeHighlightsText.text = BuildRunHighlightsSummary();
+        outcomeBadgesText.text = BuildBadgesDisplayText(earnedBadges);
         outcomeAdviceText.text = BuildRunAdvice();
 
         PlayUiSound(finalOutcomeClip);
         FadeInScreen(outcomeScreen);
         RevealFinalOutcomeSections();
-        LogRunSummary(outcomeName, styleResult);
+        LogRunSummary(outcomeName, styleResult, earnedBadges);
     }
 
     private int GetOfferRecommendedThreshold()
@@ -4171,6 +4735,242 @@ public class InterviewGameManager : MonoBehaviour
             $"Answer mix: <b>{strongAnswerCount}</b> strong | <b>{riskyAnswerCount}</b> risky\n" +
             $"Prep cards used: <b>{prepCardsUsedCount}</b>{GetMostUsedPrepCardSummary()}\n" +
             $"Recovery: {BuildRecoveryChoiceSummary()}";
+    }
+
+    private List<RunBadge> BuildEarnedBadges(string outcomeName, InterviewStyleResult styleResult)
+    {
+        List<RunBadge> selectedBadges = new List<RunBadge>();
+        List<RunBadge> riskBadges = new List<RunBadge>();
+        List<RunBadge> performanceBadges = new List<RunBadge>();
+        List<RunBadge> fillerBadges = new List<RunBadge>();
+
+        bool passOrBetter = IsPassOrBetterOutcome(outcomeName);
+        if (outcomeName == "Offer Recommended")
+        {
+            AddBadgeIfUnique(
+                selectedBadges,
+                CreateRunBadge(
+                    "Strong Signal",
+                    "Offer recommendation earned from the full process.",
+                    RunBadgeType.Positive,
+                    new Color32(92, 229, 194, 255)));
+        }
+
+        RunBadge dominantStyleBadge = CreateDominantStyleBadge(styleResult);
+        AddBadgeIfUnique(selectedBadges, dominantStyleBadge);
+
+        if ((styleResult.StyleName == "Burnout Goblin" || styleTracker.BurnedOutStyle >= 4)
+            && dominantStyleBadge?.BadgeName != "Burnout Goblin")
+        {
+            riskBadges.Add(CreateRunBadge(
+                "Burnout Goblin",
+                "The panel saw talent, stamina debt, and a few tired jokes.",
+                RunBadgeType.Warning,
+                new Color32(245, 167, 94, 255)));
+        }
+
+        if (styleTracker.ChaoticStyle >= 5 && passOrBetter)
+        {
+            riskBadges.Add(CreateRunBadge(
+                "Chaos Merchant",
+                "Enough sparkle to worry them, enough signal to pass.",
+                RunBadgeType.Funny,
+                new Color32(221, 126, 255, 255)));
+        }
+
+        if (doomScrollChoiceCount > 0)
+        {
+            riskBadges.Add(CreateRunBadge(
+                "Glassdoor Casualty",
+                "Doom-scrolled the process and somehow kept going.",
+                RunBadgeType.Funny,
+                new Color32(255, 181, 99, 255)));
+        }
+
+        AddBadgeIfUnique(selectedBadges, GetFirstUniqueBadge(riskBadges, selectedBadges));
+
+        if (playerStats.CommercialAlignment >= 75 && interviewPressure <= 65)
+        {
+            performanceBadges.Add(CreateRunBadge(
+                "AE Whisperer",
+                "High commercial signal without letting pressure take over.",
+                RunBadgeType.Performance,
+                new Color32(91, 195, 255, 255)));
+        }
+
+        if (interviewPressure >= 75 && passOrBetter)
+        {
+            performanceBadges.Add(CreateRunBadge(
+                "Held It Together",
+                "Pressure was high, but the final read still held.",
+                RunBadgeType.Performance,
+                new Color32(255, 216, 117, 255)));
+        }
+
+        if (GetMostDamagingEvent() == null)
+        {
+            performanceBadges.Add(CreateRunBadge(
+                "No Drama Run",
+                "No random event materially damaged the process.",
+                RunBadgeType.Positive,
+                new Color32(132, 214, 172, 255)));
+        }
+
+        if (playerStats.TotalScore >= 320 && GetWeakestStat().Name == "Energy")
+        {
+            performanceBadges.Add(CreateRunBadge(
+                "Overqualified, Under-Rested",
+                "Strong total signal, with energy as the watch item.",
+                RunBadgeType.Warning,
+                new Color32(240, 196, 124, 255)));
+        }
+
+        if (playerStats.TechnicalCredibility >= 75
+            && playerStats.CommercialAlignment <= playerStats.TechnicalCredibility - 20)
+        {
+            performanceBadges.Add(CreateRunBadge(
+                "Technically Correct",
+                "Deep technical proof needed a stronger buyer bridge.",
+                RunBadgeType.Performance,
+                new Color32(120, 182, 255, 255)));
+        }
+
+        if (playerStats.IsBalanced() && styleTracker.ChaoticStyle <= 2)
+        {
+            performanceBadges.Add(CreateRunBadge(
+                "Safe Pair of Hands",
+                "Balanced signals and very little process turbulence.",
+                RunBadgeType.Style,
+                new Color32(175, 203, 195, 255)));
+        }
+
+        StageRunSummary strongestStage = GetStrongestStage();
+        if ((strongestStage != null && strongestStage.StageName == "VP Round")
+            || playerStats.Confidence >= 80)
+        {
+            performanceBadges.Add(CreateRunBadge(
+                "Final Panel Energy",
+                "Finished with senior-room confidence.",
+                RunBadgeType.Performance,
+                new Color32(169, 156, 255, 255)));
+        }
+
+        AddBadgeIfUnique(selectedBadges, GetFirstUniqueBadge(performanceBadges, selectedBadges));
+
+        fillerBadges.AddRange(riskBadges);
+        fillerBadges.AddRange(performanceBadges);
+        for (int i = 0; i < fillerBadges.Count && selectedBadges.Count < MaxDisplayedRunBadges; i++)
+        {
+            AddBadgeIfUnique(selectedBadges, fillerBadges[i]);
+        }
+
+        return selectedBadges;
+    }
+
+    private RunBadge CreateDominantStyleBadge(InterviewStyleResult styleResult)
+    {
+        switch (styleResult.StyleName)
+        {
+            case "Boardroom Translator":
+                return CreateRunBadge(
+                    "Boardroom Translator",
+                    "Dominant style translated technical detail into business decisions.",
+                    RunBadgeType.Style,
+                    new Color32(83, 215, 190, 255));
+            case "AE Whisperer":
+                return CreateRunBadge(
+                    "AE Whisperer",
+                    "Dominant style kept the deal story calm and useful.",
+                    RunBadgeType.Style,
+                    new Color32(91, 195, 255, 255));
+            case "Burnout Goblin":
+                return CreateRunBadge(
+                    "Burnout Goblin",
+                    "Dominant style showed signal through obvious stamina debt.",
+                    RunBadgeType.Warning,
+                    new Color32(245, 167, 94, 255));
+            case "Technical Purist":
+                return CreateRunBadge(
+                    "Technically Correct",
+                    "Dominant style led with technical precision.",
+                    RunBadgeType.Style,
+                    new Color32(120, 182, 255, 255));
+            case "Safe Pair of Hands":
+                return CreateRunBadge(
+                    "Safe Pair of Hands",
+                    "Dominant style was steady, balanced, and low-drama.",
+                    RunBadgeType.Style,
+                    new Color32(175, 203, 195, 255));
+        }
+
+        return null;
+    }
+
+    private RunBadge CreateRunBadge(string badgeName, string shortDescription, RunBadgeType badgeType, Color accentColor)
+    {
+        return new RunBadge(badgeName, shortDescription, badgeType, accentColor);
+    }
+
+    private bool IsPassOrBetterOutcome(string outcomeName)
+    {
+        return outcomeName == "Offer Recommended" || outcomeName == "Final Debrief Pass";
+    }
+
+    private RunBadge GetFirstUniqueBadge(List<RunBadge> candidateBadges, List<RunBadge> selectedBadges)
+    {
+        for (int i = 0; i < candidateBadges.Count; i++)
+        {
+            if (!HasBadge(selectedBadges, candidateBadges[i].BadgeName))
+            {
+                return candidateBadges[i];
+            }
+        }
+
+        return null;
+    }
+
+    private void AddBadgeIfUnique(List<RunBadge> badges, RunBadge badge)
+    {
+        if (badge == null || badges.Count >= MaxDisplayedRunBadges || HasBadge(badges, badge.BadgeName))
+        {
+            return;
+        }
+
+        badges.Add(badge);
+    }
+
+    private bool HasBadge(List<RunBadge> badges, string badgeName)
+    {
+        for (int i = 0; i < badges.Count; i++)
+        {
+            if (badges[i].BadgeName == badgeName)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private string BuildBadgesDisplayText(List<RunBadge> badges)
+    {
+        if (badges == null || badges.Count == 0)
+        {
+            return "No badge pattern emerged this run.";
+        }
+
+        string summary = string.Empty;
+        for (int i = 0; i < badges.Count; i++)
+        {
+            RunBadge badge = badges[i];
+            summary += $"<color=#{ColorUtility.ToHtmlStringRGB(badge.AccentColor)}><b>{badge.BadgeName}</b></color> - {badge.ShortDescription}";
+            if (i < badges.Count - 1)
+            {
+                summary += "\n";
+            }
+        }
+
+        return summary;
     }
 
     private string GetMostUsedPrepCardSummary()
@@ -4464,17 +5264,17 @@ public class InterviewGameManager : MonoBehaviour
 
     private void UpdateRoomBackdrop(string stageName)
     {
-        if (roomBackdrop == null)
-        {
-            EnsureRoomBackdropExists();
-        }
+        UpdateCallPanel(stageName);
+    }
+
+    private void SetRoomBackdropSpeaking(bool interviewerIsSpeaking)
+    {
+        callInterviewerSpeaking = interviewerIsSpeaking;
+        UpdateCallPanel(activeCallStageName);
 
         if (roomBackdrop != null)
         {
-            roomBackdrop.SetProcessAtmosphere(
-                activeCompanyProfile == null ? string.Empty : activeCompanyProfile.CompanyName,
-                stageName,
-                interviewPressure);
+            roomBackdrop.SetInterviewerSpeaking(interviewerIsSpeaking);
         }
     }
 
@@ -4502,7 +5302,7 @@ public class InterviewGameManager : MonoBehaviour
         return "Main Menu";
     }
 
-    private void LogRunSummary(string outcomeName, InterviewStyleResult styleResult)
+    private void LogRunSummary(string outcomeName, InterviewStyleResult styleResult, List<RunBadge> earnedBadges)
     {
         Debug.Log(
             "Final Round Run Summary\n" +
@@ -4516,7 +5316,28 @@ public class InterviewGameManager : MonoBehaviour
             playerStats.GetSummary() + "\n" +
             styleTracker.GetDebugSummary() + "\n" +
             $"Dominant Style: {styleResult.StyleName}\n" +
+            $"Badges Earned: {BuildBadgeLogSummary(earnedBadges)}\n" +
             BuildRuleRunNotesForLog());
+    }
+
+    private string BuildBadgeLogSummary(List<RunBadge> earnedBadges)
+    {
+        if (earnedBadges == null || earnedBadges.Count == 0)
+        {
+            return "none";
+        }
+
+        string summary = string.Empty;
+        for (int i = 0; i < earnedBadges.Count; i++)
+        {
+            summary += $"{earnedBadges[i].BadgeName} ({earnedBadges[i].BadgeType})";
+            if (i < earnedBadges.Count - 1)
+            {
+                summary += ", ";
+            }
+        }
+
+        return summary;
     }
 
     private void LogRunStart()
@@ -4573,6 +5394,37 @@ public class InterviewGameManager : MonoBehaviour
         {
             StageName = stageName;
             NetScoreChange = netScoreChange;
+        }
+    }
+
+    private sealed class CallParticipantTile
+    {
+        public int TileIndex;
+        public GameObject Root;
+        public CanvasGroup CanvasGroup;
+        public Image BorderImage;
+        public Image TileImage;
+        public Image BodyImage;
+        public Image ShoulderImage;
+        public Image HeadImage;
+        public TMP_Text HeadText;
+        public Image LabelBarImage;
+        public TMP_Text RoleText;
+    }
+
+    private readonly struct CallTheme
+    {
+        public Color BackgroundColor { get; }
+        public Color TopBarColor { get; }
+        public Color AccentColor { get; }
+        public Color FrameColor { get; }
+
+        public CallTheme(Color backgroundColor, Color topBarColor, Color accentColor, Color frameColor)
+        {
+            BackgroundColor = backgroundColor;
+            TopBarColor = topBarColor;
+            AccentColor = accentColor;
+            FrameColor = frameColor;
         }
     }
 
