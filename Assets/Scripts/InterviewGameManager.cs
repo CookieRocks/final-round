@@ -60,6 +60,8 @@ public class InterviewGameManager : MonoBehaviour
     private TMP_Text randomEventBodyText;
     private TMP_Text randomEventChangesText;
     private TMP_Text menuBodyText;
+    private TMP_Text processBriefingTitleText;
+    private TMP_Text processBriefingBodyText;
     private TMP_Text outcomeTitleText;
     private TMP_Text outcomeBodyText;
     private TMP_Text outcomeStatsText;
@@ -76,10 +78,13 @@ public class InterviewGameManager : MonoBehaviour
     private Button howToPlayButton;
     private Button aboutButton;
     private Button quitButton;
+    private Button beginProcessButton;
+    private Button processBriefingReturnButton;
     private Button resumeButton;
     private Button pauseReturnToMenuButton;
     private GameObject feedbackPanel;
     private GameObject menuScreen;
+    private GameObject processBriefingScreen;
     private GameObject questionScreen;
     private GameObject stageTransitionScreen;
     private GameObject randomEventScreen;
@@ -99,6 +104,7 @@ public class InterviewGameManager : MonoBehaviour
     [Header("Debug Options")]
     [SerializeField] private bool randomizeAnswerOrder = true;
     [SerializeField] private bool useCompanyProfileModifiers = true;
+    [SerializeField] private bool debugAllowRepeatedRandomEvents;
     [SerializeField] private bool useDeterministicAnswerSeed;
     [SerializeField] private int debugAnswerSeed = 12345;
 
@@ -112,6 +118,7 @@ public class InterviewGameManager : MonoBehaviour
     private System.Random answerOrderRandom;
     private readonly List<StageRunSummary> stageRunSummaries = new List<StageRunSummary>();
     private readonly List<RandomEventRunSummary> randomEventRunSummaries = new List<RandomEventRunSummary>();
+    private readonly HashSet<int> usedRandomEventIndexes = new HashSet<int>();
     private int strongAnswerCount;
     private int riskyAnswerCount;
 
@@ -212,6 +219,11 @@ public class InterviewGameManager : MonoBehaviour
             && startInterviewButton != null
             && howToPlayButton != null
             && aboutButton != null
+            && processBriefingScreen != null
+            && processBriefingTitleText != null
+            && processBriefingBodyText != null
+            && beginProcessButton != null
+            && processBriefingReturnButton != null
             && questionStageNameText != null
             && questionStageIntroText != null
             && questionText != null
@@ -272,6 +284,7 @@ public class InterviewGameManager : MonoBehaviour
 
         CreateHeader(safeArea.transform);
         CreateMenuScreen(safeArea.transform);
+        CreateProcessBriefingScreen(safeArea.transform);
         CreateQuestionScreen(safeArea.transform);
         CreateStageTransitionScreen(safeArea.transform);
         CreateRandomEventScreen(safeArea.transform);
@@ -446,6 +459,37 @@ public class InterviewGameManager : MonoBehaviour
         quitButton.gameObject.SetActive(!Application.isEditor);
 
         menuScreen.SetActive(false);
+    }
+
+    private void CreateProcessBriefingScreen(Transform parent)
+    {
+        processBriefingScreen = CreatePanel("Process Briefing Screen", parent, transitionPanelColor);
+        ConfigureFlexibleLayoutElement(processBriefingScreen, 1f);
+        AddPaddingLayout(processBriefingScreen, new RectOffset(42, 42, 40, 40), 20f);
+
+        processBriefingTitleText = CreateText("Process Briefing Title", processBriefingScreen.transform, "TODAY'S PROCESS", 44, FontStyles.Bold, TextAlignmentOptions.Left);
+        processBriefingTitleText.color = accentColor;
+
+        processBriefingBodyText = CreateText("Process Briefing Body", processBriefingScreen.transform, string.Empty, 30, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        processBriefingBodyText.color = textColor;
+        processBriefingBodyText.textWrappingMode = TextWrappingModes.Normal;
+        processBriefingBodyText.lineSpacing = 10f;
+        ConfigureFlexibleLayoutElement(processBriefingBodyText.gameObject, 1f);
+
+        GameObject buttonRow = new GameObject("Process Briefing Button Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+        buttonRow.transform.SetParent(processBriefingScreen.transform, false);
+        ConfigurePreferredLayoutElement(buttonRow, -1f, 72f);
+
+        HorizontalLayoutGroup buttonRowLayout = buttonRow.GetComponent<HorizontalLayoutGroup>();
+        buttonRowLayout.spacing = 18f;
+        buttonRowLayout.childControlWidth = true;
+        buttonRowLayout.childControlHeight = true;
+        buttonRowLayout.childForceExpandWidth = true;
+        buttonRowLayout.childForceExpandHeight = true;
+
+        beginProcessButton = CreateMenuButton(buttonRow.transform, "Begin Process", BeginProcess);
+        processBriefingReturnButton = CreateMenuButton(buttonRow.transform, "Return to Menu", ShowMenu);
+        processBriefingScreen.SetActive(false);
     }
 
     private void CreatePauseOverlay(Transform parent)
@@ -1349,6 +1393,7 @@ public class InterviewGameManager : MonoBehaviour
         displayedAnswers = null;
         stageRunSummaries.Clear();
         randomEventRunSummaries.Clear();
+        usedRandomEventIndexes.Clear();
         strongAnswerCount = 0;
         riskyAnswerCount = 0;
         playerStats.Reset(StartingConfidence, StartingEnergy, StartingTechnicalCredibility, StartingCommercialAlignment);
@@ -1384,7 +1429,7 @@ public class InterviewGameManager : MonoBehaviour
     {
         HidePauseOverlay();
         ResetGame(true);
-        ShowQuestionScreen();
+        ShowProcessBriefing();
     }
 
     private void StartInterviewProcess()
@@ -1396,7 +1441,32 @@ public class InterviewGameManager : MonoBehaviour
         }
 
         ResetGame(false);
+        ShowProcessBriefing();
+    }
+
+    private void BeginProcess()
+    {
+        HidePauseOverlay();
+        PlayUiSound(continueClip);
         ShowQuestionScreen();
+    }
+
+    private void ShowProcessBriefing()
+    {
+        HidePauseOverlay();
+        menuScreen.SetActive(false);
+        processBriefingScreen.SetActive(true);
+        questionScreen.SetActive(false);
+        stageTransitionScreen.SetActive(false);
+        randomEventScreen.SetActive(false);
+        outcomeScreen.SetActive(false);
+
+        progressText.text = "Process Briefing";
+        subtitleText.text = "Read the room before the first call.";
+        processBriefingTitleText.text = "TODAY'S PROCESS";
+        processBriefingBodyText.text = BuildProcessBriefingBody();
+        UpdateRoomBackdrop("Main Menu");
+        FadeInScreen(processBriefingScreen);
     }
 
     private void ShowMenu()
@@ -1404,6 +1474,7 @@ public class InterviewGameManager : MonoBehaviour
         SelectRandomCompanyProfile();
         HidePauseOverlay();
         menuScreen.SetActive(true);
+        processBriefingScreen.SetActive(false);
         questionScreen.SetActive(false);
         stageTransitionScreen.SetActive(false);
         randomEventScreen.SetActive(false);
@@ -1459,6 +1530,41 @@ public class InterviewGameManager : MonoBehaviour
         }
 
         return $"{activeCompanyProfile.CompanyName}: {activeCompanyProfile.PreferredStyle}";
+    }
+
+    private string BuildProcessBriefingBody()
+    {
+        if (activeCompanyProfile == null)
+        {
+            return
+                "Today's process: Unknown\n\n" +
+                "The panel seems to have lost the briefing pack. Somehow, this is still an interview signal.";
+        }
+
+        return
+            $"Today's process: <b>{activeCompanyProfile.CompanyName}</b>\n" +
+            $"{activeCompanyProfile.ProfileName}\n\n" +
+            $"{activeCompanyProfile.Description}\n\n" +
+            $"Rewards: {activeCompanyProfile.PreferredStyle}\n" +
+            $"Modifier note: {activeCompanyProfile.StatModifierNotes}\n\n" +
+            GetProcessBriefingFlavourLine();
+    }
+
+    private string GetProcessBriefingFlavourLine()
+    {
+        if (activeCompanyProfile == null)
+        {
+            return string.Empty;
+        }
+
+        return activeCompanyProfile.CompanyName switch
+        {
+            "Startup Rocketship" => "Warning: the calendar may move faster than the facts.",
+            "Security Vendor" => "Warning: vague risk framing will be politely disassembled.",
+            "AI Hype Company" => "Warning: enthusiasm is useful; floating away is less useful.",
+            "Legacy Enterprise" => "Warning: patience is part of the product evaluation.",
+            _ => "Warning: balanced answers travel furthest in a calibrated process."
+        };
     }
 
     private void HandleKeyboardShortcuts()
@@ -1552,7 +1658,7 @@ public class InterviewGameManager : MonoBehaviour
             return;
         }
 
-        if (menuScreen.activeSelf)
+        if (menuScreen.activeSelf || processBriefingScreen.activeSelf)
         {
             ShowMenu();
             return;
@@ -1563,6 +1669,12 @@ public class InterviewGameManager : MonoBehaviour
 
     private void HandleEnterShortcut()
     {
+        if (processBriefingScreen.activeSelf && beginProcessButton.interactable)
+        {
+            BeginProcess();
+            return;
+        }
+
         if (questionScreen.activeSelf && feedbackPanel.activeSelf && continueButton.interactable)
         {
             ContinueAfterFeedback();
@@ -1640,6 +1752,7 @@ public class InterviewGameManager : MonoBehaviour
     {
         HidePauseOverlay();
         menuScreen.SetActive(false);
+        processBriefingScreen.SetActive(false);
         questionScreen.SetActive(true);
         stageTransitionScreen.SetActive(false);
         randomEventScreen.SetActive(false);
@@ -1901,6 +2014,7 @@ public class InterviewGameManager : MonoBehaviour
         HidePauseOverlay();
         questionScreen.SetActive(false);
         menuScreen.SetActive(false);
+        processBriefingScreen.SetActive(false);
         stageTransitionScreen.SetActive(true);
         randomEventScreen.SetActive(false);
         outcomeScreen.SetActive(false);
@@ -1997,8 +2111,10 @@ public class InterviewGameManager : MonoBehaviour
 
         if (ShouldShowRandomEvent())
         {
-            ShowRandomEvent();
-            return;
+            if (ShowRandomEvent())
+            {
+                return;
+            }
         }
 
         StartNextStage();
@@ -2019,14 +2135,27 @@ public class InterviewGameManager : MonoBehaviour
         return Mathf.Clamp01(BetweenStageEventChance + modifier);
     }
 
-    private void ShowRandomEvent()
+    private bool ShowRandomEvent()
     {
-        RandomInterviewEvent interviewEvent = BuildCompanyAdjustedEvent(randomEvents[Random.Range(0, randomEvents.Length)]);
+        int eventIndex = PickUnusedRandomEventIndex();
+        if (eventIndex < 0)
+        {
+            Debug.Log("No unused random events remaining; skipping between-stage event.");
+            return false;
+        }
+
+        if (!debugAllowRepeatedRandomEvents)
+        {
+            usedRandomEventIndexes.Add(eventIndex);
+        }
+
+        RandomInterviewEvent interviewEvent = BuildCompanyAdjustedEvent(randomEvents[eventIndex]);
         ApplyRandomEvent(interviewEvent);
 
         HidePauseOverlay();
         questionScreen.SetActive(false);
         menuScreen.SetActive(false);
+        processBriefingScreen.SetActive(false);
         stageTransitionScreen.SetActive(false);
         randomEventScreen.SetActive(true);
         outcomeScreen.SetActive(false);
@@ -2054,6 +2183,44 @@ public class InterviewGameManager : MonoBehaviour
             "\n\n" +
             GetStatsSummary();
         FadeInScreen(randomEventScreen);
+        return true;
+    }
+
+    private int PickUnusedRandomEventIndex()
+    {
+        if (randomEvents == null || randomEvents.Length == 0)
+        {
+            return -1;
+        }
+
+        if (debugAllowRepeatedRandomEvents)
+        {
+            return Random.Range(0, randomEvents.Length);
+        }
+
+        int unusedCount = randomEvents.Length - usedRandomEventIndexes.Count;
+        if (unusedCount <= 0)
+        {
+            return -1;
+        }
+
+        int targetUnusedIndex = Random.Range(0, unusedCount);
+        for (int i = 0; i < randomEvents.Length; i++)
+        {
+            if (usedRandomEventIndexes.Contains(i))
+            {
+                continue;
+            }
+
+            if (targetUnusedIndex == 0)
+            {
+                return i;
+            }
+
+            targetUnusedIndex--;
+        }
+
+        return -1;
     }
 
     private void ApplyRandomEvent(RandomInterviewEvent interviewEvent)
@@ -2141,6 +2308,7 @@ public class InterviewGameManager : MonoBehaviour
         HidePauseOverlay();
         questionScreen.SetActive(false);
         menuScreen.SetActive(false);
+        processBriefingScreen.SetActive(false);
         stageTransitionScreen.SetActive(false);
         randomEventScreen.SetActive(false);
         outcomeScreen.SetActive(true);
