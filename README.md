@@ -1,8 +1,8 @@
 # Final Round
 
-Prototype version: `Prototype v0.7`
+Prototype version: `Prototype v0.8`
 
-Final Round is a Unity prototype about surviving a multi-stage Sales Engineering interview loop. Each run includes randomized answer order, company-specific process rules, an Interview Pressure meter, Prep Cards, between-round recovery choices, between-stage events, lightweight UI animation, an animated video-call interview viewport, end-of-run badges, and a final report-card summary.
+Final Round is a Unity prototype about surviving a multi-stage Sales Engineering interview loop. Each run includes randomized answer order, company-specific process rules, an Interview Pressure meter, Prep Cards, between-round recovery choices, between-stage events, lightweight UI animation, an animated video-call interview viewport, subtle audio feedback, end-of-run badges, and a final report-card summary.
 
 ## Current Features
 
@@ -14,7 +14,7 @@ Final Round is a Unity prototype about surviving a multi-stage Sales Engineering
 - Non-repeating between-stage random events.
 - Process ID/run seed support for repeatable testing.
 - Final summary with outcome, stats, style, pressure, prep/recovery/event highlights, badges, and company rule context.
-- Runtime-generated UI and animated video-call viewport with lightweight transitions and feedback animation.
+- Runtime-generated UI and animated video-call viewport with lightweight transitions, feedback animation, and procedural SFX hooks.
 
 ## Run In Unity
 
@@ -43,8 +43,8 @@ Final Round is a Unity prototype about surviving a multi-stage Sales Engineering
 
 - The active build scene is `Assets/Scenes/InterviewRoom.unity`.
 - The project uses Unity's Input System backend; keyboard shortcuts use `Keyboard.current` in that mode.
-- Runtime UI and the animated video-call backdrop are generated from scripts at play/build time.
-- Optional UI audio hooks exist, but no sound files are required.
+- Runtime UI and the animated video-call panel are generated from scripts at play/build time.
+- Audio feedback is optional and generated procedurally when no sound files are assigned.
 - `reduceMotion` is available as an Inspector-only toggle for reducing pulse/scale animation.
 
 ## Known Limitations

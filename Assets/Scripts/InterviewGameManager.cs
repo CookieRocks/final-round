@@ -18,7 +18,7 @@ public class InterviewGameManager : MonoBehaviour
     private const int StartingInterviewPressure = 35;
     private const float BetweenStageEventChance = 0.6f;
     private const float ScreenFadeDuration = 0.16f;
-    private const string BuildVersion = "Prototype v0.7";
+    private const string BuildVersion = "Prototype v0.8";
     private const int MaxDisplayedRunBadges = 4;
 
     private static InterviewGameManager activeManager;
@@ -123,6 +123,7 @@ public class InterviewGameManager : MonoBehaviour
     private CallParticipantTile[] callParticipantTiles;
     private InterviewRoomBackdropController roomBackdrop;
     private AudioSource uiAudioSource;
+    private FinalRoundAudioManager audioManager;
     private Coroutine activeFadeCoroutine;
     private Coroutine answerEntranceCoroutine;
     private Coroutine answerSelectionCoroutine;
@@ -131,10 +132,23 @@ public class InterviewGameManager : MonoBehaviour
     private Coroutine finalRevealCoroutine;
     private Color statsBaseColor;
 
-    [Header("Optional UI Audio")]
+    [Header("Audio Feedback")]
+    [Range(0f, 1f)]
+    [SerializeField] private float masterVolume = 0.65f;
+    [Range(0f, 1f)]
+    [SerializeField] private float sfxVolume = 0.8f;
+    [SerializeField] private bool muteAudio;
+    [SerializeField] private AudioClip uiClickClip;
     [SerializeField] private AudioClip answerSelectedClip;
+    [SerializeField] private AudioClip prepCardUsedClip;
+    [SerializeField] private AudioClip recoveryChoiceSelectedClip;
     [SerializeField] private AudioClip continueClip;
+    [SerializeField] private AudioClip randomEventClip;
     [SerializeField] private AudioClip stageCompleteClip;
+    [SerializeField] private AudioClip pressureWarningClip;
+    [SerializeField] private AudioClip finalPositiveOutcomeClip;
+    [SerializeField] private AudioClip finalNegativeOutcomeClip;
+    [SerializeField] private AudioClip badgeRevealClip;
     [SerializeField] private AudioClip finalOutcomeClip;
 
     [Header("Debug Options")]
@@ -176,6 +190,7 @@ public class InterviewGameManager : MonoBehaviour
     private string activeCallStageName = "Main Menu";
     private bool callInterviewerSpeaking;
     private bool firstChaoticAnswerBonusApplied;
+    private bool highPressureWarningPlayed;
     private readonly List<string> activeRuleRunNotes = new List<string>();
 
     private InterviewStage[] stages;
@@ -353,6 +368,25 @@ public class InterviewGameManager : MonoBehaviour
         }
 
         uiAudioSource.playOnAwake = false;
+
+        audioManager = GetComponent<FinalRoundAudioManager>();
+        if (audioManager == null)
+        {
+            audioManager = gameObject.AddComponent<FinalRoundAudioManager>();
+        }
+
+        audioManager.Configure(uiAudioSource, masterVolume, sfxVolume, muteAudio);
+        audioManager.SetClipOverride(FinalRoundSoundEvent.UiClick, uiClickClip);
+        audioManager.SetClipOverride(FinalRoundSoundEvent.AnswerSelected, answerSelectedClip);
+        audioManager.SetClipOverride(FinalRoundSoundEvent.PrepCardUsed, prepCardUsedClip);
+        audioManager.SetClipOverride(FinalRoundSoundEvent.RecoveryChoiceSelected, recoveryChoiceSelectedClip);
+        audioManager.SetClipOverride(FinalRoundSoundEvent.Continue, continueClip);
+        audioManager.SetClipOverride(FinalRoundSoundEvent.RandomEventAppears, randomEventClip);
+        audioManager.SetClipOverride(FinalRoundSoundEvent.StageComplete, stageCompleteClip);
+        audioManager.SetClipOverride(FinalRoundSoundEvent.PressureWarning, pressureWarningClip);
+        audioManager.SetClipOverride(FinalRoundSoundEvent.FinalPositiveOutcome, finalPositiveOutcomeClip);
+        audioManager.SetClipOverride(FinalRoundSoundEvent.FinalNegativeOutcome, finalNegativeOutcomeClip);
+        audioManager.SetClipOverride(FinalRoundSoundEvent.BadgeReveal, badgeRevealClip);
     }
 
     private void OnDestroy()
@@ -828,7 +862,7 @@ public class InterviewGameManager : MonoBehaviour
         buttonRowLayout.childForceExpandWidth = true;
         buttonRowLayout.childForceExpandHeight = true;
 
-        beginProcessButton = CreateMenuButton(buttonRow.transform, "Begin Process", BeginProcess);
+        beginProcessButton = CreateMenuButton(buttonRow.transform, "Begin Process", BeginProcess, false);
         processBriefingReturnButton = CreateMenuButton(buttonRow.transform, "Return to Menu", ShowMenu);
         processBriefingScreen.SetActive(false);
     }
@@ -867,7 +901,7 @@ public class InterviewGameManager : MonoBehaviour
         pauseOverlay.SetActive(false);
     }
 
-    private Button CreateMenuButton(Transform parent, string label, UnityEngine.Events.UnityAction onClick)
+    private Button CreateMenuButton(Transform parent, string label, UnityEngine.Events.UnityAction onClick, bool playClickSound = true)
     {
         GameObject buttonObject = CreateButton(label + " Button", parent);
         ConfigurePreferredLayoutElement(buttonObject, -1f, 72f);
@@ -877,7 +911,15 @@ public class InterviewGameManager : MonoBehaviour
         StretchToParent(buttonText.GetComponent<RectTransform>());
 
         Button button = buttonObject.GetComponent<Button>();
-        button.onClick.AddListener(onClick);
+        button.onClick.AddListener(() =>
+        {
+            if (playClickSound)
+            {
+                PlaySound(FinalRoundSoundEvent.UiClick);
+            }
+
+            onClick();
+        });
         return button;
     }
 
@@ -1777,6 +1819,7 @@ public class InterviewGameManager : MonoBehaviour
         if (reduceMotion || outcomeScreen == null)
         {
             SetOutcomeSectionAlpha(1f);
+            PlaySound(FinalRoundSoundEvent.BadgeReveal);
             return;
         }
 
@@ -1824,6 +1867,11 @@ public class InterviewGameManager : MonoBehaviour
             }
 
             group.alpha = 1f;
+            if (sections[i] == outcomeBadgesPanel)
+            {
+                PlaySound(FinalRoundSoundEvent.BadgeReveal);
+            }
+
             yield return new WaitForSecondsRealtime(0.035f);
         }
 
@@ -1853,14 +1901,24 @@ public class InterviewGameManager : MonoBehaviour
         }
     }
 
-    private void PlayUiSound(AudioClip clip)
+    private void PlayUiSound(AudioClip clip, FinalRoundSoundEvent fallbackEvent = FinalRoundSoundEvent.UiClick)
     {
-        if (uiAudioSource == null || clip == null)
+        if (audioManager == null)
         {
             return;
         }
 
-        uiAudioSource.PlayOneShot(clip);
+        audioManager.Play(clip, fallbackEvent);
+    }
+
+    private void PlaySound(FinalRoundSoundEvent soundEvent)
+    {
+        if (audioManager == null)
+        {
+            return;
+        }
+
+        audioManager.Play(soundEvent);
     }
 
     private void BuildStages()
@@ -2425,6 +2483,7 @@ public class InterviewGameManager : MonoBehaviour
         riskyAnswerCount = 0;
         interviewPressure = StartingInterviewPressure;
         firstChaoticAnswerBonusApplied = false;
+        highPressureWarningPlayed = false;
         activeRuleRunNotes.Clear();
         playerStats.Reset(StartingConfidence, StartingEnergy, StartingTechnicalCredibility, StartingCommercialAlignment);
         styleTracker.Reset();
@@ -2621,7 +2680,7 @@ public class InterviewGameManager : MonoBehaviour
     private void BeginProcess()
     {
         HidePauseOverlay();
-        PlayUiSound(continueClip);
+        PlayUiSound(continueClip, FinalRoundSoundEvent.Continue);
         ShowQuestionScreen();
     }
 
@@ -2685,7 +2744,7 @@ public class InterviewGameManager : MonoBehaviour
             "About\n\n" +
             $"{BuildVersion}\n\n" +
             "Final Round is a compact interview prototype about reading the room, staying sharp, and balancing technical and commercial signals.\n\n" +
-            "Created as a playable Unity demo with runtime UI and a cosmetic 3D interview-room viewport.";
+            "Created as a playable Unity demo with runtime UI, a cosmetic interview-call panel, and subtle audio feedback.";
     }
 
     private string GetCompanyProfileSummary()
@@ -3128,7 +3187,7 @@ public class InterviewGameManager : MonoBehaviour
             pressureChange -= 3;
         }
 
-        PlayUiSound(answerSelectedClip);
+        PlayUiSound(answerSelectedClip, FinalRoundSoundEvent.AnswerSelected);
         playerStats.ApplyDirectChanges(
             answer.ConfidenceChange + confidenceModifier,
             answer.EnergyChange,
@@ -3178,7 +3237,7 @@ public class InterviewGameManager : MonoBehaviour
         card.RemainingUses--;
         card.UseCount++;
         prepCardsUsedCount++;
-        PlayUiSound(continueClip);
+        PlayUiSound(prepCardUsedClip, FinalRoundSoundEvent.PrepCardUsed);
 
         switch (card.CardType)
         {
@@ -3843,7 +3902,7 @@ public class InterviewGameManager : MonoBehaviour
 
     private void ContinueAfterFeedback()
     {
-        PlayUiSound(continueClip);
+        PlayUiSound(continueClip, FinalRoundSoundEvent.Continue);
         currentQuestionIndex++;
         ShowCurrentQuestion();
         FadeInScreen(questionScreen);
@@ -3874,7 +3933,7 @@ public class InterviewGameManager : MonoBehaviour
             $"{stage.StageCompleteText}\n\n" +
             GetStatsSummary() +
             BuildTransitionBonusText();
-        PlayUiSound(stageCompleteClip);
+        PlayUiSound(stageCompleteClip, FinalRoundSoundEvent.StageComplete);
         FadeInScreen(stageTransitionScreen);
     }
 
@@ -3935,7 +3994,7 @@ public class InterviewGameManager : MonoBehaviour
 
     private void ContinueAfterStageTransition()
     {
-        PlayUiSound(continueClip);
+        PlayUiSound(continueClip, FinalRoundSoundEvent.Continue);
         bool hasNextStage = currentStageIndex < stages.Length - 1;
 
         currentStageIndex++;
@@ -4036,7 +4095,7 @@ public class InterviewGameManager : MonoBehaviour
             choice.TechnicalStyleChange,
             choice.ChaoticStyleChange,
             choice.BurnedOutStyleChange);
-        PlayUiSound(continueClip);
+        PlayUiSound(recoveryChoiceSelectedClip, FinalRoundSoundEvent.RecoveryChoiceSelected);
 
         recoveryChoiceBodyText.text = choice.ConfirmationText;
         SetRecoveryStatsLayout(true);
@@ -4125,7 +4184,7 @@ public class InterviewGameManager : MonoBehaviour
 
     private void ContinueAfterRecoveryChoice()
     {
-        PlayUiSound(continueClip);
+        PlayUiSound(continueClip, FinalRoundSoundEvent.Continue);
         if (ShouldShowRandomEvent())
         {
             if (ShowRandomEvent())
@@ -4234,6 +4293,7 @@ public class InterviewGameManager : MonoBehaviour
                 interviewEvent.TechnicalCredibilityChange,
                 interviewEvent.CommercialAlignmentChange),
             pressureChange);
+        PlayUiSound(randomEventClip, FinalRoundSoundEvent.RandomEventAppears);
         FadeInScreen(randomEventScreen);
         return true;
     }
@@ -4326,7 +4386,7 @@ public class InterviewGameManager : MonoBehaviour
 
     private void ContinueAfterRandomEvent()
     {
-        PlayUiSound(continueClip);
+        PlayUiSound(continueClip, FinalRoundSoundEvent.Continue);
         StartNextStage();
     }
 
@@ -4425,6 +4485,16 @@ public class InterviewGameManager : MonoBehaviour
         if (actualChange != 0)
         {
             UpdateRoomBackdrop(GetCurrentBackdropStageName());
+        }
+
+        if (!highPressureWarningPlayed && pressureBefore < 75 && interviewPressure >= 75)
+        {
+            highPressureWarningPlayed = true;
+            PlaySound(FinalRoundSoundEvent.PressureWarning);
+        }
+        else if (interviewPressure < 65)
+        {
+            highPressureWarningPlayed = false;
         }
 
         return actualChange;
@@ -4561,10 +4631,26 @@ public class InterviewGameManager : MonoBehaviour
         outcomeBadgesText.text = BuildBadgesDisplayText(earnedBadges);
         outcomeAdviceText.text = BuildRunAdvice();
 
-        PlayUiSound(finalOutcomeClip);
+        PlayOutcomeSound(outcomeName);
         FadeInScreen(outcomeScreen);
         RevealFinalOutcomeSections();
         LogRunSummary(outcomeName, styleResult, earnedBadges);
+    }
+
+    private void PlayOutcomeSound(string outcomeName)
+    {
+        bool positiveOutcome = IsPassOrBetterOutcome(outcomeName);
+        AudioClip clip = positiveOutcome ? finalPositiveOutcomeClip : finalNegativeOutcomeClip;
+        if (clip == null)
+        {
+            clip = finalOutcomeClip;
+        }
+
+        PlayUiSound(
+            clip,
+            positiveOutcome
+                ? FinalRoundSoundEvent.FinalPositiveOutcome
+                : FinalRoundSoundEvent.FinalNegativeOutcome);
     }
 
     private int GetOfferRecommendedThreshold()

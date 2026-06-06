@@ -978,7 +978,7 @@ MonoBehaviour:
   lowestSubdivLevelOverride: 0
   highestSubdivLevelOverride: 7
   overridesSubdivLevels: 0
-  mightNeedRebaking: 1
+  mightNeedRebaking: 0
   cachedTransform:
     e00: 1
     e01: 0
@@ -1415,6 +1415,31 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1b8dc76458c005745b6d406ebce1d8ae, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InterviewGameManager
+  masterVolume: 0.65
+  sfxVolume: 0.8
+  muteAudio: 0
+  uiClickClip: {fileID: 0}
+  answerSelectedClip: {fileID: 0}
+  prepCardUsedClip: {fileID: 0}
+  recoveryChoiceSelectedClip: {fileID: 0}
+  continueClip: {fileID: 0}
+  randomEventClip: {fileID: 0}
+  stageCompleteClip: {fileID: 0}
+  pressureWarningClip: {fileID: 0}
+  finalPositiveOutcomeClip: {fileID: 0}
+  finalNegativeOutcomeClip: {fileID: 0}
+  badgeRevealClip: {fileID: 0}
+  finalOutcomeClip: {fileID: 0}
+  reduceMotion: 0
+  randomizeAnswerOrder: 1
+  useCompanyProfileModifiers: 1
+  debugAllowRepeatedRandomEvents: 0
+  useDebugCompanyProfile: 0
+  debugCompanyProfileIndex: 0
+  useDeterministicRunSeed: 0
+  debugRunSeed: 48291
+  useDeterministicAnswerSeed: 0
+  debugAnswerSeed: 12345
 --- !u!4 &1766941679
 Transform:
   m_ObjectHideFlags: 0

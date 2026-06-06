@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.8 - Audio Feedback and Sound Hooks
+
+Released: 2026-06-06
+
+### Overview
+
+`v0.8` adds a lightweight optional audio feedback layer. The game now has subtle runtime-generated SFX for common UI and interview moments, while keeping clip override hooks available for later asset replacement.
+
+### Added
+
+- Added `FinalRoundAudioManager` with procedural short tones for:
+  - UI click
+  - answer selected
+  - Prep Card used
+  - Recovery Choice selected
+  - continue
+  - random event appears
+  - stage complete
+  - pressure warning
+  - final positive outcome
+  - final negative outcome
+  - badge reveal
+- Added Inspector controls for `masterVolume`, `sfxVolume`, and `muteAudio`.
+- Added optional AudioClip override fields for each major sound event.
+- Added one-shot pressure warning audio when Interview Pressure enters the high-pressure band.
+- Added badge reveal audio when the `BADGES EARNED` section appears.
+
+### Validation
+
+- `dotnet build Assembly-CSharp.csproj` passes with 0 warnings and 0 errors.
+- Windows standalone batch build was attempted, but Unity aborted because this project is already open in another Unity instance.
+
 ## v0.7 - End-of-Run Badges
 
 Released: 2026-06-06
