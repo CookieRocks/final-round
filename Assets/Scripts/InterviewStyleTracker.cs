@@ -44,6 +44,22 @@ public class InterviewStyleTracker
         chaoticStyle += change;
     }
 
+    public void ApplyStyleChanges(
+        int diplomaticChange,
+        int bluntChange,
+        int commercialChange,
+        int technicalChange,
+        int chaoticChange,
+        int burnedOutChange)
+    {
+        diplomaticStyle += diplomaticChange;
+        bluntStyle += bluntChange;
+        commercialStyle += commercialChange;
+        technicalStyle += technicalChange;
+        chaoticStyle += chaoticChange;
+        burnedOutStyle += burnedOutChange;
+    }
+
     public string GetDebugSummary()
     {
         return

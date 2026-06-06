@@ -1,8 +1,8 @@
 # Final Round
 
-Prototype version: `Prototype v0.1`
+Prototype version: `Prototype v0.3`
 
-Final Round is a Unity prototype about surviving a multi-stage Sales Engineering interview loop. Each run includes randomized answer order, fictional company/process modifiers, between-stage events, a cosmetic 3D interview-room viewport, and a final report-card summary.
+Final Round is a Unity prototype about surviving a multi-stage Sales Engineering interview loop. Each run includes randomized answer order, fictional company/process modifiers, Prep Cards, between-round recovery choices, between-stage events, a cosmetic 3D interview-room viewport, and a final report-card summary.
 
 ## Run In Unity
 
@@ -11,6 +11,8 @@ Final Round is a Unity prototype about surviving a multi-stage Sales Engineering
 3. Press Play.
 4. Use the mouse or keyboard shortcuts:
    - `1`, `2`, `3`: choose visible answer options
+   - `Q`, `W`, `E`: use Prep Cards before selecting an answer
+   - `1` through `5`: choose between-round recovery options when that screen is active
    - `Enter`: continue feedback, stage transition, or random event screens
    - `Esc`: pause/resume or return to menu from the pause overlay
 

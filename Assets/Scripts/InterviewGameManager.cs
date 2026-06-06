@@ -17,7 +17,7 @@ public class InterviewGameManager : MonoBehaviour
     private const int StartingCommercialAlignment = 50;
     private const float BetweenStageEventChance = 0.6f;
     private const float ScreenFadeDuration = 0.16f;
-    private const string BuildVersion = "Prototype v0.1";
+    private const string BuildVersion = "Prototype v0.3";
 
     private static InterviewGameManager activeManager;
 
@@ -45,6 +45,7 @@ public class InterviewGameManager : MonoBehaviour
     private readonly Color positiveStatColor = new Color32(122, 224, 159, 255);
     private readonly Color negativeStatColor = new Color32(255, 139, 139, 255);
     private readonly Color neutralStatColor = new Color32(194, 202, 214, 255);
+    private readonly Color clarifiedAnswerColor = new Color32(50, 78, 74, 255);
 
     private TMP_Text subtitleText;
     private TMP_Text progressText;
@@ -53,15 +54,21 @@ public class InterviewGameManager : MonoBehaviour
     private TMP_Text questionText;
     private TMP_Text statsText;
     private TMP_Text feedbackText;
+    private TMP_Text feedbackPrepCardText;
     private TMP_Text stageTransitionNameText;
     private TMP_Text stageTransitionBodyText;
     private TMP_Text stageTransitionStatsText;
+    private TMP_Text recoveryChoiceTitleText;
+    private TMP_Text recoveryChoiceBodyText;
+    private TMP_Text recoveryChoiceStatsText;
+    private TMP_Text[] recoveryChoiceButtonTexts;
     private TMP_Text randomEventTitleText;
     private TMP_Text randomEventBodyText;
     private TMP_Text randomEventChangesText;
     private TMP_Text menuBodyText;
     private TMP_Text processBriefingTitleText;
     private TMP_Text processBriefingBodyText;
+    private TMP_Text[] prepCardTexts;
     private TMP_Text outcomeTitleText;
     private TMP_Text outcomeBodyText;
     private TMP_Text outcomeStatsText;
@@ -73,6 +80,8 @@ public class InterviewGameManager : MonoBehaviour
     private TMP_Text[] answerButtonTexts;
     private Button continueButton;
     private Button stageContinueButton;
+    private Button[] recoveryChoiceButtons;
+    private Button recoveryChoiceContinueButton;
     private Button randomEventContinueButton;
     private Button startInterviewButton;
     private Button howToPlayButton;
@@ -80,13 +89,17 @@ public class InterviewGameManager : MonoBehaviour
     private Button quitButton;
     private Button beginProcessButton;
     private Button processBriefingReturnButton;
+    private Button[] prepCardButtons;
     private Button resumeButton;
     private Button pauseReturnToMenuButton;
     private GameObject feedbackPanel;
+    private GameObject prepCardsPanel;
     private GameObject menuScreen;
     private GameObject processBriefingScreen;
     private GameObject questionScreen;
     private GameObject stageTransitionScreen;
+    private GameObject recoveryChoiceScreen;
+    private GameObject recoveryChoiceButtonColumn;
     private GameObject randomEventScreen;
     private GameObject outcomeScreen;
     private GameObject pauseOverlay;
@@ -123,6 +136,14 @@ public class InterviewGameManager : MonoBehaviour
     private readonly List<StageRunSummary> stageRunSummaries = new List<StageRunSummary>();
     private readonly List<RandomEventRunSummary> randomEventRunSummaries = new List<RandomEventRunSummary>();
     private readonly HashSet<int> usedRandomEventIndexes = new HashSet<int>();
+    private RecoveryChoice[] recoveryChoices;
+    private int recoveryChoicesMadeCount;
+    private int doomScrollChoiceCount;
+    private PrepCard[] prepCards;
+    private int prepCardsUsedCount;
+    private int reframedCommercialAlignmentBonus;
+    private int clarifiedAnswerIndex = -1;
+    private string prepCardFeedbackNote;
     private int strongAnswerCount;
     private int riskyAnswerCount;
 
@@ -237,11 +258,27 @@ public class InterviewGameManager : MonoBehaviour
             && answerButtons.Length == 3
             && answerButtonTexts != null
             && answerButtonTexts.Length == 3
+            && prepCardsPanel != null
+            && prepCardButtons != null
+            && prepCardButtons.Length == 3
+            && prepCardTexts != null
+            && prepCardTexts.Length == 3
             && feedbackPanel != null
             && feedbackText != null
+            && feedbackPrepCardText != null
             && continueButton != null
             && stageTransitionScreen != null
             && stageContinueButton != null
+            && recoveryChoiceScreen != null
+            && recoveryChoiceTitleText != null
+            && recoveryChoiceBodyText != null
+            && recoveryChoiceStatsText != null
+            && recoveryChoiceButtonColumn != null
+            && recoveryChoiceButtons != null
+            && recoveryChoiceButtons.Length == 5
+            && recoveryChoiceButtonTexts != null
+            && recoveryChoiceButtonTexts.Length == 5
+            && recoveryChoiceContinueButton != null
             && randomEventScreen != null
             && randomEventContinueButton != null
             && outcomeScreen != null
@@ -292,6 +329,7 @@ public class InterviewGameManager : MonoBehaviour
         CreateProcessBriefingScreen(safeArea.transform);
         CreateQuestionScreen(safeArea.transform);
         CreateStageTransitionScreen(safeArea.transform);
+        CreateRecoveryChoiceScreen(safeArea.transform);
         CreateRandomEventScreen(safeArea.transform);
         CreateOutcomeScreen(safeArea.transform);
         CreatePauseOverlay(canvasObject.transform);
@@ -426,6 +464,7 @@ public class InterviewGameManager : MonoBehaviour
         CreateQuestionPanel(leftColumn.transform);
         CreateStatsPanel(leftColumn.transform);
         CreateBackdropViewportPanel(mainRow.transform);
+        CreatePrepCardsPanel(questionScreen.transform);
         CreateFeedbackPanel(questionScreen.transform);
         CreateAnswerButtons(questionScreen.transform);
     }
@@ -595,22 +634,94 @@ public class InterviewGameManager : MonoBehaviour
         ConfigureFlexibleLayoutElement(statsText.gameObject, 1f);
     }
 
+    private void CreatePrepCardsPanel(Transform parent)
+    {
+        prepCardsPanel = CreatePanel("Prep Cards Panel", parent, panelAccentColor);
+        ConfigurePreferredLayoutElement(prepCardsPanel, -1f, 138f);
+        AddPaddingLayout(prepCardsPanel, new RectOffset(24, 24, 16, 18), 10f);
+
+        TMP_Text prepTitle = CreateText("Prep Cards Title", prepCardsPanel.transform, "PREP CARDS", 20, FontStyles.Bold, TextAlignmentOptions.Left);
+        prepTitle.color = accentColor;
+
+        GameObject cardRow = new GameObject("Prep Card Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+        cardRow.transform.SetParent(prepCardsPanel.transform, false);
+        ConfigureFlexibleLayoutElement(cardRow, 1f);
+
+        HorizontalLayoutGroup cardRowLayout = cardRow.GetComponent<HorizontalLayoutGroup>();
+        cardRowLayout.spacing = 12f;
+        cardRowLayout.childControlWidth = true;
+        cardRowLayout.childControlHeight = true;
+        cardRowLayout.childForceExpandWidth = true;
+        cardRowLayout.childForceExpandHeight = true;
+
+        prepCardButtons = new Button[3];
+        prepCardTexts = new TMP_Text[3];
+
+        for (int i = 0; i < prepCardButtons.Length; i++)
+        {
+            int cardIndex = i;
+            GameObject buttonObject = CreateButton($"Prep Card {i + 1}", cardRow.transform);
+            ConfigureFlexibleLayoutElement(buttonObject, 1f);
+
+            TMP_Text label = CreateText("Label", buttonObject.transform, string.Empty, 19, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+            label.color = textColor;
+            label.textWrappingMode = TextWrappingModes.Normal;
+            label.lineSpacing = 4f;
+
+            RectTransform labelRect = label.GetComponent<RectTransform>();
+            StretchToParent(labelRect);
+            labelRect.offsetMin = new Vector2(18f, 10f);
+            labelRect.offsetMax = new Vector2(-18f, -10f);
+
+            Button button = buttonObject.GetComponent<Button>();
+            button.onClick.AddListener(() => UsePrepCard(cardIndex));
+
+            prepCardButtons[i] = button;
+            prepCardTexts[i] = label;
+        }
+    }
+
     private void CreateFeedbackPanel(Transform parent)
     {
         feedbackPanel = CreatePanel("Answer Feedback Panel", parent, panelAccentColor);
-        ConfigurePreferredLayoutElement(feedbackPanel, -1f, 324f);
-        SetMinimumLayoutHeight(feedbackPanel, 310f);
-        AddPaddingLayout(feedbackPanel, new RectOffset(32, 32, 24, 30), 20f);
+        ConfigurePreferredLayoutElement(feedbackPanel, -1f, 336f);
+        SetMinimumLayoutHeight(feedbackPanel, 320f);
+        AddPaddingLayout(feedbackPanel, new RectOffset(32, 32, 24, 30), 16f);
 
         TMP_Text feedbackTitle = CreateText("Feedback Title", feedbackPanel.transform, "INTERVIEWER REACTION", 22, FontStyles.Bold, TextAlignmentOptions.Left);
         feedbackTitle.color = accentColor;
 
-        feedbackText = CreateText("Feedback Text", feedbackPanel.transform, string.Empty, 28, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        GameObject feedbackBodyRow = new GameObject("Feedback Body Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+        feedbackBodyRow.transform.SetParent(feedbackPanel.transform, false);
+        ConfigurePreferredLayoutElement(feedbackBodyRow, -1f, 190f);
+        SetMinimumLayoutHeight(feedbackBodyRow, 184f);
+
+        HorizontalLayoutGroup bodyRowLayout = feedbackBodyRow.GetComponent<HorizontalLayoutGroup>();
+        bodyRowLayout.spacing = 22f;
+        bodyRowLayout.childControlWidth = true;
+        bodyRowLayout.childControlHeight = true;
+        bodyRowLayout.childForceExpandWidth = true;
+        bodyRowLayout.childForceExpandHeight = true;
+
+        GameObject reactionColumn = new GameObject("Feedback Reaction Column", typeof(RectTransform), typeof(LayoutElement));
+        reactionColumn.transform.SetParent(feedbackBodyRow.transform, false);
+        ConfigureFlexibleLayoutElement(reactionColumn, 1.1f, 560f);
+
+        GameObject prepColumn = new GameObject("Feedback Prep Card Column", typeof(RectTransform), typeof(LayoutElement));
+        prepColumn.transform.SetParent(feedbackBodyRow.transform, false);
+        ConfigureFlexibleLayoutElement(prepColumn, 0.9f, 400f);
+
+        feedbackText = CreateText("Feedback Text", reactionColumn.transform, string.Empty, 27, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         feedbackText.color = textColor;
         feedbackText.textWrappingMode = TextWrappingModes.Normal;
-        feedbackText.lineSpacing = 9f;
-        ConfigurePreferredLayoutElement(feedbackText.gameObject, -1f, 186f);
-        SetMinimumLayoutHeight(feedbackText.gameObject, 178f);
+        feedbackText.lineSpacing = 8f;
+        StretchToParent(feedbackText.GetComponent<RectTransform>());
+
+        feedbackPrepCardText = CreateText("Feedback Prep Card Text", prepColumn.transform, string.Empty, 25, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        feedbackPrepCardText.color = mutedTextColor;
+        feedbackPrepCardText.textWrappingMode = TextWrappingModes.Normal;
+        feedbackPrepCardText.lineSpacing = 8f;
+        StretchToParent(feedbackPrepCardText.GetComponent<RectTransform>());
 
         GameObject continueButtonObject = CreateButton("Continue Button", feedbackPanel.transform);
         ConfigurePreferredLayoutElement(continueButtonObject, -1f, 58f);
@@ -698,6 +809,78 @@ public class InterviewGameManager : MonoBehaviour
         stageContinueButton.onClick.AddListener(ContinueAfterStageTransition);
 
         stageTransitionScreen.SetActive(false);
+    }
+
+    private void CreateRecoveryChoiceScreen(Transform parent)
+    {
+        recoveryChoiceScreen = CreatePanel("Between Round Choice Screen", parent, transitionPanelColor);
+        ConfigureFlexibleLayoutElement(recoveryChoiceScreen, 1f);
+        AddPaddingLayout(recoveryChoiceScreen, new RectOffset(42, 42, 38, 40), 16f);
+
+        recoveryChoiceTitleText = CreateText("Recovery Choice Title", recoveryChoiceScreen.transform, "BETWEEN ROUNDS", 42, FontStyles.Bold, TextAlignmentOptions.Left);
+        recoveryChoiceTitleText.color = accentColor;
+
+        recoveryChoiceBodyText = CreateText("Recovery Choice Body", recoveryChoiceScreen.transform, string.Empty, 27, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        recoveryChoiceBodyText.color = textColor;
+        recoveryChoiceBodyText.textWrappingMode = TextWrappingModes.Normal;
+        ConfigurePreferredLayoutElement(recoveryChoiceBodyText.gameObject, -1f, 98f);
+        SetMinimumLayoutHeight(recoveryChoiceBodyText.gameObject, 86f);
+
+        recoveryChoiceStatsText = CreateText("Recovery Choice Stats", recoveryChoiceScreen.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        recoveryChoiceStatsText.color = mutedTextColor;
+        recoveryChoiceStatsText.lineSpacing = 8f;
+        SetRecoveryStatsLayout(false);
+
+        recoveryChoiceButtonColumn = new GameObject("Recovery Choice Buttons", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(LayoutElement));
+        recoveryChoiceButtonColumn.transform.SetParent(recoveryChoiceScreen.transform, false);
+        ConfigureFlexibleLayoutElement(recoveryChoiceButtonColumn, 1f);
+
+        VerticalLayoutGroup buttonColumnLayout = recoveryChoiceButtonColumn.GetComponent<VerticalLayoutGroup>();
+        buttonColumnLayout.spacing = 10f;
+        buttonColumnLayout.childControlWidth = true;
+        buttonColumnLayout.childControlHeight = true;
+        buttonColumnLayout.childForceExpandWidth = true;
+        buttonColumnLayout.childForceExpandHeight = true;
+
+        recoveryChoiceButtons = new Button[5];
+        recoveryChoiceButtonTexts = new TMP_Text[5];
+
+        for (int i = 0; i < recoveryChoiceButtons.Length; i++)
+        {
+            int choiceIndex = i;
+            GameObject buttonObject = CreateButton($"Recovery Choice {i + 1}", recoveryChoiceButtonColumn.transform);
+            ConfigurePreferredLayoutElement(buttonObject, -1f, 74f);
+
+            TMP_Text label = CreateText("Label", buttonObject.transform, string.Empty, 24, FontStyles.Normal, TextAlignmentOptions.Left);
+            label.color = textColor;
+            label.fontSize = 24;
+            label.alignment = TextAlignmentOptions.Left;
+            label.textWrappingMode = TextWrappingModes.Normal;
+            label.lineSpacing = 4f;
+            RectTransform labelRect = label.GetComponent<RectTransform>();
+            StretchToParent(labelRect);
+            labelRect.offsetMin = new Vector2(18f, 8f);
+            labelRect.offsetMax = new Vector2(-18f, -8f);
+
+            Button button = buttonObject.GetComponent<Button>();
+            button.onClick.AddListener(() => ChooseRecoveryChoice(choiceIndex));
+
+            recoveryChoiceButtons[i] = button;
+            recoveryChoiceButtonTexts[i] = label;
+        }
+
+        GameObject continueButtonObject = CreateButton("Continue After Recovery Choice Button", recoveryChoiceScreen.transform);
+        ConfigurePreferredLayoutElement(continueButtonObject, -1f, 68f);
+
+        TMP_Text continueText = CreateText("Label", continueButtonObject.transform, "Continue", 28, FontStyles.Bold, TextAlignmentOptions.Center);
+        continueText.color = textColor;
+        StretchToParent(continueText.GetComponent<RectTransform>());
+
+        recoveryChoiceContinueButton = continueButtonObject.GetComponent<Button>();
+        recoveryChoiceContinueButton.onClick.AddListener(ContinueAfterRecoveryChoice);
+        recoveryChoiceContinueButton.gameObject.SetActive(false);
+
+        recoveryChoiceScreen.SetActive(false);
     }
 
     private void CreateRandomEventScreen(Transform parent)
@@ -858,12 +1041,14 @@ public class InterviewGameManager : MonoBehaviour
     {
         Button button = answerButtons[answerIndex];
         Image image = button.GetComponent<Image>();
-        Color normalColor = selected ? selectedAnswerColor : buttonColor;
+        bool clarified = answerIndex == clarifiedAnswerIndex && button.interactable && !selected;
+        Color normalColor = selected ? selectedAnswerColor : clarified ? clarifiedAnswerColor : buttonColor;
+        Color highlightedColor = clarified ? selectedAnswerColor : buttonHoverColor;
         Color disabledColor = selected ? selectedAnswerColor : disabledAnswerColor;
 
-        button.colors = BuildButtonColors(normalColor, buttonHoverColor, disabledColor);
+        button.colors = BuildButtonColors(normalColor, highlightedColor, disabledColor);
         image.color = selected || button.interactable ? normalColor : disabledAnswerColor;
-        answerButtonTexts[answerIndex].fontStyle = selected ? FontStyles.Bold : FontStyles.Normal;
+        answerButtonTexts[answerIndex].fontStyle = selected || clarified ? FontStyles.Bold : FontStyles.Normal;
         answerButtonTexts[answerIndex].color = selected || button.interactable ? textColor : new Color32(170, 179, 194, 255);
     }
 
@@ -1535,6 +1720,8 @@ public class InterviewGameManager : MonoBehaviour
         stageRunSummaries.Clear();
         randomEventRunSummaries.Clear();
         usedRandomEventIndexes.Clear();
+        InitializeRecoveryChoices();
+        InitializePrepCards();
         strongAnswerCount = 0;
         riskyAnswerCount = 0;
         playerStats.Reset(StartingConfidence, StartingEnergy, StartingTechnicalCredibility, StartingCommercialAlignment);
@@ -1542,6 +1729,71 @@ public class InterviewGameManager : MonoBehaviour
         currentStageIndex = 0;
         currentQuestionIndex = 0;
         CaptureStageStartStats();
+    }
+
+    private void InitializeRecoveryChoices()
+    {
+        recoveryChoices = new RecoveryChoice[]
+        {
+            new RecoveryChoice(
+                RecoveryChoiceType.ReviewNotes,
+                "Review Notes",
+                "+6 Technical Credibility. +1 Technical style.",
+                "You review your notes. The next round feels a little more structured.",
+                0, 0, 6, 0,
+                0, 0, 0, 1, 0, 0,
+                false),
+            new RecoveryChoice(
+                RecoveryChoiceType.ReframeBusinessCase,
+                "Reframe the Business Case",
+                "+6 Commercial Alignment. +1 Commercial style.",
+                "You tighten the business case. The next answer has a clearer reason to exist.",
+                0, 0, 0, 6,
+                0, 0, 1, 0, 0, 0,
+                false),
+            new RecoveryChoice(
+                RecoveryChoiceType.TakeAWalk,
+                "Take a Walk",
+                "+10 Energy. -1 Burned Out style.",
+                "You step away from the screen long enough to reset your attention.",
+                0, 10, 0, 0,
+                0, 0, 0, 0, 0, -1,
+                false),
+            new RecoveryChoice(
+                RecoveryChoiceType.MessageFriendlyAe,
+                "Message a Friendly AE",
+                "+4 Confidence, +4 Commercial Alignment. +1 Diplomatic and +1 Commercial style.",
+                "The AE gives you just enough field context to sound less like you are interviewing in a vacuum.",
+                4, 0, 0, 4,
+                1, 0, 1, 0, 0, 0,
+                false),
+            new RecoveryChoice(
+                RecoveryChoiceType.DoomScrollGlassdoor,
+                "Doom-scroll Glassdoor",
+                "-5 Confidence, -5 Energy. +2 Burned Out style.",
+                "You learn several things you cannot verify and none of them help.",
+                -5, -5, 0, 0,
+                0, 0, 0, 0, 0, 2,
+                true)
+        };
+
+        recoveryChoicesMadeCount = 0;
+        doomScrollChoiceCount = 0;
+    }
+
+    private void InitializePrepCards()
+    {
+        prepCards = new PrepCard[]
+        {
+            new PrepCard(PrepCardType.TakeABreath, "Take a Breath", "+8 Energy immediately.", 2),
+            new PrepCard(PrepCardType.ClarifyingQuestion, "Ask a Clarifying Question", "Marks the most commercially aligned answer. Costs -3 Energy.", 2),
+            new PrepCard(PrepCardType.ReframeBusinessValue, "Reframe to Business Value", "Next selected answer gets +5 Commercial Alignment.", 1)
+        };
+
+        prepCardsUsedCount = 0;
+        reframedCommercialAlignmentBonus = 0;
+        clarifiedAnswerIndex = -1;
+        prepCardFeedbackNote = string.Empty;
     }
 
     private void SelectStageQuestionsForRun()
@@ -1671,6 +1923,7 @@ public class InterviewGameManager : MonoBehaviour
         processBriefingScreen.SetActive(true);
         questionScreen.SetActive(false);
         stageTransitionScreen.SetActive(false);
+        recoveryChoiceScreen.SetActive(false);
         randomEventScreen.SetActive(false);
         outcomeScreen.SetActive(false);
 
@@ -1691,6 +1944,7 @@ public class InterviewGameManager : MonoBehaviour
         processBriefingScreen.SetActive(false);
         questionScreen.SetActive(false);
         stageTransitionScreen.SetActive(false);
+        recoveryChoiceScreen.SetActive(false);
         randomEventScreen.SetActive(false);
         outcomeScreen.SetActive(false);
 
@@ -1708,6 +1962,8 @@ public class InterviewGameManager : MonoBehaviour
         menuBodyText.text =
             "How To Play\n\n" +
             "Choose answers with the mouse or number keys 1, 2, and 3.\n\n" +
+            "Use Q, W, and E to play Prep Cards before answering.\n\n" +
+            "Between rounds, use 1 through 5 to choose a recovery move.\n\n" +
             "Manage Confidence, Energy, Technical Credibility, and Commercial Alignment.\n\n" +
             "Random events may affect the process between stages.\n\n" +
             "The final outcome depends on total score, weak stats, interview style, and the active company process.\n\n" +
@@ -1807,6 +2063,50 @@ public class InterviewGameManager : MonoBehaviour
             return;
         }
 
+        if (recoveryChoiceScreen.activeSelf)
+        {
+            if (WasNumberShortcutPressed(1))
+            {
+                ChooseRecoveryChoice(0);
+            }
+            else if (WasNumberShortcutPressed(2))
+            {
+                ChooseRecoveryChoice(1);
+            }
+            else if (WasNumberShortcutPressed(3))
+            {
+                ChooseRecoveryChoice(2);
+            }
+            else if (WasNumberShortcutPressed(4))
+            {
+                ChooseRecoveryChoice(3);
+            }
+            else if (WasNumberShortcutPressed(5))
+            {
+                ChooseRecoveryChoice(4);
+            }
+
+            return;
+        }
+
+        if (WasPrepCardShortcutPressed(0))
+        {
+            UsePrepCard(0);
+            return;
+        }
+
+        if (WasPrepCardShortcutPressed(1))
+        {
+            UsePrepCard(1);
+            return;
+        }
+
+        if (WasPrepCardShortcutPressed(2))
+        {
+            UsePrepCard(2);
+            return;
+        }
+
         if (WasNumberShortcutPressed(1))
         {
             TrySelectAnswerByShortcut(0);
@@ -1853,6 +2153,8 @@ public class InterviewGameManager : MonoBehaviour
             1 => Keyboard.current.digit1Key.wasPressedThisFrame || Keyboard.current.numpad1Key.wasPressedThisFrame,
             2 => Keyboard.current.digit2Key.wasPressedThisFrame || Keyboard.current.numpad2Key.wasPressedThisFrame,
             3 => Keyboard.current.digit3Key.wasPressedThisFrame || Keyboard.current.numpad3Key.wasPressedThisFrame,
+            4 => Keyboard.current.digit4Key.wasPressedThisFrame || Keyboard.current.numpad4Key.wasPressedThisFrame,
+            5 => Keyboard.current.digit5Key.wasPressedThisFrame || Keyboard.current.numpad5Key.wasPressedThisFrame,
             _ => false
         };
 #else
@@ -1861,6 +2163,34 @@ public class InterviewGameManager : MonoBehaviour
             1 => Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1),
             2 => Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2),
             3 => Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3),
+            4 => Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4),
+            5 => Input.GetKeyDown(KeyCode.Alpha5) || Input.GetKeyDown(KeyCode.Keypad5),
+            _ => false
+        };
+#endif
+    }
+
+    private bool WasPrepCardShortcutPressed(int cardIndex)
+    {
+#if ENABLE_INPUT_SYSTEM
+        if (Keyboard.current == null)
+        {
+            return false;
+        }
+
+        return cardIndex switch
+        {
+            0 => Keyboard.current.qKey.wasPressedThisFrame,
+            1 => Keyboard.current.wKey.wasPressedThisFrame,
+            2 => Keyboard.current.eKey.wasPressedThisFrame,
+            _ => false
+        };
+#else
+        return cardIndex switch
+        {
+            0 => Input.GetKeyDown(KeyCode.Q),
+            1 => Input.GetKeyDown(KeyCode.W),
+            2 => Input.GetKeyDown(KeyCode.E),
             _ => false
         };
 #endif
@@ -1906,6 +2236,14 @@ public class InterviewGameManager : MonoBehaviour
         if (randomEventScreen.activeSelf && randomEventContinueButton.interactable)
         {
             ContinueAfterRandomEvent();
+            return;
+        }
+
+        if (recoveryChoiceScreen.activeSelf
+            && recoveryChoiceContinueButton.gameObject.activeSelf
+            && recoveryChoiceContinueButton.interactable)
+        {
+            ContinueAfterRecoveryChoice();
         }
     }
 
@@ -1971,6 +2309,7 @@ public class InterviewGameManager : MonoBehaviour
         processBriefingScreen.SetActive(false);
         questionScreen.SetActive(true);
         stageTransitionScreen.SetActive(false);
+        recoveryChoiceScreen.SetActive(false);
         randomEventScreen.SetActive(false);
         outcomeScreen.SetActive(false);
         ShowCurrentQuestion();
@@ -2004,15 +2343,21 @@ public class InterviewGameManager : MonoBehaviour
         questionStageIntroText.text = $"{stage.StageIntroText}\nToday's process: {GetCompanyProcessLine()}";
         questionText.text = question.QuestionText;
         feedbackPanel.SetActive(false);
+        prepCardsPanel.SetActive(true);
         SetBackdropViewportVisible(true);
+        reframedCommercialAlignmentBonus = 0;
+        clarifiedAnswerIndex = -1;
+        prepCardFeedbackNote = string.Empty;
 
         for (int i = 0; i < answerButtons.Length; i++)
         {
             answerButtons[i].gameObject.SetActive(true);
             answerButtons[i].interactable = true;
-            answerButtonTexts[i].text = displayedAnswers[i].AnswerText;
+            SetAnswerButtonText(i);
             SetAnswerButtonVisual(i, false);
         }
+
+        UpdatePrepCardButtons(true);
     }
 
     private AnswerOption[] BuildDisplayedAnswerOrder(InterviewQuestion question)
@@ -2049,23 +2394,183 @@ public class InterviewGameManager : MonoBehaviour
         }
 
         AnswerOption answer = displayedAnswers[answerIndex];
+        int commercialAlignmentModifier = reframedCommercialAlignmentBonus;
 
         PlayUiSound(answerSelectedClip);
-        playerStats.Apply(answer);
+        playerStats.ApplyDirectChanges(
+            answer.ConfidenceChange,
+            answer.EnergyChange,
+            answer.TechnicalCredibilityChange,
+            answer.CommercialAlignmentChange + commercialAlignmentModifier);
         styleTracker.Apply(answer);
         ApplyCompanyStyleModifier(answer);
         TrackAnswerSummary(answer);
+        prepCardsPanel.SetActive(false);
+        UpdatePrepCardButtons(false);
 
         for (int i = 0; i < answerButtons.Length; i++)
         {
             bool selected = i == answerIndex;
             answerButtons[i].interactable = false;
             SetAnswerButtonVisual(i, selected);
-            answerButtonTexts[i].text = displayedAnswers[i].AnswerText;
+            SetAnswerButtonText(i);
         }
 
         UpdateStatsText();
-        ShowFeedback(answer);
+        ShowFeedback(answer, commercialAlignmentModifier);
+        reframedCommercialAlignmentBonus = 0;
+    }
+
+    private void UsePrepCard(int cardIndex)
+    {
+        if (!CanUsePrepCards() || prepCards == null || cardIndex < 0 || cardIndex >= prepCards.Length)
+        {
+            return;
+        }
+
+        PrepCard card = prepCards[cardIndex];
+        if (card.RemainingUses <= 0)
+        {
+            return;
+        }
+
+        card.RemainingUses--;
+        card.UseCount++;
+        prepCardsUsedCount++;
+        PlayUiSound(continueClip);
+
+        switch (card.CardType)
+        {
+            case PrepCardType.TakeABreath:
+                playerStats.ApplyDirectChanges(0, 8, 0, 0);
+                AppendPrepCardFeedbackNote("You take a breath. Energy +8.");
+                break;
+            case PrepCardType.ClarifyingQuestion:
+                playerStats.ApplyDirectChanges(0, -3, 0, 0);
+                clarifiedAnswerIndex = GetHighestCommercialAlignmentAnswerIndex();
+                AppendPrepCardFeedbackNote("Prep Card used: Ask a Clarifying Question (-3 Energy).");
+                break;
+            case PrepCardType.ReframeBusinessValue:
+                reframedCommercialAlignmentBonus += 5;
+                AppendPrepCardFeedbackNote("Prep Card used: Reframe to Business Value (+5 Commercial Alignment on the selected answer).");
+                break;
+        }
+
+        UpdateStatsText();
+        UpdateAnswerButtonLabels();
+        UpdateAnswerButtonVisuals();
+        UpdatePrepCardButtons(true);
+    }
+
+    private bool CanUsePrepCards()
+    {
+        return questionScreen.activeSelf
+            && prepCardsPanel.activeSelf
+            && feedbackPanel != null
+            && !feedbackPanel.activeSelf
+            && pauseOverlay != null
+            && !pauseOverlay.activeSelf
+            && displayedAnswers != null;
+    }
+
+    private void AppendPrepCardFeedbackNote(string note)
+    {
+        if (string.IsNullOrEmpty(prepCardFeedbackNote))
+        {
+            prepCardFeedbackNote = note;
+            return;
+        }
+
+        prepCardFeedbackNote += "\n" + note;
+    }
+
+    private int GetHighestCommercialAlignmentAnswerIndex()
+    {
+        int bestIndex = 0;
+        int bestCommercialAlignment = int.MinValue;
+
+        for (int i = 0; i < displayedAnswers.Length; i++)
+        {
+            if (displayedAnswers[i].CommercialAlignmentChange > bestCommercialAlignment)
+            {
+                bestCommercialAlignment = displayedAnswers[i].CommercialAlignmentChange;
+                bestIndex = i;
+            }
+        }
+
+        return bestIndex;
+    }
+
+    private void UpdateAnswerButtonLabels()
+    {
+        if (answerButtonTexts == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < answerButtonTexts.Length; i++)
+        {
+            SetAnswerButtonText(i);
+        }
+    }
+
+    private void UpdateAnswerButtonVisuals()
+    {
+        if (answerButtons == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < answerButtons.Length; i++)
+        {
+            SetAnswerButtonVisual(i, false);
+        }
+    }
+
+    private void SetAnswerButtonText(int answerIndex)
+    {
+        string prefix = answerIndex == clarifiedAnswerIndex ? "<color=#5CBCA4><b>Clarified lead:</b></color> " : string.Empty;
+        answerButtonTexts[answerIndex].text = prefix + displayedAnswers[answerIndex].AnswerText;
+    }
+
+    private void UpdatePrepCardButtons(bool canUseCards)
+    {
+        if (prepCardButtons == null || prepCards == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < prepCardButtons.Length; i++)
+        {
+            PrepCard card = prepCards[i];
+            bool hasUses = card.RemainingUses > 0;
+            prepCardButtons[i].interactable = canUseCards && hasUses;
+            prepCardTexts[i].text =
+                $"<b>{card.Name}</b>\n" +
+                $"{card.Description}\n" +
+                GetPrepCardStatusText(card);
+            prepCardTexts[i].color = hasUses ? textColor : mutedTextColor;
+        }
+    }
+
+    private string GetPrepCardStatusText(PrepCard card)
+    {
+        if (card.RemainingUses <= 0)
+        {
+            return "<color=#ACB5C4><b>Exhausted</b></color>";
+        }
+
+        if (card.CardType == PrepCardType.ReframeBusinessValue && reframedCommercialAlignmentBonus > 0)
+        {
+            return "<color=#5CBCA4><b>Pending: next answer gains +5 Commercial Alignment</b></color>";
+        }
+
+        if (card.CardType == PrepCardType.ClarifyingQuestion && clarifiedAnswerIndex >= 0)
+        {
+            return "<color=#5CBCA4><b>Active: commercial lead marked</b></color>";
+        }
+
+        return $"Uses remaining: <b>{card.RemainingUses}/{card.MaxUses}</b>";
     }
 
     private InterviewQuestion[] GetSelectedQuestionsForStage(int stageIndex)
@@ -2140,7 +2645,7 @@ public class InterviewGameManager : MonoBehaviour
             || lowerText.Contains("without warning");
     }
 
-    private void ShowFeedback(AnswerOption answer)
+    private void ShowFeedback(AnswerOption answer, int commercialAlignmentModifier)
     {
         feedbackText.text =
             $"{answer.ConsequenceText}\n\n" +
@@ -2148,9 +2653,14 @@ public class InterviewGameManager : MonoBehaviour
             $"{FormatStatChange("Confidence", answer.ConfidenceChange)}\n" +
             $"{FormatStatChange("Energy", answer.EnergyChange)}\n" +
             $"{FormatStatChange("Technical Credibility", answer.TechnicalCredibilityChange)}\n" +
-            $"{FormatStatChange("Commercial Alignment", answer.CommercialAlignmentChange)}";
+            $"{FormatStatChange("Commercial Alignment", answer.CommercialAlignmentChange + commercialAlignmentModifier)}";
+
+        feedbackPrepCardText.text = string.IsNullOrEmpty(prepCardFeedbackNote)
+            ? "<b>Prep cards</b>\nNo prep card effects on this answer."
+            : $"<b>Prep cards</b>\n{prepCardFeedbackNote}";
 
         feedbackPanel.SetActive(true);
+        prepCardsPanel.SetActive(false);
         SetBackdropViewportVisible(false);
     }
 
@@ -2246,6 +2756,7 @@ public class InterviewGameManager : MonoBehaviour
         menuScreen.SetActive(false);
         processBriefingScreen.SetActive(false);
         stageTransitionScreen.SetActive(true);
+        recoveryChoiceScreen.SetActive(false);
         randomEventScreen.SetActive(false);
         outcomeScreen.SetActive(false);
 
@@ -2337,8 +2848,135 @@ public class InterviewGameManager : MonoBehaviour
                 ? 0
                 : activeCompanyProfile.BetweenStageEnergyRecoveryModifier;
             playerStats.RecoverBetweenStages(currentStageWasStrong, energyRecoveryModifier);
+            ShowRecoveryChoiceScreen();
+            return;
         }
 
+        ContinueAfterRecoveryChoice();
+    }
+
+    private void ShowRecoveryChoiceScreen()
+    {
+        HidePauseOverlay();
+        questionScreen.SetActive(false);
+        menuScreen.SetActive(false);
+        processBriefingScreen.SetActive(false);
+        stageTransitionScreen.SetActive(false);
+        recoveryChoiceScreen.SetActive(true);
+        randomEventScreen.SetActive(false);
+        outcomeScreen.SetActive(false);
+
+        progressText.text = "Between rounds";
+        subtitleText.text = "A small choice before the next interview.";
+        UpdateRoomBackdrop("Between Rounds");
+        recoveryChoiceTitleText.text = "BETWEEN ROUNDS";
+        recoveryChoiceBodyText.text = "You have a little time before the next interview. Pick one useful move, or one obviously unhelpful one.";
+        recoveryChoiceStatsText.text =
+            "<b>Current stats</b>\n" +
+            GetStatsSummary();
+        SetRecoveryStatsLayout(false);
+        recoveryChoiceButtonColumn.SetActive(true);
+        recoveryChoiceContinueButton.gameObject.SetActive(false);
+        UpdateRecoveryChoiceButtons();
+        FadeInScreen(recoveryChoiceScreen);
+    }
+
+    private void UpdateRecoveryChoiceButtons()
+    {
+        if (recoveryChoices == null || recoveryChoiceButtons == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < recoveryChoiceButtons.Length; i++)
+        {
+            RecoveryChoice choice = recoveryChoices[i];
+            recoveryChoiceButtons[i].interactable = true;
+            recoveryChoiceButtonTexts[i].text =
+                $"<b>{i + 1}. {choice.Name}</b>\n" +
+                choice.Description;
+        }
+    }
+
+    private void ChooseRecoveryChoice(int choiceIndex)
+    {
+        if (!CanChooseRecoveryChoice(choiceIndex))
+        {
+            return;
+        }
+
+        RecoveryChoice choice = recoveryChoices[choiceIndex];
+        choice.UseCount++;
+        recoveryChoicesMadeCount++;
+        if (choice.IsBadIdea)
+        {
+            doomScrollChoiceCount++;
+        }
+
+        playerStats.ApplyDirectChanges(
+            choice.ConfidenceChange,
+            choice.EnergyChange,
+            choice.TechnicalCredibilityChange,
+            choice.CommercialAlignmentChange);
+        styleTracker.ApplyStyleChanges(
+            choice.DiplomaticStyleChange,
+            choice.BluntStyleChange,
+            choice.CommercialStyleChange,
+            choice.TechnicalStyleChange,
+            choice.ChaoticStyleChange,
+            choice.BurnedOutStyleChange);
+        PlayUiSound(continueClip);
+
+        recoveryChoiceBodyText.text = choice.ConfirmationText;
+        SetRecoveryStatsLayout(true);
+        recoveryChoiceStatsText.text =
+            "<b>Recovery choice effects</b>\n" +
+            BuildChangeSummary(
+                choice.ConfidenceChange,
+                choice.EnergyChange,
+                choice.TechnicalCredibilityChange,
+                choice.CommercialAlignmentChange,
+                choice.DiplomaticStyleChange,
+                choice.BluntStyleChange,
+                choice.CommercialStyleChange,
+                choice.TechnicalStyleChange,
+                choice.ChaoticStyleChange,
+                choice.BurnedOutStyleChange) +
+            "\n\n<b>Current stats</b>\n" +
+            GetStatsSummary();
+        recoveryChoiceButtonColumn.SetActive(false);
+        recoveryChoiceContinueButton.gameObject.SetActive(true);
+        recoveryChoiceContinueButton.interactable = true;
+    }
+
+    private void SetRecoveryStatsLayout(bool confirmationState)
+    {
+        if (recoveryChoiceStatsText == null)
+        {
+            return;
+        }
+
+        float preferredHeight = confirmationState ? 252f : 118f;
+        float minimumHeight = confirmationState ? 238f : 104f;
+        ConfigurePreferredLayoutElement(recoveryChoiceStatsText.gameObject, -1f, preferredHeight);
+        SetMinimumLayoutHeight(recoveryChoiceStatsText.gameObject, minimumHeight);
+    }
+
+    private bool CanChooseRecoveryChoice(int choiceIndex)
+    {
+        return recoveryChoiceScreen.activeSelf
+            && recoveryChoiceButtonColumn.activeSelf
+            && recoveryChoices != null
+            && choiceIndex >= 0
+            && choiceIndex < recoveryChoices.Length
+            && recoveryChoiceButtons != null
+            && choiceIndex < recoveryChoiceButtons.Length
+            && recoveryChoiceButtons[choiceIndex].interactable;
+    }
+
+    private void ContinueAfterRecoveryChoice()
+    {
+        PlayUiSound(continueClip);
         if (ShouldShowRandomEvent())
         {
             if (ShowRandomEvent())
@@ -2412,6 +3050,7 @@ public class InterviewGameManager : MonoBehaviour
         menuScreen.SetActive(false);
         processBriefingScreen.SetActive(false);
         stageTransitionScreen.SetActive(false);
+        recoveryChoiceScreen.SetActive(false);
         randomEventScreen.SetActive(true);
         outcomeScreen.SetActive(false);
 
@@ -2565,6 +3204,7 @@ public class InterviewGameManager : MonoBehaviour
         menuScreen.SetActive(false);
         processBriefingScreen.SetActive(false);
         stageTransitionScreen.SetActive(false);
+        recoveryChoiceScreen.SetActive(false);
         randomEventScreen.SetActive(false);
         outcomeScreen.SetActive(true);
         progressText.text = "Interview process complete";
@@ -2703,7 +3343,73 @@ public class InterviewGameManager : MonoBehaviour
             $"Hardest stage: <b>{FormatStageSummary(weakestStage)}</b>\n\n" +
             $"Helpful event: {FormatEventSummary(mostHelpfulEvent, true)}\n" +
             $"Damaging event: {FormatEventSummary(mostDamagingEvent, false)}\n\n" +
-            $"Answer mix: <b>{strongAnswerCount}</b> strong | <b>{riskyAnswerCount}</b> risky";
+            $"Answer mix: <b>{strongAnswerCount}</b> strong | <b>{riskyAnswerCount}</b> risky\n" +
+            $"Prep cards used: <b>{prepCardsUsedCount}</b>{GetMostUsedPrepCardSummary()}\n" +
+            $"Recovery: {BuildRecoveryChoiceSummary()}";
+    }
+
+    private string GetMostUsedPrepCardSummary()
+    {
+        if (prepCards == null || prepCardsUsedCount <= 0)
+        {
+            return string.Empty;
+        }
+
+        PrepCard mostUsedCard = null;
+        for (int i = 0; i < prepCards.Length; i++)
+        {
+            if (prepCards[i].UseCount <= 0)
+            {
+                continue;
+            }
+
+            if (mostUsedCard == null || prepCards[i].UseCount > mostUsedCard.UseCount)
+            {
+                mostUsedCard = prepCards[i];
+            }
+        }
+
+        return mostUsedCard == null ? string.Empty : $" | Most used: <b>{mostUsedCard.Name}</b>";
+    }
+
+    private string BuildRecoveryChoiceSummary()
+    {
+        if (recoveryChoices == null || recoveryChoicesMadeCount <= 0)
+        {
+            return "none";
+        }
+
+        RecoveryChoice mostUsedChoice = GetMostUsedRecoveryChoice();
+        string summary = mostUsedChoice == null
+            ? $"{recoveryChoicesMadeCount} choices"
+            : $"Most used: <b>{mostUsedChoice.Name}</b>";
+
+        if (doomScrollChoiceCount > 0)
+        {
+            summary += $" | Bad idea count: <b>{doomScrollChoiceCount}</b>";
+        }
+
+        return summary;
+    }
+
+    private RecoveryChoice GetMostUsedRecoveryChoice()
+    {
+        RecoveryChoice mostUsedChoice = null;
+
+        for (int i = 0; i < recoveryChoices.Length; i++)
+        {
+            if (recoveryChoices[i].UseCount <= 0)
+            {
+                continue;
+            }
+
+            if (mostUsedChoice == null || recoveryChoices[i].UseCount > mostUsedChoice.UseCount)
+            {
+                mostUsedChoice = recoveryChoices[i];
+            }
+        }
+
+        return mostUsedChoice;
     }
 
     private string BuildCompactStatsSummary()
@@ -2995,6 +3701,69 @@ public class InterviewGameManager : MonoBehaviour
         }
     }
 
+    private enum RecoveryChoiceType
+    {
+        ReviewNotes,
+        ReframeBusinessCase,
+        TakeAWalk,
+        MessageFriendlyAe,
+        DoomScrollGlassdoor
+    }
+
+    private sealed class RecoveryChoice
+    {
+        public RecoveryChoiceType ChoiceType { get; }
+        public string Name { get; }
+        public string Description { get; }
+        public string ConfirmationText { get; }
+        public int ConfidenceChange { get; }
+        public int EnergyChange { get; }
+        public int TechnicalCredibilityChange { get; }
+        public int CommercialAlignmentChange { get; }
+        public int DiplomaticStyleChange { get; }
+        public int BluntStyleChange { get; }
+        public int CommercialStyleChange { get; }
+        public int TechnicalStyleChange { get; }
+        public int ChaoticStyleChange { get; }
+        public int BurnedOutStyleChange { get; }
+        public bool IsBadIdea { get; }
+        public int UseCount { get; set; }
+
+        public RecoveryChoice(
+            RecoveryChoiceType choiceType,
+            string name,
+            string description,
+            string confirmationText,
+            int confidenceChange,
+            int energyChange,
+            int technicalCredibilityChange,
+            int commercialAlignmentChange,
+            int diplomaticStyleChange,
+            int bluntStyleChange,
+            int commercialStyleChange,
+            int technicalStyleChange,
+            int chaoticStyleChange,
+            int burnedOutStyleChange,
+            bool isBadIdea)
+        {
+            ChoiceType = choiceType;
+            Name = name;
+            Description = description;
+            ConfirmationText = confirmationText;
+            ConfidenceChange = confidenceChange;
+            EnergyChange = energyChange;
+            TechnicalCredibilityChange = technicalCredibilityChange;
+            CommercialAlignmentChange = commercialAlignmentChange;
+            DiplomaticStyleChange = diplomaticStyleChange;
+            BluntStyleChange = bluntStyleChange;
+            CommercialStyleChange = commercialStyleChange;
+            TechnicalStyleChange = technicalStyleChange;
+            ChaoticStyleChange = chaoticStyleChange;
+            BurnedOutStyleChange = burnedOutStyleChange;
+            IsBadIdea = isBadIdea;
+        }
+    }
+
     private readonly struct StatSummary
     {
         public string Name { get; }
@@ -3004,6 +3773,32 @@ public class InterviewGameManager : MonoBehaviour
         {
             Name = name;
             Value = value;
+        }
+    }
+
+    private enum PrepCardType
+    {
+        TakeABreath,
+        ClarifyingQuestion,
+        ReframeBusinessValue
+    }
+
+    private sealed class PrepCard
+    {
+        public PrepCardType CardType { get; }
+        public string Name { get; }
+        public string Description { get; }
+        public int MaxUses { get; }
+        public int RemainingUses { get; set; }
+        public int UseCount { get; set; }
+
+        public PrepCard(PrepCardType cardType, string name, string description, int maxUses)
+        {
+            CardType = cardType;
+            Name = name;
+            Description = description;
+            MaxUses = maxUses;
+            RemainingUses = maxUses;
         }
     }
 

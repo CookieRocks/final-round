@@ -1,5 +1,60 @@
 # Changelog
 
+## v0.3.0 - Tactical Choices Pass
+
+Released: 2026-06-06
+
+### Overview
+
+`v0.3.0` makes Final Round feel more game-like by adding limited-use Prep Cards during questions and recovery choices between rounds. It keeps the existing scoring thresholds, question pools, company profiles, seeded runs, non-repeating random events, final report card, and 3D viewport intact.
+
+### Added
+
+- Added Prep Cards during normal question state:
+  - `Take a Breath`: +8 Energy, 2 uses
+  - `Ask a Clarifying Question`: marks the strongest Commercial Alignment answer, costs -3 Energy, 2 uses
+  - `Reframe to Business Value`: next selected answer gains +5 Commercial Alignment, 1 use
+- Added Prep Card feedback integration so used cards are reflected in answer feedback.
+- Added Prep Card usage summary to the final report.
+- Added `Q`, `W`, and `E` shortcuts for Prep Cards.
+- Added Between-Round Recovery Choices after each non-final stage:
+  - `Review Notes`
+  - `Reframe the Business Case`
+  - `Take a Walk`
+  - `Message a Friendly AE`
+  - `Doom-scroll Glassdoor`
+- Added recovery choice confirmation state showing applied effects and updated stats.
+- Added recovery choice summary to the final report.
+- Added `1` through `5` shortcuts on the recovery choice screen.
+
+### Changed
+
+- Updated in-game prototype label to `Prototype v0.3`.
+- Updated README to describe Prep Cards, recovery choices, and the new shortcuts.
+- Tightened Prep Card state handling so cards only work during normal question state.
+- Improved Prep Card UI states for pending, active, and exhausted cards.
+- Improved recovery confirmation layout so stat lines do not overlap the Continue button.
+
+### Fixed
+
+- Fixed a recovery screen startup error caused by creating button text after querying for a missing label.
+- Fixed recovery confirmation text clipping under the Continue button.
+- Fixed stale release documentation/version text that still referred to `Prototype v0.1`.
+
+### Validation
+
+- `dotnet build Assembly-CSharp.csproj` passes with 0 warnings and 0 errors.
+- Confirmed `Assets/Scenes/InterviewRoom.unity` remains the enabled build scene.
+- Confirmed v0.3 Windows standalone build exists under `Builds/v0.3`.
+- Performed a standalone smoke launch of `Builds/v0.3/Final Round.exe`.
+
+### Build
+
+- Created Windows prototype build:
+  - `Builds/v0.3/Final Round.exe`
+- Tagged release:
+  - `v0.3.0`
+
 ## v0.2.0 - Replayability Pass
 
 Released: 2026-06-06

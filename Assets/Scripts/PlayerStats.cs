@@ -34,6 +34,11 @@ public class PlayerStats
         ApplyChanges(interviewEvent.ConfidenceChange, interviewEvent.EnergyChange, interviewEvent.TechnicalCredibilityChange, interviewEvent.CommercialAlignmentChange);
     }
 
+    public void ApplyDirectChanges(int confidenceChange, int energyChange, int technicalCredibilityChange, int commercialAlignmentChange)
+    {
+        ApplyChanges(confidenceChange, energyChange, technicalCredibilityChange, commercialAlignmentChange);
+    }
+
     public void RecoverBetweenStages(bool stageWasStrong, int energyRecoveryModifier = 0)
     {
         Energy = Mathf.Clamp(Energy + 10 + energyRecoveryModifier, 0, 100);
