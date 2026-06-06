@@ -118,6 +118,8 @@ public class InterviewGameManager : MonoBehaviour
     [SerializeField] private bool randomizeAnswerOrder = true;
     [SerializeField] private bool useCompanyProfileModifiers = true;
     [SerializeField] private bool debugAllowRepeatedRandomEvents;
+    [SerializeField] private bool useDebugCompanyProfile;
+    [SerializeField] private int debugCompanyProfileIndex;
     [SerializeField] private bool useDeterministicRunSeed;
     [SerializeField] private int debugRunSeed = 48291;
     [SerializeField] private bool useDeterministicAnswerSeed;
@@ -146,6 +148,8 @@ public class InterviewGameManager : MonoBehaviour
     private string prepCardFeedbackNote;
     private int strongAnswerCount;
     private int riskyAnswerCount;
+    private bool firstChaoticAnswerBonusApplied;
+    private readonly List<string> activeRuleRunNotes = new List<string>();
 
     private InterviewStage[] stages;
     private InterviewQuestion[][] selectedStageQuestions;
@@ -923,20 +927,20 @@ public class InterviewGameManager : MonoBehaviour
         ConfigureFlexibleLayoutElement(outcomeScreen, 1f);
         AddPaddingLayout(outcomeScreen, new RectOffset(34, 34, 26, 26), 14f);
 
-        outcomeTitleText = CreateText("Outcome Title", outcomeScreen.transform, string.Empty, 48, FontStyles.Bold, TextAlignmentOptions.Left);
+        outcomeTitleText = CreateText("Outcome Title", outcomeScreen.transform, string.Empty, 45, FontStyles.Bold, TextAlignmentOptions.Left);
         outcomeTitleText.color = accentColor;
 
-        outcomeBodyText = CreateText("Outcome Body", outcomeScreen.transform, string.Empty, 27, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        outcomeBodyText = CreateText("Outcome Body", outcomeScreen.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         outcomeBodyText.color = textColor;
         outcomeBodyText.textWrappingMode = TextWrappingModes.Normal;
-        outcomeBodyText.lineSpacing = 8f;
-        ConfigurePreferredLayoutElement(outcomeBodyText.gameObject, -1f, 150f);
-        SetMinimumLayoutHeight(outcomeBodyText.gameObject, 122f);
+        outcomeBodyText.lineSpacing = 2f;
+        ConfigurePreferredLayoutElement(outcomeBodyText.gameObject, -1f, 178f);
+        SetMinimumLayoutHeight(outcomeBodyText.gameObject, 166f);
 
         GameObject outcomeContentRow = new GameObject("Outcome Content Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
         outcomeContentRow.transform.SetParent(outcomeScreen.transform, false);
         ConfigureFlexibleLayoutElement(outcomeContentRow, 1f);
-        SetMinimumLayoutHeight(outcomeContentRow, 250f);
+        SetMinimumLayoutHeight(outcomeContentRow, 224f);
 
         HorizontalLayoutGroup contentRowLayout = outcomeContentRow.GetComponent<HorizontalLayoutGroup>();
         contentRowLayout.spacing = 22f;
@@ -952,9 +956,9 @@ public class InterviewGameManager : MonoBehaviour
         TMP_Text statsHeading = CreateText("Outcome Stats Heading", statsPanel.transform, "FINAL READ", 22, FontStyles.Bold, TextAlignmentOptions.Left);
         statsHeading.color = accentColor;
 
-        outcomeStatsText = CreateText("Outcome Stats", statsPanel.transform, string.Empty, 25, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        outcomeStatsText = CreateText("Outcome Stats", statsPanel.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         outcomeStatsText.color = textColor;
-        outcomeStatsText.lineSpacing = 13f;
+        outcomeStatsText.lineSpacing = 8f;
         ConfigureFlexibleLayoutElement(outcomeStatsText.gameObject, 1f);
 
         GameObject highlightsPanel = CreatePanel("Outcome Highlights Panel", outcomeContentRow.transform, panelAccentColor);
@@ -964,28 +968,28 @@ public class InterviewGameManager : MonoBehaviour
         TMP_Text highlightsHeading = CreateText("Outcome Highlights Heading", highlightsPanel.transform, "RUN HIGHLIGHTS", 22, FontStyles.Bold, TextAlignmentOptions.Left);
         highlightsHeading.color = accentColor;
 
-        outcomeHighlightsText = CreateText("Outcome Highlights", highlightsPanel.transform, string.Empty, 25, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        outcomeHighlightsText = CreateText("Outcome Highlights", highlightsPanel.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         outcomeHighlightsText.color = textColor;
-        outcomeHighlightsText.lineSpacing = 13f;
+        outcomeHighlightsText.lineSpacing = 8f;
         outcomeHighlightsText.textWrappingMode = TextWrappingModes.Normal;
         ConfigureFlexibleLayoutElement(outcomeHighlightsText.gameObject, 1f);
 
         GameObject advicePanel = CreatePanel("Outcome Advice Panel", outcomeScreen.transform, transitionPanelColor);
-        ConfigurePreferredLayoutElement(advicePanel, -1f, 104f);
-        SetMinimumLayoutHeight(advicePanel, 96f);
+        ConfigurePreferredLayoutElement(advicePanel, -1f, 94f);
+        SetMinimumLayoutHeight(advicePanel, 86f);
         AddPaddingLayout(advicePanel, new RectOffset(24, 24, 16, 16), 8f);
 
         TMP_Text adviceHeading = CreateText("Outcome Advice Heading", advicePanel.transform, "NEXT RUN ADVICE", 21, FontStyles.Bold, TextAlignmentOptions.Left);
         adviceHeading.color = accentColor;
 
-        outcomeAdviceText = CreateText("Outcome Advice", advicePanel.transform, string.Empty, 25, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        outcomeAdviceText = CreateText("Outcome Advice", advicePanel.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         outcomeAdviceText.color = textColor;
         outcomeAdviceText.textWrappingMode = TextWrappingModes.Normal;
         ConfigureFlexibleLayoutElement(outcomeAdviceText.gameObject, 1f);
 
         GameObject buttonRow = new GameObject("Outcome Button Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
         buttonRow.transform.SetParent(outcomeScreen.transform, false);
-        ConfigurePreferredLayoutElement(buttonRow, -1f, 68f);
+        ConfigurePreferredLayoutElement(buttonRow, -1f, 58f);
 
         HorizontalLayoutGroup buttonRowLayout = buttonRow.GetComponent<HorizontalLayoutGroup>();
         buttonRowLayout.spacing = 18f;
@@ -1622,28 +1626,46 @@ public class InterviewGameManager : MonoBehaviour
                 "Big SaaS Vendor",
                 "Balanced Enterprise Motion",
                 "They care about consistent discovery, credible demos, and a clean partnership with sales.",
-                "Default process pressure.",
-                "Balanced, commercially aware answers land well."),
+                "Fewer random events; offer recommendation bar is higher.",
+                "Balanced, commercially aware answers land well.",
+                "Structured Process",
+                "Fewer surprises, but the panel expects a cleaner overall signal before recommending offer.",
+                "Fewer surprises, higher bar.",
+                randomEventChanceModifier: -0.08f,
+                offerRecommendedThresholdModifier: 10),
             new CompanyProfile(
                 "Startup Rocketship",
                 "Fast, Messy, Urgent",
                 "They care about pace, ownership, and whether you can keep signal through moving parts.",
-                "Random events are slightly more likely; event energy losses are one point sharper.",
+                "Random events are more likely; positive recovery effects are stronger; event energy losses are sharper.",
                 "Decisive answers help, but chaos has a cost.",
+                "High Chaos, High Recovery",
+                "More process volatility, stronger recovery moves, and a slightly harsher energy hit when surprises land.",
+                "More chaos, but recovery choices hit harder.",
                 randomEventChanceModifier: 0.12f,
-                eventEnergyLossModifier: -1),
+                eventEnergyLossModifier: -2,
+                recoveryPositiveEffectBonus: 2),
             new CompanyProfile(
                 "Security Vendor",
                 "Risk-Framing Process",
                 "They care about risk framing, technical credibility, and clean customer communication.",
-                "No direct stat changes; technical and commercial framing matter in the authored answers.",
-                "Technical and commercial credibility are especially important signals."),
+                "Offer recommendation also requires Technical Credibility and Commercial Alignment to both clear 60.",
+                "Technical and commercial credibility are especially important signals.",
+                "Risk Framing Matters",
+                "The panel will not recommend offer unless technical depth and business risk framing both survive scrutiny.",
+                "Technical depth and business risk both matter.",
+                requiresTechnicalAndCommercialOfferGate: true),
             new CompanyProfile(
                 "AI Hype Company",
                 "Narrative-Heavy Growth Motion",
                 "They care about vision, speed, and whether you can stay grounded when the room starts saying agentic.",
-                "Risky AI-flavoured answers and chaotic events increase chaotic style slightly faster.",
+                "A little chaos is tolerated; too much creates credibility risk.",
                 "Grounded enthusiasm beats demo-theatre.",
+                "Chaos Can Sell",
+                "Early chaotic style is forgiven, and the first risky chaotic answer can create confidence, but excess chaos damages credibility.",
+                "A little chaos helps. Too much becomes the product strategy.",
+                chaoticStyleForgiveness: 3,
+                firstChaoticAnswerConfidenceBonus: 2,
                 aiChaoticStyleBonus: 1),
             new CompanyProfile(
                 "Legacy Enterprise",
@@ -1651,6 +1673,9 @@ public class InterviewGameManager : MonoBehaviour
                 "They care about patience, stakeholder management, and whether you can keep energy through process drag.",
                 "Random chaos is slightly lower; between-stage energy recovery is reduced.",
                 "Steady diplomatic answers travel best.",
+                "Slow Process",
+                "Fewer external surprises, but the process itself gives less energy back between rounds.",
+                "Less chaos, more stamina tax.",
                 randomEventChanceModifier: -0.12f,
                 betweenStageEnergyRecoveryModifier: -3)
         };
@@ -1724,6 +1749,8 @@ public class InterviewGameManager : MonoBehaviour
         InitializePrepCards();
         strongAnswerCount = 0;
         riskyAnswerCount = 0;
+        firstChaoticAnswerBonusApplied = false;
+        activeRuleRunNotes.Clear();
         playerStats.Reset(StartingConfidence, StartingEnergy, StartingTechnicalCredibility, StartingCommercialAlignment);
         styleTracker.Reset();
         currentStageIndex = 0;
@@ -1880,6 +1907,13 @@ public class InterviewGameManager : MonoBehaviour
             InitializeRunIdentity();
         }
 
+        if (useDebugCompanyProfile)
+        {
+            int clampedIndex = Mathf.Clamp(debugCompanyProfileIndex, 0, companyProfiles.Length - 1);
+            activeCompanyProfile = companyProfiles[clampedIndex];
+            return;
+        }
+
         activeCompanyProfile = companyProfiles[runRandom.Next(companyProfiles.Length)];
     }
 
@@ -1989,6 +2023,7 @@ public class InterviewGameManager : MonoBehaviour
         return
             $"Today's process: {activeCompanyProfile.CompanyName}\n" +
             $"{activeCompanyProfile.Description}\n" +
+            $"Rule: {activeCompanyProfile.RuleName} - {activeCompanyProfile.RuleHint}\n" +
             $"{activeCompanyProfile.StatModifierNotes}";
     }
 
@@ -1999,7 +2034,7 @@ public class InterviewGameManager : MonoBehaviour
             return string.Empty;
         }
 
-        return $"{activeCompanyProfile.CompanyName}: {activeCompanyProfile.PreferredStyle}";
+        return $"{activeCompanyProfile.CompanyName} | {activeCompanyProfile.RuleName}: {activeCompanyProfile.RuleHint}";
     }
 
     private string BuildProcessBriefingBody()
@@ -2018,6 +2053,9 @@ public class InterviewGameManager : MonoBehaviour
             $"{activeCompanyProfile.ProfileName}\n\n" +
             $"{activeCompanyProfile.Description}\n\n" +
             $"Rewards: {activeCompanyProfile.PreferredStyle}\n" +
+            $"Active rule: <b>{activeCompanyProfile.RuleName}</b>\n" +
+            $"{activeCompanyProfile.RuleDescription}\n" +
+            $"Hint: {activeCompanyProfile.RuleHint}\n\n" +
             $"Modifier note: {activeCompanyProfile.StatModifierNotes}\n\n" +
             GetProcessBriefingFlavourLine();
     }
@@ -2395,16 +2433,17 @@ public class InterviewGameManager : MonoBehaviour
 
         AnswerOption answer = displayedAnswers[answerIndex];
         int commercialAlignmentModifier = reframedCommercialAlignmentBonus;
+        int confidenceModifier = GetFirstChaoticAnswerConfidenceBonus(answer);
 
         PlayUiSound(answerSelectedClip);
         playerStats.ApplyDirectChanges(
-            answer.ConfidenceChange,
+            answer.ConfidenceChange + confidenceModifier,
             answer.EnergyChange,
             answer.TechnicalCredibilityChange,
             answer.CommercialAlignmentChange + commercialAlignmentModifier);
+        TrackAnswerSummary(answer);
         styleTracker.Apply(answer);
         ApplyCompanyStyleModifier(answer);
-        TrackAnswerSummary(answer);
         prepCardsPanel.SetActive(false);
         UpdatePrepCardButtons(false);
 
@@ -2417,7 +2456,7 @@ public class InterviewGameManager : MonoBehaviour
         }
 
         UpdateStatsText();
-        ShowFeedback(answer, commercialAlignmentModifier);
+        ShowFeedback(answer, commercialAlignmentModifier, confidenceModifier);
         reframedCommercialAlignmentBonus = 0;
     }
 
@@ -2595,13 +2634,35 @@ public class InterviewGameManager : MonoBehaviour
             strongAnswerCount++;
         }
 
-        if (totalStatChange < 0
-            || answer.ChaoticStyleChange > 0
-            || answer.BurnedOutStyleChange > 0
-            || answer.BluntStyleChange > 1)
+        if (ShouldTreatAnswerAsRisky(answer, totalStatChange))
         {
             riskyAnswerCount++;
         }
+    }
+
+    private bool ShouldTreatAnswerAsRisky(AnswerOption answer, int totalStatChange)
+    {
+        if (totalStatChange < 0 || answer.BurnedOutStyleChange > 0 || answer.BluntStyleChange > 1)
+        {
+            return true;
+        }
+
+        if (answer.ChaoticStyleChange <= 0)
+        {
+            return false;
+        }
+
+        int forgiveness = !useCompanyProfileModifiers || activeCompanyProfile == null
+            ? 0
+            : activeCompanyProfile.ChaoticStyleForgiveness;
+        bool forgiven = styleTracker.ChaoticStyle < forgiveness;
+
+        if (forgiven)
+        {
+            AddRuleRunNoteOnce("Early chaotic answers were treated as sellable energy.");
+        }
+
+        return !forgiven;
     }
 
     private int GetAnswerStatImpact(AnswerOption answer)
@@ -2630,6 +2691,22 @@ public class InterviewGameManager : MonoBehaviour
         }
     }
 
+    private int GetFirstChaoticAnswerConfidenceBonus(AnswerOption answer)
+    {
+        if (!useCompanyProfileModifiers
+            || activeCompanyProfile == null
+            || activeCompanyProfile.FirstChaoticAnswerConfidenceBonus <= 0
+            || firstChaoticAnswerBonusApplied
+            || answer.ChaoticStyleChange <= 0)
+        {
+            return 0;
+        }
+
+        firstChaoticAnswerBonusApplied = true;
+        AddRuleRunNoteOnce($"{activeCompanyProfile.RuleName}: first risky chaotic answer landed for Confidence {FormatSignedNumber(activeCompanyProfile.FirstChaoticAnswerConfidenceBonus)}.");
+        return activeCompanyProfile.FirstChaoticAnswerConfidenceBonus;
+    }
+
     private bool IsAiOrChaoticSignal(string text)
     {
         if (string.IsNullOrEmpty(text))
@@ -2645,15 +2722,16 @@ public class InterviewGameManager : MonoBehaviour
             || lowerText.Contains("without warning");
     }
 
-    private void ShowFeedback(AnswerOption answer, int commercialAlignmentModifier)
+    private void ShowFeedback(AnswerOption answer, int commercialAlignmentModifier, int confidenceModifier)
     {
         feedbackText.text =
             $"{answer.ConsequenceText}\n\n" +
             "<b>Stat changes</b>\n" +
-            $"{FormatStatChange("Confidence", answer.ConfidenceChange)}\n" +
+            $"{FormatStatChange("Confidence", answer.ConfidenceChange + confidenceModifier)}\n" +
             $"{FormatStatChange("Energy", answer.EnergyChange)}\n" +
             $"{FormatStatChange("Technical Credibility", answer.TechnicalCredibilityChange)}\n" +
-            $"{FormatStatChange("Commercial Alignment", answer.CommercialAlignmentChange + commercialAlignmentModifier)}";
+            $"{FormatStatChange("Commercial Alignment", answer.CommercialAlignmentChange + commercialAlignmentModifier)}" +
+            BuildAnswerRuleFeedback(confidenceModifier);
 
         feedbackPrepCardText.text = string.IsNullOrEmpty(prepCardFeedbackNote)
             ? "<b>Prep cards</b>\nNo prep card effects on this answer."
@@ -2662,6 +2740,16 @@ public class InterviewGameManager : MonoBehaviour
         feedbackPanel.SetActive(true);
         prepCardsPanel.SetActive(false);
         SetBackdropViewportVisible(false);
+    }
+
+    private string BuildAnswerRuleFeedback(int confidenceModifier)
+    {
+        if (confidenceModifier == 0 || activeCompanyProfile == null)
+        {
+            return string.Empty;
+        }
+
+        return $"\n\n<b>{activeCompanyProfile.RuleName}</b>\nThat risky answer created useful room energy. Confidence {FormatSignedNumber(confidenceModifier)}.";
     }
 
     private void SetBackdropViewportVisible(bool visible)
@@ -2913,11 +3001,16 @@ public class InterviewGameManager : MonoBehaviour
             doomScrollChoiceCount++;
         }
 
+        int confidenceChange = ApplyRecoveryPositiveBonus(choice.ConfidenceChange);
+        int energyChange = ApplyRecoveryPositiveBonus(choice.EnergyChange);
+        int technicalCredibilityChange = ApplyRecoveryPositiveBonus(choice.TechnicalCredibilityChange);
+        int commercialAlignmentChange = ApplyRecoveryPositiveBonus(choice.CommercialAlignmentChange);
+
         playerStats.ApplyDirectChanges(
-            choice.ConfidenceChange,
-            choice.EnergyChange,
-            choice.TechnicalCredibilityChange,
-            choice.CommercialAlignmentChange);
+            confidenceChange,
+            energyChange,
+            technicalCredibilityChange,
+            commercialAlignmentChange);
         styleTracker.ApplyStyleChanges(
             choice.DiplomaticStyleChange,
             choice.BluntStyleChange,
@@ -2932,10 +3025,10 @@ public class InterviewGameManager : MonoBehaviour
         recoveryChoiceStatsText.text =
             "<b>Recovery choice effects</b>\n" +
             BuildChangeSummary(
-                choice.ConfidenceChange,
-                choice.EnergyChange,
-                choice.TechnicalCredibilityChange,
-                choice.CommercialAlignmentChange,
+                confidenceChange,
+                energyChange,
+                technicalCredibilityChange,
+                commercialAlignmentChange,
                 choice.DiplomaticStyleChange,
                 choice.BluntStyleChange,
                 choice.CommercialStyleChange,
@@ -2947,6 +3040,20 @@ public class InterviewGameManager : MonoBehaviour
         recoveryChoiceButtonColumn.SetActive(false);
         recoveryChoiceContinueButton.gameObject.SetActive(true);
         recoveryChoiceContinueButton.interactable = true;
+    }
+
+    private int ApplyRecoveryPositiveBonus(int change)
+    {
+        if (!useCompanyProfileModifiers
+            || activeCompanyProfile == null
+            || activeCompanyProfile.RecoveryPositiveEffectBonus <= 0
+            || change <= 0)
+        {
+            return change;
+        }
+
+        AddRuleRunNoteOnce($"{activeCompanyProfile.RuleName}: positive recovery effects gained +{activeCompanyProfile.RecoveryPositiveEffectBonus}.");
+        return change + activeCompanyProfile.RecoveryPositiveEffectBonus;
     }
 
     private void SetRecoveryStatsLayout(bool confirmationState)
@@ -3136,12 +3243,17 @@ public class InterviewGameManager : MonoBehaviour
         if (energyChange < 0)
         {
             energyChange += activeCompanyProfile.EventEnergyLossModifier;
+            if (activeCompanyProfile.EventEnergyLossModifier != 0)
+            {
+                AddRuleRunNoteOnce($"{activeCompanyProfile.RuleName}: random event energy losses modified by {activeCompanyProfile.EventEnergyLossModifier}.");
+            }
         }
 
         int chaoticStyleChange = interviewEvent.ChaoticStyleChange;
         if (activeCompanyProfile.AiChaoticStyleBonus > 0 && IsAiOrChaoticSignal(interviewEvent.EventTitle + " " + interviewEvent.EventDescription))
         {
             chaoticStyleChange += activeCompanyProfile.AiChaoticStyleBonus;
+            AddRuleRunNoteOnce($"{activeCompanyProfile.RuleName}: AI/chaos event added chaotic style +{activeCompanyProfile.AiChaoticStyleBonus}.");
         }
 
         return new RandomInterviewEvent(
@@ -3178,8 +3290,12 @@ public class InterviewGameManager : MonoBehaviour
             return "\n\n<b>Next step</b>\nContinue to final decision.";
         }
 
+        int energyRecoveryModifier = !useCompanyProfileModifiers || activeCompanyProfile == null
+            ? 0
+            : activeCompanyProfile.BetweenStageEnergyRecoveryModifier;
+
         return "\n\n<b>Continue bonus</b>\n" +
-            $"{FormatStatChange("Energy", 10)}\n" +
+            $"{FormatStatChange("Energy", 10 + energyRecoveryModifier)}\n" +
             $"{FormatStatChange("Confidence", currentStageWasStrong ? 5 : 0)}";
     }
 
@@ -3212,6 +3328,7 @@ public class InterviewGameManager : MonoBehaviour
         UpdateRoomBackdrop("Final Outcome");
 
         int totalScore = playerStats.TotalScore;
+        int offerRecommendedThreshold = GetOfferRecommendedThreshold();
         bool hasCriticalWeakness = playerStats.HasCriticalWeakness;
         InterviewStyleResult styleResult = styleTracker.DetermineDominantStyle(playerStats);
 
@@ -3226,7 +3343,7 @@ public class InterviewGameManager : MonoBehaviour
                 "One weak signal became the thing everyone kept circling back to.",
                 styleResult);
         }
-        else if (totalScore >= 330)
+        else if (totalScore >= offerRecommendedThreshold && CanRecommendOffer())
         {
             outcomeName = "Offer Recommended";
             outcomeTitleText.text = "Outcome: Offer Recommended";
@@ -3272,11 +3389,42 @@ public class InterviewGameManager : MonoBehaviour
         LogRunSummary(outcomeName, styleResult);
     }
 
+    private int GetOfferRecommendedThreshold()
+    {
+        int modifier = !useCompanyProfileModifiers || activeCompanyProfile == null
+            ? 0
+            : activeCompanyProfile.OfferRecommendedThresholdModifier;
+
+        if (modifier != 0)
+        {
+            AddRuleRunNoteOnce($"{activeCompanyProfile.RuleName}: offer recommendation threshold adjusted by {FormatSignedNumber(modifier)}.");
+        }
+
+        return 330 + modifier;
+    }
+
+    private bool CanRecommendOffer()
+    {
+        if (!useCompanyProfileModifiers
+            || activeCompanyProfile == null
+            || !activeCompanyProfile.RequiresTechnicalAndCommercialOfferGate)
+        {
+            return true;
+        }
+
+        bool gatePassed = playerStats.TechnicalCredibility >= 60 && playerStats.CommercialAlignment >= 60;
+        AddRuleRunNoteOnce(gatePassed
+            ? $"{activeCompanyProfile.RuleName}: technical and commercial offer gate passed."
+            : $"{activeCompanyProfile.RuleName}: offer gate blocked by technical/commercial minimums.");
+        return gatePassed;
+    }
+
     private string BuildOutcomeBody(string mainFeedback, string finalComment, InterviewStyleResult styleResult)
     {
         return
             $"{mainFeedback}\n\n" +
             $"{BuildCompanyOutcomeLine()}\n\n" +
+            $"{BuildRuleOutcomeLine()}\n\n" +
             $"Final note: {finalComment}\n\n" +
             $"Dominant style: {styleResult.StyleName}.";
     }
@@ -3291,6 +3439,51 @@ public class InterviewGameManager : MonoBehaviour
         return $"Against a {activeCompanyProfile.CompanyName} process, the panel weighted the run through {activeCompanyProfile.ProfileName.ToLowerInvariant()}: {activeCompanyProfile.PreferredStyle}";
     }
 
+    private string BuildRuleOutcomeLine()
+    {
+        if (activeCompanyProfile == null)
+        {
+            return "Active rule: Standard process.";
+        }
+
+        return $"Active rule: {activeCompanyProfile.RuleName}. {activeCompanyProfile.RuleHint}{BuildSpecialRuleOutcomeLine()}";
+    }
+
+    private string BuildSpecialRuleOutcomeLine()
+    {
+        if (activeCompanyProfile == null)
+        {
+            return string.Empty;
+        }
+
+        switch (activeCompanyProfile.CompanyName)
+        {
+            case "Security Vendor":
+                if (playerStats.TechnicalCredibility >= 75 && playerStats.CommercialAlignment >= 75)
+                {
+                    AddRuleRunNoteOnce("Risk Framing Matters: strong technical and commercial risk framing earned a positive debrief line.");
+                    return " The panel specifically liked that technical depth and business risk stayed connected.";
+                }
+                break;
+            case "AI Hype Company":
+                if (styleTracker.ChaoticStyle > activeCompanyProfile.ChaoticStyleForgiveness + 3)
+                {
+                    AddRuleRunNoteOnce("Chaos Can Sell: excessive chaotic style created credibility risk.");
+                    return " The debrief flagged that the chaos started to look like credibility risk.";
+                }
+                break;
+            case "Legacy Enterprise":
+                if (playerStats.Energy >= 75)
+                {
+                    AddRuleRunNoteOnce("Slow Process: high final energy earned a stamina note.");
+                    return " Keeping that much energy through a slow process read as real stamina.";
+                }
+                break;
+        }
+
+        return string.Empty;
+    }
+
     private string BuildFinalReadSummary(string outcomeName, InterviewStyleResult styleResult)
     {
         StatSummary strongestStat = GetStrongestStat();
@@ -3299,6 +3492,7 @@ public class InterviewGameManager : MonoBehaviour
         return
             $"Process ID: <b>{currentProcessId}</b>\n" +
             $"Company: <b>{GetCompanyNameForSummary()}</b>\n" +
+            $"Rule: <b>{(activeCompanyProfile == null ? "Standard Process" : activeCompanyProfile.RuleName)}</b>\n" +
             $"Outcome: <b>{outcomeName}</b>\n" +
             $"Style: <b>{styleResult.StyleName}</b>\n" +
             $"Total Score: <b>{playerStats.TotalScore}/400</b>\n\n" +
@@ -3562,11 +3756,41 @@ public class InterviewGameManager : MonoBehaviour
         return value > 0 ? $"+{value}" : value.ToString();
     }
 
+    private void AddRuleRunNoteOnce(string note)
+    {
+        if (string.IsNullOrEmpty(note) || activeRuleRunNotes.Contains(note))
+        {
+            return;
+        }
+
+        activeRuleRunNotes.Add(note);
+    }
+
+    private string BuildRuleRunNotesForLog()
+    {
+        if (activeRuleRunNotes.Count == 0)
+        {
+            return "Rule effects applied: none beyond baseline modifiers.";
+        }
+
+        string summary = "Rule effects applied:";
+        for (int i = 0; i < activeRuleRunNotes.Count; i++)
+        {
+            summary += $"\n- {activeRuleRunNotes[i]}";
+        }
+
+        return summary;
+    }
+
     private string BuildRunAdvice()
     {
         StatSummary weakestStat = GetWeakestStat();
 
-        if (styleTracker.ChaoticStyle >= 5 || riskyAnswerCount >= 7)
+        int chaoticWarningThreshold = activeCompanyProfile == null
+            ? 5
+            : 5 + activeCompanyProfile.ChaoticStyleForgiveness;
+
+        if (styleTracker.ChaoticStyle >= chaoticWarningThreshold || riskyAnswerCount >= 7)
         {
             return "Funny answers can land, but too many make the panel nervous.";
         }
@@ -3616,7 +3840,9 @@ public class InterviewGameManager : MonoBehaviour
 
         if (roomBackdrop != null)
         {
-            roomBackdrop.SetStageAtmosphere(stageName);
+            roomBackdrop.SetProcessAtmosphere(
+                activeCompanyProfile == null ? string.Empty : activeCompanyProfile.CompanyName,
+                stageName);
         }
     }
 
@@ -3627,11 +3853,13 @@ public class InterviewGameManager : MonoBehaviour
             $"Process ID: {currentProcessId}\n" +
             $"Run Seed: {currentRunSeed}\n" +
             $"Company Profile: {GetCompanyNameForSummary()}\n" +
+            $"Rule: {(activeCompanyProfile == null ? "none" : activeCompanyProfile.RuleName)}\n" +
             $"Outcome: {outcomeName}\n" +
             $"Total Score: {playerStats.TotalScore}/400\n" +
             playerStats.GetSummary() + "\n" +
             styleTracker.GetDebugSummary() + "\n" +
-            $"Dominant Style: {styleResult.StyleName}");
+            $"Dominant Style: {styleResult.StyleName}\n" +
+            BuildRuleRunNotesForLog());
     }
 
     private void LogRunStart()
@@ -3641,6 +3869,8 @@ public class InterviewGameManager : MonoBehaviour
             $"Run Seed: {currentRunSeed}\n" +
             $"Process ID: {currentProcessId}\n" +
             $"Company Profile: {GetCompanyNameForSummary()}\n" +
+            $"Rule: {(activeCompanyProfile == null ? "none" : activeCompanyProfile.RuleName)}\n" +
+            $"Rule Modifiers: {(activeCompanyProfile == null ? "none" : activeCompanyProfile.GetRuleModifierSummary())}\n" +
             $"Stages: {(stages == null ? 0 : stages.Length)}\n" +
             $"Adjusted Random Event Chance: {GetAdjustedRandomEventChance():0.00}");
     }

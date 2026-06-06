@@ -1,5 +1,60 @@
 # Changelog
 
+## v0.4.0 - Company Identity Pass
+
+Released: 2026-06-06
+
+### Overview
+
+`v0.4.0` makes each company profile feel mechanically and visually distinct. Company-specific process rules now affect the run, appear in the Process Briefing and final summary, and drive the 3D viewport's atmosphere so it reinforces the selected process instead of feeling generic.
+
+### Added
+
+- Added explicit company process rules:
+  - Big SaaS Vendor: `Structured Process`
+  - Startup Rocketship: `High Chaos, High Recovery`
+  - Security Vendor: `Risk Framing Matters`
+  - AI Hype Company: `Chaos Can Sell`
+  - Legacy Enterprise: `Slow Process`
+- Added player-facing rule names, rule descriptions, and compact hints to company profiles.
+- Added active rule display to the Process Briefing.
+- Added compact in-run rule context to the question screen.
+- Added active rule details to the final summary.
+- Added debug logging for run start and final outcome rule modifiers/effects.
+- Added debug company profile forcing:
+  - `useDebugCompanyProfile`
+  - `debugCompanyProfileIndex`
+
+### Changed
+
+- Big SaaS Vendor now has fewer random events but a higher `Offer Recommended` bar.
+- Startup Rocketship now has more random events, stronger positive recovery choices, and harsher random event Energy losses.
+- Security Vendor now requires both Technical Credibility and Commercial Alignment to clear the offer gate.
+- AI Hype Company now tolerates a little chaotic style, can lightly reward the first chaotic answer, and flags excessive chaos.
+- Legacy Enterprise now has fewer random events, lower between-stage Energy recovery, and can reward high final stamina.
+- Updated the 3D viewport to use company-specific primitive props, colors, lighting, accent moods, and wall display labels.
+- Preserved the existing RenderTexture viewport architecture and no-movement interview-room presentation.
+- Tuned final outcome layout to avoid overlap with the expanded rule summary.
+- Shortened the compact in-run rule line to reduce wrapping.
+
+### Fixed
+
+- Fixed the final outcome screen's top summary/body overlap after adding v0.4 rule text.
+- Fixed AI chaos forgiveness so early chaotic answers are evaluated against the pre-answer chaos count.
+
+### Validation
+
+- `dotnet build Assembly-CSharp.csproj` passes with 0 warnings and 0 errors.
+- Unity editor script compile/domain reload completed successfully during validation.
+- Confirmed v0.4 Windows standalone build was compiled.
+- Completed v0.4 smoke test.
+
+### Build
+
+- Created Windows prototype build for v0.4.
+- Tagged release:
+  - `v0.4.0`
+
 ## v0.3.0 - Tactical Choices Pass
 
 Released: 2026-06-06
