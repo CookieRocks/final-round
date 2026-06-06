@@ -16,13 +16,24 @@ public class InterviewGameManager : MonoBehaviour
 
     private static InterviewGameManager activeManager;
 
-    private readonly Color backgroundColor = new Color32(10, 12, 18, 255);
-    private readonly Color panelColor = new Color32(24, 28, 39, 245);
-    private readonly Color panelAccentColor = new Color32(34, 40, 55, 255);
-    private readonly Color buttonColor = new Color32(48, 60, 82, 255);
+    private readonly Color backgroundColor = InterviewRoomBackdropController.debugBackdropVisibility
+        ? new Color32(10, 12, 18, 92)
+        : new Color32(10, 12, 18, 245);
+    private readonly Color panelColor = InterviewRoomBackdropController.debugBackdropVisibility
+        ? new Color32(24, 28, 39, 218)
+        : new Color32(24, 28, 39, 248);
+    private readonly Color panelAccentColor = InterviewRoomBackdropController.debugBackdropVisibility
+        ? new Color32(34, 40, 55, 220)
+        : new Color32(34, 40, 55, 248);
+    private readonly Color buttonColor = InterviewRoomBackdropController.debugBackdropVisibility
+        ? new Color32(48, 60, 82, 232)
+        : new Color32(48, 60, 82, 250);
     private readonly Color buttonHoverColor = new Color32(67, 84, 116, 255);
+    private readonly Color disabledAnswerColor = new Color32(30, 35, 46, 220);
     private readonly Color selectedAnswerColor = new Color32(78, 130, 118, 255);
-    private readonly Color transitionPanelColor = new Color32(18, 34, 46, 250);
+    private readonly Color transitionPanelColor = InterviewRoomBackdropController.debugBackdropVisibility
+        ? new Color32(18, 34, 46, 220)
+        : new Color32(18, 34, 46, 248);
     private readonly Color textColor = new Color32(238, 242, 248, 255);
     private readonly Color mutedTextColor = new Color32(172, 181, 196, 255);
     private readonly Color accentColor = new Color32(92, 188, 164, 255);
@@ -62,6 +73,8 @@ public class InterviewGameManager : MonoBehaviour
     private GameObject stageTransitionScreen;
     private GameObject randomEventScreen;
     private GameObject outcomeScreen;
+    private GameObject backdropViewportPanel;
+    private InterviewRoomBackdropController roomBackdrop;
 
     private readonly PlayerStats playerStats = new PlayerStats();
     private readonly InterviewStyleTracker styleTracker = new InterviewStyleTracker();
@@ -101,6 +114,7 @@ public class InterviewGameManager : MonoBehaviour
         }
 
         ResetGame();
+        EnsureRoomBackdropExists();
 
         if (!HasRequiredUi())
         {
@@ -115,6 +129,19 @@ public class InterviewGameManager : MonoBehaviour
         }
 
         ShowMenu();
+    }
+
+    private void EnsureRoomBackdropExists()
+    {
+        roomBackdrop = FindAnyObjectByType<InterviewRoomBackdropController>();
+
+        if (roomBackdrop != null)
+        {
+            return;
+        }
+
+        GameObject backdropObject = new GameObject("Final Round Interview Room Backdrop Controller");
+        roomBackdrop = backdropObject.AddComponent<InterviewRoomBackdropController>();
     }
 
     private void OnDestroy()
@@ -145,12 +172,14 @@ public class InterviewGameManager : MonoBehaviour
             && stageContinueButton != null
             && randomEventScreen != null
             && randomEventContinueButton != null
-            && outcomeScreen != null;
+            && outcomeScreen != null
+            && backdropViewportPanel != null;
     }
 
     private void CreateRuntimeUi()
     {
         EnsureEventSystemExists();
+        DisableLegacySceneCanvas();
         RemoveOldRuntimeCanvas();
 
         GameObject canvasObject = new GameObject("Final Round Runtime Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -186,6 +215,16 @@ public class InterviewGameManager : MonoBehaviour
         CreateStageTransitionScreen(safeArea.transform);
         CreateRandomEventScreen(safeArea.transform);
         CreateOutcomeScreen(safeArea.transform);
+    }
+
+    private void DisableLegacySceneCanvas()
+    {
+        GameObject legacyCanvas = GameObject.Find("Canvas");
+
+        if (legacyCanvas != null)
+        {
+            legacyCanvas.SetActive(false);
+        }
     }
 
     private void RemoveOldRuntimeCanvas()
@@ -257,7 +296,7 @@ public class InterviewGameManager : MonoBehaviour
 
         GameObject mainRow = new GameObject("Question And Stats Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
         mainRow.transform.SetParent(questionScreen.transform, false);
-        ConfigureFlexibleLayoutElement(mainRow, 1f);
+        ConfigurePreferredLayoutElement(mainRow, -1f, 360f);
 
         HorizontalLayoutGroup mainRowLayout = mainRow.GetComponent<HorizontalLayoutGroup>();
         mainRowLayout.spacing = 20f;
@@ -266,10 +305,42 @@ public class InterviewGameManager : MonoBehaviour
         mainRowLayout.childForceExpandWidth = false;
         mainRowLayout.childForceExpandHeight = true;
 
-        CreateQuestionPanel(mainRow.transform);
-        CreateStatsPanel(mainRow.transform);
+        GameObject leftColumn = new GameObject("Question And Stats Column", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(LayoutElement));
+        leftColumn.transform.SetParent(mainRow.transform, false);
+        ConfigureFlexibleLayoutElement(leftColumn, 1f, 620f);
+
+        VerticalLayoutGroup leftColumnLayout = leftColumn.GetComponent<VerticalLayoutGroup>();
+        leftColumnLayout.spacing = 16f;
+        leftColumnLayout.childControlWidth = true;
+        leftColumnLayout.childControlHeight = true;
+        leftColumnLayout.childForceExpandWidth = true;
+        leftColumnLayout.childForceExpandHeight = false;
+
+        CreateQuestionPanel(leftColumn.transform);
+        CreateStatsPanel(leftColumn.transform);
+        CreateBackdropViewportPanel(mainRow.transform);
         CreateFeedbackPanel(questionScreen.transform);
         CreateAnswerButtons(questionScreen.transform);
+    }
+
+    private void CreateBackdropViewportPanel(Transform parent)
+    {
+        backdropViewportPanel = CreatePanel("Backdrop Viewport Panel", parent, panelAccentColor);
+        ConfigurePreferredLayoutElement(backdropViewportPanel, 600f, -1f);
+        AddPaddingLayout(backdropViewportPanel, new RectOffset(8, 8, 8, 8), 0f);
+
+        GameObject viewportObject = new GameObject("BackdropViewport", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter), typeof(LayoutElement));
+        viewportObject.transform.SetParent(backdropViewportPanel.transform, false);
+        ConfigureFlexibleLayoutElement(viewportObject, 1f);
+
+        RawImage viewportImage = viewportObject.GetComponent<RawImage>();
+        viewportImage.texture = roomBackdrop == null ? null : roomBackdrop.ViewportTexture;
+        viewportImage.color = Color.white;
+        viewportImage.raycastTarget = false;
+
+        AspectRatioFitter aspectRatioFitter = viewportObject.GetComponent<AspectRatioFitter>();
+        aspectRatioFitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+        aspectRatioFitter.aspectRatio = 16f / 9f;
     }
 
     private void CreateMenuScreen(Transform parent)
@@ -318,7 +389,7 @@ public class InterviewGameManager : MonoBehaviour
     private void CreateQuestionPanel(Transform parent)
     {
         GameObject panel = CreatePanel("Question Text Area", parent, panelColor);
-        ConfigureFlexibleLayoutElement(panel, 1f, 620f);
+        ConfigureFlexibleLayoutElement(panel, 1f);
         AddPaddingLayout(panel, new RectOffset(34, 34, 30, 32), 12f);
 
         questionStageNameText = CreateText("Question Stage Name", panel.transform, string.Empty, 30, FontStyles.Bold, TextAlignmentOptions.Left);
@@ -337,8 +408,8 @@ public class InterviewGameManager : MonoBehaviour
     private void CreateStatsPanel(Transform parent)
     {
         GameObject panel = CreatePanel("Stats Panel", parent, panelAccentColor);
-        ConfigurePreferredLayoutElement(panel, 410f, -1f);
-        AddPaddingLayout(panel, new RectOffset(26, 26, 26, 26), 14f);
+        ConfigurePreferredLayoutElement(panel, -1f, 162f);
+        AddPaddingLayout(panel, new RectOffset(26, 26, 22, 22), 12f);
 
         TMP_Text statsTitle = CreateText("Stats Title", panel.transform, "CANDIDATE READ", 22, FontStyles.Bold, TextAlignmentOptions.Left);
         statsTitle.color = accentColor;
@@ -352,20 +423,20 @@ public class InterviewGameManager : MonoBehaviour
     private void CreateFeedbackPanel(Transform parent)
     {
         feedbackPanel = CreatePanel("Answer Feedback Panel", parent, panelAccentColor);
-        ConfigurePreferredLayoutElement(feedbackPanel, -1f, 238f);
-        AddPaddingLayout(feedbackPanel, new RectOffset(30, 30, 24, 24), 18f);
+        ConfigurePreferredLayoutElement(feedbackPanel, -1f, 292f);
+        AddPaddingLayout(feedbackPanel, new RectOffset(32, 32, 24, 28), 16f);
 
         TMP_Text feedbackTitle = CreateText("Feedback Title", feedbackPanel.transform, "INTERVIEWER REACTION", 22, FontStyles.Bold, TextAlignmentOptions.Left);
         feedbackTitle.color = accentColor;
 
-        feedbackText = CreateText("Feedback Text", feedbackPanel.transform, string.Empty, 24, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        feedbackText = CreateText("Feedback Text", feedbackPanel.transform, string.Empty, 27, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         feedbackText.color = textColor;
         feedbackText.textWrappingMode = TextWrappingModes.Normal;
-        feedbackText.lineSpacing = 10f;
-        ConfigureFlexibleLayoutElement(feedbackText.gameObject, 1f);
+        feedbackText.lineSpacing = 8f;
+        ConfigurePreferredLayoutElement(feedbackText.gameObject, -1f, 156f);
 
         GameObject continueButtonObject = CreateButton("Continue Button", feedbackPanel.transform);
-        ConfigurePreferredLayoutElement(continueButtonObject, -1f, 66f);
+        ConfigurePreferredLayoutElement(continueButtonObject, -1f, 58f);
 
         TMP_Text continueButtonText = CreateText("Label", continueButtonObject.transform, "Continue", 24, FontStyles.Bold, TextAlignmentOptions.Center);
         continueButtonText.color = textColor;
@@ -381,7 +452,7 @@ public class InterviewGameManager : MonoBehaviour
     {
         GameObject buttonColumn = new GameObject("Answer Button Column", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(LayoutElement));
         buttonColumn.transform.SetParent(parent, false);
-        ConfigurePreferredLayoutElement(buttonColumn, -1f, 282f);
+        ConfigurePreferredLayoutElement(buttonColumn, -1f, 252f);
 
         VerticalLayoutGroup buttonLayout = buttonColumn.GetComponent<VerticalLayoutGroup>();
         buttonLayout.spacing = 14f;
@@ -399,7 +470,7 @@ public class InterviewGameManager : MonoBehaviour
             GameObject buttonObject = CreateButton($"Answer Button {i + 1}", buttonColumn.transform);
             ConfigureFlexibleLayoutElement(buttonObject, 1f);
 
-            TMP_Text label = CreateText("Label", buttonObject.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.MidlineLeft);
+            TMP_Text label = CreateText("Label", buttonObject.transform, string.Empty, 22, FontStyles.Normal, TextAlignmentOptions.MidlineLeft);
             label.color = textColor;
             label.textWrappingMode = TextWrappingModes.Normal;
 
@@ -549,11 +620,12 @@ public class InterviewGameManager : MonoBehaviour
         Button button = answerButtons[answerIndex];
         Image image = button.GetComponent<Image>();
         Color normalColor = selected ? selectedAnswerColor : buttonColor;
-        Color disabledColor = selected ? selectedAnswerColor : new Color32(32, 36, 47, 180);
+        Color disabledColor = selected ? selectedAnswerColor : disabledAnswerColor;
 
         button.colors = BuildButtonColors(normalColor, buttonHoverColor, disabledColor);
-        image.color = normalColor;
+        image.color = selected || button.interactable ? normalColor : disabledAnswerColor;
         answerButtonTexts[answerIndex].fontStyle = selected ? FontStyles.Bold : FontStyles.Normal;
+        answerButtonTexts[answerIndex].color = selected || button.interactable ? textColor : new Color32(170, 179, 194, 255);
     }
 
     private TMP_Text CreateText(string objectName, Transform parent, string text, int fontSize, FontStyles style, TextAlignmentOptions alignment)
@@ -955,6 +1027,7 @@ public class InterviewGameManager : MonoBehaviour
         progressText.text = "Main Menu";
         subtitleText.text = "Choose when to begin the process.";
         menuBodyText.text = "A short interview process about confidence, stamina, technical credibility, and commercial judgment.";
+        UpdateRoomBackdrop("Main Menu");
     }
 
     private void ShowHowToPlay()
@@ -1006,10 +1079,12 @@ public class InterviewGameManager : MonoBehaviour
         InterviewQuestion question = stage.Questions[currentQuestionIndex];
         progressText.text = $"{stage.StageName} - Question {currentQuestionIndex + 1} of {stage.Questions.Length}";
         subtitleText.text = stage.StageIntroText;
+        UpdateRoomBackdrop(stage.StageName);
         questionStageNameText.text = stage.StageName.ToUpperInvariant();
         questionStageIntroText.text = stage.StageIntroText;
         questionText.text = question.QuestionText;
         feedbackPanel.SetActive(false);
+        SetBackdropViewportVisible(true);
 
         for (int i = 0; i < answerButtons.Length; i++)
         {
@@ -1033,9 +1108,7 @@ public class InterviewGameManager : MonoBehaviour
             bool selected = i == answerIndex;
             answerButtons[i].interactable = false;
             SetAnswerButtonVisual(i, selected);
-            answerButtonTexts[i].text = selected
-                ? $"SELECTED  {question.Answers[i].AnswerText}"
-                : question.Answers[i].AnswerText;
+            answerButtonTexts[i].text = question.Answers[i].AnswerText;
         }
 
         UpdateStatsText();
@@ -1046,13 +1119,22 @@ public class InterviewGameManager : MonoBehaviour
     {
         feedbackText.text =
             $"{answer.ConsequenceText}\n\n" +
-            "<b>Stat changes</b>\n" +
+            "<b>Stat changes</b>  " +
             $"{FormatStatChange("Confidence", answer.ConfidenceChange)}\n" +
             $"{FormatStatChange("Energy", answer.EnergyChange)}\n" +
             $"{FormatStatChange("Technical Credibility", answer.TechnicalCredibilityChange)}\n" +
             $"{FormatStatChange("Commercial Alignment", answer.CommercialAlignmentChange)}";
 
         feedbackPanel.SetActive(true);
+        SetBackdropViewportVisible(false);
+    }
+
+    private void SetBackdropViewportVisible(bool visible)
+    {
+        if (backdropViewportPanel != null)
+        {
+            backdropViewportPanel.SetActive(visible);
+        }
     }
 
     private string FormatStatChange(string statName, int change)
@@ -1139,6 +1221,7 @@ public class InterviewGameManager : MonoBehaviour
 
         progressText.text = $"{stage.StageName} complete";
         subtitleText.text = "Quick reset before the next conversation.";
+        UpdateRoomBackdrop(stage.StageName);
         stageTransitionNameText.text = stage.StageName;
         stageTransitionBodyText.text = BuildStageFeedback(stage);
         stageTransitionStatsText.text =
@@ -1226,6 +1309,7 @@ public class InterviewGameManager : MonoBehaviour
 
         progressText.text = "Between rounds";
         subtitleText.text = "The process shifts slightly before the next conversation.";
+        UpdateRoomBackdrop("Between Rounds");
         randomEventTitleText.text = interviewEvent.EventTitle;
         randomEventBodyText.text =
             $"{PickBetweenStageMessage()}\n\n" +
@@ -1299,6 +1383,7 @@ public class InterviewGameManager : MonoBehaviour
         outcomeScreen.SetActive(true);
         progressText.text = "Interview process complete";
         subtitleText.text = "Final hiring feedback across every round.";
+        UpdateRoomBackdrop("Final Outcome");
 
         int totalScore = playerStats.TotalScore;
         bool hasCriticalWeakness = playerStats.HasCriticalWeakness;
@@ -1379,6 +1464,19 @@ public class InterviewGameManager : MonoBehaviour
         };
 
         return messages[Random.Range(0, messages.Length)];
+    }
+
+    private void UpdateRoomBackdrop(string stageName)
+    {
+        if (roomBackdrop == null)
+        {
+            EnsureRoomBackdropExists();
+        }
+
+        if (roomBackdrop != null)
+        {
+            roomBackdrop.SetStageAtmosphere(stageName);
+        }
     }
 
     private void LogRunSummary(string outcomeName, InterviewStyleResult styleResult)
