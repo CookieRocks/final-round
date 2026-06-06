@@ -105,6 +105,8 @@ public class InterviewGameManager : MonoBehaviour
     [SerializeField] private bool randomizeAnswerOrder = true;
     [SerializeField] private bool useCompanyProfileModifiers = true;
     [SerializeField] private bool debugAllowRepeatedRandomEvents;
+    [SerializeField] private bool useDeterministicRunSeed;
+    [SerializeField] private int debugRunSeed = 48291;
     [SerializeField] private bool useDeterministicAnswerSeed;
     [SerializeField] private int debugAnswerSeed = 12345;
 
@@ -115,7 +117,9 @@ public class InterviewGameManager : MonoBehaviour
     private PlayerStats stageStartStats;
     private bool currentStageWasStrong;
     private AnswerOption[] displayedAnswers;
-    private System.Random answerOrderRandom;
+    private System.Random runRandom;
+    private int currentRunSeed;
+    private string currentProcessId;
     private readonly List<StageRunSummary> stageRunSummaries = new List<StageRunSummary>();
     private readonly List<RandomEventRunSummary> randomEventRunSummaries = new List<RandomEventRunSummary>();
     private readonly HashSet<int> usedRandomEventIndexes = new HashSet<int>();
@@ -123,6 +127,7 @@ public class InterviewGameManager : MonoBehaviour
     private int riskyAnswerCount;
 
     private InterviewStage[] stages;
+    private InterviewQuestion[][] selectedStageQuestions;
     private RandomInterviewEvent[] randomEvents;
     private CompanyProfile[] companyProfiles;
     private CompanyProfile activeCompanyProfile;
@@ -291,6 +296,7 @@ public class InterviewGameManager : MonoBehaviour
         CreateOutcomeScreen(safeArea.transform);
         CreatePauseOverlay(canvasObject.transform);
         CreateVersionLabel(canvasObject.transform);
+        UpdateVersionLabel();
     }
 
     private void DisableLegacySceneCanvas()
@@ -368,6 +374,18 @@ public class InterviewGameManager : MonoBehaviour
         versionRect.pivot = new Vector2(1f, 0f);
         versionRect.sizeDelta = new Vector2(260f, 32f);
         versionRect.anchoredPosition = new Vector2(-18f, 14f);
+    }
+
+    private void UpdateVersionLabel()
+    {
+        if (versionText == null)
+        {
+            return;
+        }
+
+        versionText.text = string.IsNullOrEmpty(currentProcessId)
+            ? BuildVersion
+            : $"{BuildVersion} | {currentProcessId}";
     }
 
     private void CreateQuestionScreen(Transform parent)
@@ -1047,8 +1065,33 @@ public class InterviewGameManager : MonoBehaviour
                             new AnswerOption("The market problem is familiar, the buyer is technical, and the SE role looks close to revenue rather than just demo support.", "The recruiter gets a company-specific answer instead of a lightly reheated LinkedIn paragraph.", 5, 0, 5, 10, commercialStyleChange: 1, technicalStyleChange: 1),
                             new AnswerOption("You seem less chaotic than some companies in this space, which I mean as a compliment.", "The recruiter laughs because the bar is real, but still wants evidence you did homework.", 0, 0, 0, -5, chaoticStyleChange: 1),
                             new AnswerOption("The job description looked solid, and honestly I am exploring a few things right now.", "Reasonable, but forgettable. The recruiter cannot do much with 'solid'.", -5, 0, 0, -5, burnedOutStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "Are you interviewing elsewhere right now?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I am having a few conversations, but this process is relevant because the SE role and buyer profile match what I want next.", "The recruiter hears market activity without feeling like they are being used as calendar filler.", 5, 0, 0, 10, diplomaticStyleChange: 1, commercialStyleChange: 1),
+                            new AnswerOption("Yes, but nobody has successfully turned a job description into a real human conversation yet.", "The line has charm, but the recruiter still has to translate it into pipeline risk.", 0, 0, 0, -5, chaoticStyleChange: 1),
+                            new AnswerOption("Yes, I am trying to create options because my current role is getting weird.", "Honest, but leaky. The recruiter now has more weather report than positioning.", -5, -5, 0, -5, burnedOutStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "How do you feel about travel for customers or team events?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("Reasonable travel is fine when it improves customer trust, team ramp, or deal progress.", "Practical answer. You sound flexible without volunteering to live in airport seating.", 5, 0, 0, 10, diplomaticStyleChange: 1, commercialStyleChange: 1),
+                            new AnswerOption("I can travel, but I prefer when the meeting has a purpose beyond proving laptops are portable.", "The recruiter laughs and writes down 'reasonable travel' in the least dramatic way possible.", 0, -5, 0, 0, chaoticStyleChange: 1),
+                            new AnswerOption("I would strongly prefer not to travel unless absolutely required.", "Clear boundary, but a little early. It may narrow the process before anyone has defined the ask.", -5, 0, 0, -10, bluntStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "If your current company countered, how would you think about it?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I would listen professionally, but I am looking at role fit, operating model, and growth, not just a last-minute adjustment.", "The recruiter hears that you have thought beyond the small theatre of retention budgets.", 5, 0, 0, 10, diplomaticStyleChange: 1, commercialStyleChange: 1),
+                            new AnswerOption("A counteroffer would need to solve more than my salary, which is where most counteroffers quietly run out of road.", "Dry, accurate, and only slightly fatalistic. The recruiter seems to accept it.", 0, 0, 0, 5, bluntStyleChange: 1),
+                            new AnswerOption("I suppose if they paid enough, I would have to think about it.", "True in the way gravity is true. The recruiter now has a retention risk-shaped note.", 0, 0, 0, -10, bluntStyleChange: 1)
                         })
-                }),
+                },
+                4),
 
             new InterviewStage(
                 "Hiring Manager",
@@ -1111,8 +1154,49 @@ public class InterviewGameManager : MonoBehaviour
                             new AnswerOption("I focus on operating model: clear priorities, sustainable coverage, and using SE time where it changes deal quality.", "The manager hears self-awareness without a complaint cloud forming over the call.", 5, 5, 0, 10, diplomaticStyleChange: 1, commercialStyleChange: 1),
                             new AnswerOption("I say I have learned the difference between urgency and every Slack message wearing a little hat.", "The joke lands, but the manager gently parks it under 'monitor for edge'.", 0, -5, 0, 0, chaoticStyleChange: 1, burnedOutStyleChange: 1),
                             new AnswerOption("I am trying to avoid another role where the calendar eats the actual job.", "Understandable, but raw. The manager hears a real concern before they hear a solution.", -5, -10, 0, -5, burnedOutStyleChange: 2)
+                        }),
+                    new InterviewQuestion(
+                        "How do you decide where to spend SE effort when every AE says their deal is urgent?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I look at qualification, customer impact, technical risk, and whether my involvement changes the next decision.", "The manager hears discipline. You are not treating urgency as a calendar-shaped weather event.", 5, 0, 5, 15, commercialStyleChange: 2, technicalStyleChange: 1),
+                            new AnswerOption("I ask which urgent deal has the clearest mutual action plan, because at least that kind of urgent has furniture.", "The manager enjoys the image and likes that you still found an operating principle.", 0, 0, 0, 5, chaoticStyleChange: 1, commercialStyleChange: 1),
+                            new AnswerOption("I usually help whoever is loudest, because that is how the Slack economy works.", "Recognizable, but not reassuring. The manager wants you above the noise, not rented by it.", -5, -10, 0, -10, burnedOutStyleChange: 2)
+                        }),
+                    new InterviewQuestion(
+                        "A senior customer stakeholder dominates discovery and blocks the technical users. What do you do?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I acknowledge their priorities, then create space for the technical users by tying their input to risk and success criteria.", "The manager hears stakeholder control without making anyone feel publicly managed.", 5, 0, 5, 15, diplomaticStyleChange: 2, commercialStyleChange: 1),
+                            new AnswerOption("I redirect politely and hope the word politely does a heroic amount of work.", "The manager laughs, then waits for a little more method than hope.", 0, 0, 0, 0, chaoticStyleChange: 1),
+                            new AnswerOption("I let the AE handle it because that sounds like account politics.", "Boundary noted. Leadership opportunity missed.", -5, 0, 0, -10, burnedOutStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "How would you ramp into a new market you have not sold into before?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I would learn buyer pains, common architecture patterns, objection language, and what proof actually changes decisions.", "The manager hears a useful ramp plan, not just 'I learn fast' wearing a blazer.", 5, 0, 5, 15, commercialStyleChange: 2, technicalStyleChange: 1),
+                            new AnswerOption("I would listen to the best calls and steal only the parts that are legally culture.", "Possibly too honest, but the manager likes that you learn from real calls.", 0, 0, 0, 5, chaoticStyleChange: 1),
+                            new AnswerOption("I would rely on the product demo until I understand the market better.", "Safe, but passive. The manager wanted buyer learning before demo muscle memory.", -5, 0, 0, -10, burnedOutStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "A competitor is spreading doubt in a deal. How do you respond with the AE?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I identify the specific concern, provide evidence, and help the AE re-anchor the decision criteria around the customer's outcomes.", "The manager hears calm competitive control rather than vendor gossip with slides.", 5, 0, 5, 15, commercialStyleChange: 2, diplomaticStyleChange: 1),
+                            new AnswerOption("I ask what exactly they said, because sometimes competitor FUD arrives pre-weakened.", "The manager likes the instinct, even if the sentence could use less eyebrow.", 0, 0, 0, 5, bluntStyleChange: 1),
+                            new AnswerOption("I explain why the competitor is wrong and move on.", "Tempting, but thin. The manager wanted you to manage doubt, not just swat at it.", 0, 0, 0, -10, bluntStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "How do you define a good discovery call for an SE?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("It should reveal technical pain, business impact, stakeholders, decision criteria, and what proof would move the deal.", "The manager hears discovery that can actually steer a sales cycle.", 5, 0, 5, 15, commercialStyleChange: 2, technicalStyleChange: 1),
+                            new AnswerOption("A good one is where I leave knowing what not to demo, which is half the battle and most of the therapy.", "Funny, and more strategic than it first sounds. The manager allows it.", 0, 0, 0, 5, chaoticStyleChange: 1),
+                            new AnswerOption("If the customer gives us enough to build a demo, I count that as useful.", "Useful is not the same as good. The manager wanted sharper qualification.", -5, 0, 0, -10, burnedOutStyleChange: 1)
                         })
-                }),
+                },
+                5),
 
             new InterviewStage(
                 "Technical Panel",
@@ -1175,8 +1259,49 @@ public class InterviewGameManager : MonoBehaviour
                             new AnswerOption("I quickly reset the agenda around risk, controls, evidence, and governance, then use the product details only to support those points.", "The panel sees audience control without abandoning technical credibility.", 5, 0, 10, 10, diplomaticStyleChange: 1, commercialStyleChange: 1, technicalStyleChange: 1),
                             new AnswerOption("I ask what they care about most and then cut whatever no longer serves that answer.", "Pragmatic and a little brisk. The panel likes the instinct, even if the phrasing has sharp elbows.", 0, 0, 5, 5, bluntStyleChange: 1),
                             new AnswerOption("I keep going but mention security more often.", "The panel does not love the find-and-replace approach to executive relevance.", -5, 0, -5, -10, chaoticStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "The demo environment breaks five minutes before the customer call. What do you do?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I triage the failure, switch to a credible backup path, and tell the AE exactly what story still holds.", "The panel likes the calm recovery plan. Nobody needs heroics if the plan has bones.", 5, 0, 15, 5, technicalStyleChange: 2, diplomaticStyleChange: 1),
+                            new AnswerOption("I keep a backup recording because live demos are just agreements with weather.", "The panel smiles. Preparedness counts, even with the ominous phrasing.", 0, 0, 10, 0, chaoticStyleChange: 1, technicalStyleChange: 1),
+                            new AnswerOption("I ask to reschedule rather than risk showing something broken.", "Sometimes right, but too soon. The panel wanted recovery options before retreat.", -5, -5, -5, -10, burnedOutStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "How do you explain an API security tradeoff to a technical buyer?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I describe the threat model, auth boundary, operational tradeoff, and what control the customer retains.", "The panel hears security depth without turning the answer into a standards annex.", 5, 0, 15, 5, technicalStyleChange: 2, diplomaticStyleChange: 1),
+                            new AnswerOption("I start with the architecture diagram and let the awkward arrows tell me where to go.", "Technically plausible, but the panel wants you driving before the diagram starts freelancing.", 0, 0, 5, 0, chaoticStyleChange: 1, technicalStyleChange: 1),
+                            new AnswerOption("I reassure them our defaults are secure.", "The panel wanted evidence, not a throw pillow with 'secure by default' stitched on it.", -5, 0, -10, -5, burnedOutStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "The customer's demo data makes the product look weaker than it is. How do you handle it?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I explain the data constraint, show what is still valid, and agree what better evidence would look like.", "The panel likes the honesty. You protected trust and kept the proof path alive.", 5, 0, 10, 10, diplomaticStyleChange: 1, commercialStyleChange: 1, technicalStyleChange: 1),
+                            new AnswerOption("I say the data is doing performance art and then move to a cleaner example.", "The line lands, but the panel watches whether you can still preserve customer dignity.", 0, 0, 5, 0, chaoticStyleChange: 1),
+                            new AnswerOption("I avoid drawing attention to it and hope the customer does not notice.", "The panel notices. The customer would too, which is sort of the problem.", -5, 0, -10, -10, chaoticStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "A technical buyer asks for a roadmap commitment in writing. What do you do?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I separate current capability from roadmap interest, avoid committing, and route the request through the right product process.", "The panel hears clean governance. Not glamorous, extremely useful.", 5, 0, 10, 10, diplomaticStyleChange: 1, technicalStyleChange: 1, commercialStyleChange: 1),
+                            new AnswerOption("I say I can capture it as feedback, which is the safest sentence in enterprise software.", "Accurate, perhaps too spiritually tired, but safe.", 0, 0, 0, 0, burnedOutStyleChange: 1),
+                            new AnswerOption("I say it is likely, but I would need to confirm internally.", "The panel hears the little door where future escalation walks in.", 0, -5, -10, -10, chaoticStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "How do you turn technical proof into business value after a PoC?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I map the evidence back to agreed pain, success criteria, risk reduction, and the decision the customer needs to make.", "The panel hears the bridge from working software to buying logic.", 5, 0, 10, 15, commercialStyleChange: 2, technicalStyleChange: 1),
+                            new AnswerOption("I write the technical win clearly enough that Sales cannot turn it into interpretive dance.", "The panel laughs, and also appreciates the handoff discipline.", 0, 0, 5, 5, chaoticStyleChange: 1, commercialStyleChange: 1),
+                            new AnswerOption("I hand over the technical findings and let the AE build the business case.", "Clear boundary, but incomplete. The panel wanted you in the translation layer.", -5, 0, 0, -10, burnedOutStyleChange: 1)
                         })
-                }),
+                },
+                5),
 
             new InterviewStage(
                 "VP Round",
@@ -1239,8 +1364,17 @@ public class InterviewGameManager : MonoBehaviour
                             new AnswerOption("I would want to move decisively, align on details quickly, and give professional notice so I can start cleanly.", "The VP hears momentum with adult supervision, a surprisingly marketable combination.", 10, 0, 0, 10, diplomaticStyleChange: 1, commercialStyleChange: 1),
                             new AnswerOption("I can move fast if the numbers, scope, and paperwork all decide to be adults at the same time.", "Fair, dry, and only mildly haunted by procurement energy. The VP takes the point.", 5, 0, 0, 0, chaoticStyleChange: 1),
                             new AnswerOption("I would need to see the offer before I can say anything real.", "True, but closed down. The VP wanted practical readiness, not a locked filing cabinet.", -5, 0, 0, -5, bluntStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "What risk should we see in hiring you?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I can move quickly toward the customer problem, so I manage that by aligning early on qualification, proof, and internal expectations.", "The VP hears self-awareness with a control attached. This is much better than pretending risk is for other candidates.", 10, 0, 5, 10, diplomaticStyleChange: 1, commercialStyleChange: 1),
+                            new AnswerOption("I may challenge vague deal logic sooner than everyone finds comfortable.", "The VP appreciates the signal and mentally adds 'handle with manager context'.", 5, 0, 0, 0, bluntStyleChange: 1),
+                            new AnswerOption("I sometimes take on too much because I want the deal to work.", "Human, but a little familiar. The VP has seen that become a calendar with teeth.", 0, -10, 0, -5, burnedOutStyleChange: 2)
                         })
-                })
+                },
+                3)
         };
     }
 
@@ -1355,15 +1489,21 @@ public class InterviewGameManager : MonoBehaviour
                 return false;
             }
 
-            if (stage.Questions == null || stage.Questions.Length == 0)
+            if (stage.QuestionPool == null || stage.QuestionPool.Length == 0)
             {
                 Debug.LogError($"Final Round setup error: '{stage.StageName}' has no questions.");
                 return false;
             }
 
-            for (int questionIndex = 0; questionIndex < stage.Questions.Length; questionIndex++)
+            if (stage.QuestionsToAskThisRun <= 0)
             {
-                InterviewQuestion question = stage.Questions[questionIndex];
+                Debug.LogError($"Final Round setup error: '{stage.StageName}' must ask at least one question.");
+                return false;
+            }
+
+            for (int questionIndex = 0; questionIndex < stage.QuestionPool.Length; questionIndex++)
+            {
+                InterviewQuestion question = stage.QuestionPool[questionIndex];
 
                 if (question == null)
                 {
@@ -1384,12 +1524,13 @@ public class InterviewGameManager : MonoBehaviour
 
     private void ResetGame(bool chooseNewCompanyProfile)
     {
-        if (chooseNewCompanyProfile)
+        if (chooseNewCompanyProfile || runRandom == null)
         {
+            InitializeRunIdentity();
             SelectRandomCompanyProfile();
         }
 
-        InitializeAnswerOrderRandom();
+        SelectStageQuestionsForRun();
         displayedAnswers = null;
         stageRunSummaries.Clear();
         randomEventRunSummaries.Clear();
@@ -1403,6 +1544,77 @@ public class InterviewGameManager : MonoBehaviour
         CaptureStageStartStats();
     }
 
+    private void SelectStageQuestionsForRun()
+    {
+        if (stages == null)
+        {
+            selectedStageQuestions = null;
+            return;
+        }
+
+        selectedStageQuestions = new InterviewQuestion[stages.Length][];
+
+        for (int stageIndex = 0; stageIndex < stages.Length; stageIndex++)
+        {
+            InterviewStage stage = stages[stageIndex];
+            InterviewQuestion[] pool = stage.QuestionPool ?? new InterviewQuestion[0];
+            int drawCount = Mathf.Min(stage.QuestionsToAskThisRun, pool.Length);
+
+            if (pool.Length < stage.QuestionsToAskThisRun)
+            {
+                Debug.LogWarning($"Final Round setup warning: '{stage.StageName}' has only {pool.Length} pooled questions, fewer than requested draw count {stage.QuestionsToAskThisRun}. Asking all available questions.");
+            }
+
+            selectedStageQuestions[stageIndex] = DrawQuestionsWithoutReplacement(pool, drawCount);
+        }
+    }
+
+    private InterviewQuestion[] DrawQuestionsWithoutReplacement(InterviewQuestion[] pool, int drawCount)
+    {
+        InterviewQuestion[] shuffledPool = new InterviewQuestion[pool.Length];
+        pool.CopyTo(shuffledPool, 0);
+
+        for (int i = shuffledPool.Length - 1; i > 0; i--)
+        {
+            int swapIndex = GetRunRandomIndex(i + 1);
+            (shuffledPool[i], shuffledPool[swapIndex]) = (shuffledPool[swapIndex], shuffledPool[i]);
+        }
+
+        InterviewQuestion[] selectedQuestions = new InterviewQuestion[drawCount];
+        for (int i = 0; i < drawCount; i++)
+        {
+            selectedQuestions[i] = shuffledPool[i];
+        }
+
+        return selectedQuestions;
+    }
+
+    private void InitializeRunIdentity()
+    {
+        if (useDeterministicRunSeed)
+        {
+            currentRunSeed = debugRunSeed;
+        }
+        else if (useDeterministicAnswerSeed)
+        {
+            currentRunSeed = debugAnswerSeed;
+        }
+        else
+        {
+            currentRunSeed = Random.Range(10000, 99999);
+        }
+
+        runRandom = new System.Random(currentRunSeed);
+        currentProcessId = FormatProcessId(currentRunSeed);
+        UpdateVersionLabel();
+    }
+
+    private string FormatProcessId(int seed)
+    {
+        int displaySeed = Mathf.Abs(seed % 100000);
+        return $"FR-{displaySeed:00000}";
+    }
+
     private void SelectRandomCompanyProfile()
     {
         if (companyProfiles == null || companyProfiles.Length == 0)
@@ -1411,18 +1623,18 @@ public class InterviewGameManager : MonoBehaviour
             return;
         }
 
-        activeCompanyProfile = companyProfiles[Random.Range(0, companyProfiles.Length)];
-    }
-
-    private void InitializeAnswerOrderRandom()
-    {
-        if (useDeterministicAnswerSeed)
+        if (runRandom == null)
         {
-            answerOrderRandom = new System.Random(debugAnswerSeed);
-            return;
+            InitializeRunIdentity();
         }
 
-        answerOrderRandom = new System.Random(System.Guid.NewGuid().GetHashCode());
+        activeCompanyProfile = companyProfiles[runRandom.Next(companyProfiles.Length)];
+    }
+
+    private void PrepareMenuRunPreview()
+    {
+        InitializeRunIdentity();
+        SelectRandomCompanyProfile();
     }
 
     private void RestartGame()
@@ -1435,8 +1647,9 @@ public class InterviewGameManager : MonoBehaviour
     private void StartInterviewProcess()
     {
         HidePauseOverlay();
-        if (activeCompanyProfile == null)
+        if (runRandom == null || activeCompanyProfile == null)
         {
+            InitializeRunIdentity();
             SelectRandomCompanyProfile();
         }
 
@@ -1466,12 +1679,13 @@ public class InterviewGameManager : MonoBehaviour
         processBriefingTitleText.text = "TODAY'S PROCESS";
         processBriefingBodyText.text = BuildProcessBriefingBody();
         UpdateRoomBackdrop("Main Menu");
+        LogRunStart();
         FadeInScreen(processBriefingScreen);
     }
 
     private void ShowMenu()
     {
-        SelectRandomCompanyProfile();
+        PrepareMenuRunPreview();
         HidePauseOverlay();
         menuScreen.SetActive(true);
         processBriefingScreen.SetActive(false);
@@ -1542,6 +1756,8 @@ public class InterviewGameManager : MonoBehaviour
         }
 
         return
+            $"Process ID: <b>{currentProcessId}</b>\n" +
+            $"Run seed: {currentRunSeed}\n\n" +
             $"Today's process: <b>{activeCompanyProfile.CompanyName}</b>\n" +
             $"{activeCompanyProfile.ProfileName}\n\n" +
             $"{activeCompanyProfile.Description}\n\n" +
@@ -1771,16 +1987,17 @@ public class InterviewGameManager : MonoBehaviour
         }
 
         InterviewStage stage = stages[currentStageIndex];
+        InterviewQuestion[] stageQuestions = GetSelectedQuestionsForStage(currentStageIndex);
 
-        if (currentQuestionIndex >= stage.Questions.Length)
+        if (currentQuestionIndex >= stageQuestions.Length)
         {
             ShowStageTransition();
             return;
         }
 
-        InterviewQuestion question = stage.Questions[currentQuestionIndex];
+        InterviewQuestion question = stageQuestions[currentQuestionIndex];
         displayedAnswers = BuildDisplayedAnswerOrder(question);
-        progressText.text = $"{stage.StageName} - Question {currentQuestionIndex + 1} of {stage.Questions.Length}";
+        progressText.text = $"{stage.StageName} - Question {currentQuestionIndex + 1} of {stageQuestions.Length}";
         subtitleText.text = GetCompanyProcessLine();
         UpdateRoomBackdrop(stage.StageName);
         questionStageNameText.text = stage.StageName.ToUpperInvariant();
@@ -1808,14 +2025,14 @@ public class InterviewGameManager : MonoBehaviour
             return answers;
         }
 
-        if (answerOrderRandom == null)
+        if (runRandom == null)
         {
-            InitializeAnswerOrderRandom();
+            InitializeRunIdentity();
         }
 
         for (int i = answers.Length - 1; i > 0; i--)
         {
-            int swapIndex = answerOrderRandom.Next(i + 1);
+            int swapIndex = runRandom.Next(i + 1);
             (answers[i], answers[swapIndex]) = (answers[swapIndex], answers[i]);
         }
 
@@ -1824,7 +2041,7 @@ public class InterviewGameManager : MonoBehaviour
 
     private void ChooseAnswer(int answerIndex)
     {
-        InterviewQuestion question = stages[currentStageIndex].Questions[currentQuestionIndex];
+        InterviewQuestion question = GetSelectedQuestionsForStage(currentStageIndex)[currentQuestionIndex];
         if (displayedAnswers == null || displayedAnswers.Length != question.Answers.Length)
         {
             Debug.LogError("Final Round runtime error: displayed answer order was not prepared for the current question.");
@@ -1849,6 +2066,19 @@ public class InterviewGameManager : MonoBehaviour
 
         UpdateStatsText();
         ShowFeedback(answer);
+    }
+
+    private InterviewQuestion[] GetSelectedQuestionsForStage(int stageIndex)
+    {
+        if (selectedStageQuestions != null
+            && stageIndex >= 0
+            && stageIndex < selectedStageQuestions.Length
+            && selectedStageQuestions[stageIndex] != null)
+        {
+            return selectedStageQuestions[stageIndex];
+        }
+
+        return stages[stageIndex].QuestionPool;
     }
 
     private void TrackAnswerSummary(AnswerOption answer)
@@ -2084,7 +2314,7 @@ public class InterviewGameManager : MonoBehaviour
             "Recruiter note: They liked the direction and want to pressure-test the signal."
         };
 
-        return notes[Random.Range(0, notes.Length)];
+        return notes[GetRunRandomIndex(notes.Length)];
     }
 
     private void ContinueAfterStageTransition()
@@ -2124,7 +2354,7 @@ public class InterviewGameManager : MonoBehaviour
     {
         return randomEvents != null
             && randomEvents.Length > 0
-            && Random.value < GetAdjustedRandomEventChance();
+            && GetRunRandomValue() < GetAdjustedRandomEventChance();
     }
 
     private float GetAdjustedRandomEventChance()
@@ -2133,6 +2363,31 @@ public class InterviewGameManager : MonoBehaviour
             ? 0f
             : activeCompanyProfile.RandomEventChanceModifier;
         return Mathf.Clamp01(BetweenStageEventChance + modifier);
+    }
+
+    private int GetRunRandomIndex(int exclusiveMax)
+    {
+        if (exclusiveMax <= 0)
+        {
+            return 0;
+        }
+
+        if (runRandom == null)
+        {
+            InitializeRunIdentity();
+        }
+
+        return runRandom.Next(exclusiveMax);
+    }
+
+    private float GetRunRandomValue()
+    {
+        if (runRandom == null)
+        {
+            InitializeRunIdentity();
+        }
+
+        return (float)runRandom.NextDouble();
     }
 
     private bool ShowRandomEvent()
@@ -2195,7 +2450,7 @@ public class InterviewGameManager : MonoBehaviour
 
         if (debugAllowRepeatedRandomEvents)
         {
-            return Random.Range(0, randomEvents.Length);
+            return GetRunRandomIndex(randomEvents.Length);
         }
 
         int unusedCount = randomEvents.Length - usedRandomEventIndexes.Count;
@@ -2204,7 +2459,7 @@ public class InterviewGameManager : MonoBehaviour
             return -1;
         }
 
-        int targetUnusedIndex = Random.Range(0, unusedCount);
+        int targetUnusedIndex = GetRunRandomIndex(unusedCount);
         for (int i = 0; i < randomEvents.Length; i++)
         {
             if (usedRandomEventIndexes.Contains(i))
@@ -2402,13 +2657,34 @@ public class InterviewGameManager : MonoBehaviour
         StatSummary weakestStat = GetWeakestStat();
 
         return
+            $"Process ID: <b>{currentProcessId}</b>\n" +
             $"Company: <b>{GetCompanyNameForSummary()}</b>\n" +
             $"Outcome: <b>{outcomeName}</b>\n" +
             $"Style: <b>{styleResult.StyleName}</b>\n" +
             $"Total Score: <b>{playerStats.TotalScore}/400</b>\n\n" +
+            $"Questions Faced: <b>{GetSelectedQuestionCount()}</b>\n\n" +
             BuildCompactStatsSummary() + "\n\n" +
             $"Strongest Stat: <b>{strongestStat.Name}</b> ({strongestStat.Value}/100)\n" +
             $"Weakest Stat: <b>{weakestStat.Name}</b> ({weakestStat.Value}/100)";
+    }
+
+    private int GetSelectedQuestionCount()
+    {
+        if (selectedStageQuestions == null)
+        {
+            return 0;
+        }
+
+        int count = 0;
+        for (int i = 0; i < selectedStageQuestions.Length; i++)
+        {
+            if (selectedStageQuestions[i] != null)
+            {
+                count += selectedStageQuestions[i].Length;
+            }
+        }
+
+        return count;
     }
 
     private string BuildRunHighlightsSummary()
@@ -2622,7 +2898,7 @@ public class InterviewGameManager : MonoBehaviour
             "Recruiter message: Sharing context so you are not reading tea leaves in your inbox."
         };
 
-        return messages[Random.Range(0, messages.Length)];
+        return messages[GetRunRandomIndex(messages.Length)];
     }
 
     private void UpdateRoomBackdrop(string stageName)
@@ -2642,11 +2918,25 @@ public class InterviewGameManager : MonoBehaviour
     {
         Debug.Log(
             "Final Round Run Summary\n" +
+            $"Process ID: {currentProcessId}\n" +
+            $"Run Seed: {currentRunSeed}\n" +
+            $"Company Profile: {GetCompanyNameForSummary()}\n" +
             $"Outcome: {outcomeName}\n" +
             $"Total Score: {playerStats.TotalScore}/400\n" +
             playerStats.GetSummary() + "\n" +
             styleTracker.GetDebugSummary() + "\n" +
             $"Dominant Style: {styleResult.StyleName}");
+    }
+
+    private void LogRunStart()
+    {
+        Debug.Log(
+            "Final Round Run Start\n" +
+            $"Run Seed: {currentRunSeed}\n" +
+            $"Process ID: {currentProcessId}\n" +
+            $"Company Profile: {GetCompanyNameForSummary()}\n" +
+            $"Stages: {(stages == null ? 0 : stages.Length)}\n" +
+            $"Adjusted Random Event Chance: {GetAdjustedRandomEventChance():0.00}");
     }
 
     private void LogDemoStart()
