@@ -77,9 +77,10 @@ public class InterviewRoomBackdropController : MonoBehaviour
 
         Color mainColor = new Color32(255, 242, 220, 255);
         Color accentColor = new Color32(74, 143, 166, 255);
-        float mainIntensity = 1.35f;
-        float accentIntensity = 1.05f;
-        float rimIntensity = 1.1f;
+        float mainIntensity = 1.55f;
+        float accentIntensity = 1.15f;
+        float rimIntensity = 1.2f;
+        float laptopIntensity = 0.8f;
         string displayText = string.IsNullOrEmpty(stageName) ? "FINAL ROUND" : stageName.ToUpperInvariant();
 
         switch (stageName)
@@ -87,45 +88,51 @@ public class InterviewRoomBackdropController : MonoBehaviour
             case "Recruiter Screen":
                 mainColor = new Color32(255, 232, 205, 255);
                 accentColor = new Color32(96, 180, 168, 255);
-                mainIntensity = 1.35f;
-                accentIntensity = 0.95f;
+                mainIntensity = 1.65f;
+                accentIntensity = 0.85f;
                 rimIntensity = 0.9f;
+                laptopIntensity = 1.25f;
                 break;
             case "Hiring Manager":
                 mainColor = new Color32(255, 244, 224, 255);
                 accentColor = new Color32(95, 135, 190, 255);
-                mainIntensity = 1.4f;
+                mainIntensity = 1.55f;
                 accentIntensity = 1.0f;
-                rimIntensity = 1.0f;
+                rimIntensity = 1.1f;
+                laptopIntensity = 0.75f;
                 break;
             case "Technical Panel":
                 mainColor = new Color32(226, 238, 255, 255);
                 accentColor = new Color32(89, 162, 255, 255);
-                mainIntensity = 1.2f;
-                accentIntensity = 1.35f;
-                rimIntensity = 1.25f;
+                mainIntensity = 1.35f;
+                accentIntensity = 1.45f;
+                rimIntensity = 1.35f;
+                laptopIntensity = 0.9f;
                 break;
             case "VP Round":
                 mainColor = new Color32(255, 222, 188, 255);
                 accentColor = new Color32(184, 103, 255, 255);
-                mainIntensity = 1.15f;
-                accentIntensity = 1.55f;
-                rimIntensity = 1.45f;
+                mainIntensity = 1.25f;
+                accentIntensity = 1.65f;
+                rimIntensity = 1.6f;
+                laptopIntensity = 0.55f;
                 break;
             case "Final Outcome":
                 mainColor = new Color32(244, 240, 230, 255);
                 accentColor = new Color32(218, 218, 206, 255);
-                mainIntensity = 1.45f;
+                mainIntensity = 1.65f;
                 accentIntensity = 0.8f;
-                rimIntensity = 1.2f;
+                rimIntensity = 1.35f;
+                laptopIntensity = 0.6f;
                 displayText = "FINAL DECISION";
                 break;
             case "Between Rounds":
                 mainColor = new Color32(230, 236, 255, 255);
                 accentColor = new Color32(123, 154, 220, 255);
-                mainIntensity = 1.2f;
+                mainIntensity = 1.35f;
                 accentIntensity = 1.15f;
                 rimIntensity = 1.0f;
+                laptopIntensity = 0.8f;
                 break;
             default:
                 displayText = "FINAL ROUND";
@@ -138,6 +145,7 @@ public class InterviewRoomBackdropController : MonoBehaviour
         accentLight.intensity = debugBackdropVisibility ? accentIntensity + 0.7f : accentIntensity;
         rimLight.color = Color.Lerp(accentColor, Color.white, 0.28f);
         rimLight.intensity = debugBackdropVisibility ? rimIntensity + 0.65f : rimIntensity;
+        laptopLight.intensity = debugBackdropVisibility ? laptopIntensity + 0.65f : laptopIntensity;
         wallStageText.text = displayText;
         wallStageText.fontSize = debugBackdropVisibility ? 9f : 7f;
 
@@ -148,7 +156,7 @@ public class InterviewRoomBackdropController : MonoBehaviour
 
         if (laptopScreenRenderer != null)
         {
-            laptopScreenRenderer.material.color = new Color(accentColor.r * 0.75f, accentColor.g * 0.75f, accentColor.b * 0.75f, 1f);
+            laptopScreenRenderer.material.color = new Color(accentColor.r * 0.9f, accentColor.g * 0.9f, accentColor.b * 0.9f, 1f);
         }
 
         if (debugBackdropVisibility)
@@ -246,14 +254,14 @@ public class InterviewRoomBackdropController : MonoBehaviour
         GameObject cameraObject = new GameObject("Backdrop Camera", typeof(Camera));
         cameraObject.transform.SetParent(roomRoot.transform, false);
         cameraObject.tag = "Untagged";
-        cameraObject.transform.position = new Vector3(0f, 1.58f, -3.85f);
-        cameraObject.transform.LookAt(new Vector3(0f, 1.32f, 1.08f));
+        cameraObject.transform.position = new Vector3(0f, 1.6f, -3.85f);
+        cameraObject.transform.LookAt(new Vector3(0f, 1.38f, 1.18f));
 
         roomCamera = cameraObject.GetComponent<Camera>();
         roomCamera.enabled = true;
         roomCamera.clearFlags = CameraClearFlags.SolidColor;
         roomCamera.backgroundColor = debugBackdropVisibility ? new Color32(18, 21, 28, 255) : new Color32(12, 14, 19, 255);
-        roomCamera.fieldOfView = debugBackdropVisibility ? 58f : 50f;
+        roomCamera.fieldOfView = debugBackdropVisibility ? 58f : 52f;
         roomCamera.nearClipPlane = 0.05f;
         roomCamera.farClipPlane = 50f;
         roomCamera.depth = 0f;
@@ -379,6 +387,7 @@ public class InterviewRoomBackdropController : MonoBehaviour
     {
         CreateCube("Floor", new Vector3(0f, -0.04f, 0.2f), new Vector3(7f, 0.08f, 6.4f), floorColor);
         CreateCube("Back Wall", new Vector3(0f, 1.65f, 2.55f), new Vector3(7.5f, 3.4f, 0.12f), wallColor);
+        CreateCube("Back Wall Lower Panel", new Vector3(0f, 0.68f, 2.48f), new Vector3(7.1f, 0.7f, 0.05f), new Color32(34, 40, 50, 255));
         CreateCube("Left Wall", new Vector3(-3.45f, 1.65f, 0.2f), new Vector3(0.12f, 3.4f, 5.0f), new Color32(34, 39, 49, 255));
         CreateCube("Right Wall", new Vector3(3.45f, 1.65f, 0.2f), new Vector3(0.12f, 3.4f, 5.0f), new Color32(34, 39, 49, 255));
     }
@@ -459,11 +468,11 @@ public class InterviewRoomBackdropController : MonoBehaviour
         return cube;
     }
 
-    private GameObject CreateSphere(string name, Vector3 position, Vector3 scale, Color color)
+    private GameObject CreateSphere(string name, Vector3 position, Vector3 scale, Color color, Transform parent = null)
     {
         GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         sphere.name = name;
-        sphere.transform.SetParent(roomRoot.transform, false);
+        sphere.transform.SetParent(parent == null ? roomRoot.transform : parent, false);
         sphere.transform.localPosition = position;
         sphere.transform.localScale = scale;
         sphere.GetComponent<Renderer>().material = CreateMaterial(name + " Material", color);
@@ -471,11 +480,11 @@ public class InterviewRoomBackdropController : MonoBehaviour
         return sphere;
     }
 
-    private GameObject CreateCapsule(string name, Vector3 position, Vector3 scale, Color color)
+    private GameObject CreateCapsule(string name, Vector3 position, Vector3 scale, Color color, Transform parent = null)
     {
         GameObject capsule = GameObject.CreatePrimitive(PrimitiveType.Capsule);
         capsule.name = name;
-        capsule.transform.SetParent(roomRoot.transform, false);
+        capsule.transform.SetParent(parent == null ? roomRoot.transform : parent, false);
         capsule.transform.localPosition = position;
         capsule.transform.localScale = scale;
         capsule.GetComponent<Renderer>().material = CreateMaterial(name + " Material", color);

@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -13,6 +14,7 @@ public class InterviewGameManager : MonoBehaviour
     private const int StartingTechnicalCredibility = 50;
     private const int StartingCommercialAlignment = 50;
     private const float BetweenStageEventChance = 0.6f;
+    private const float ScreenFadeDuration = 0.16f;
 
     private static InterviewGameManager activeManager;
 
@@ -75,6 +77,14 @@ public class InterviewGameManager : MonoBehaviour
     private GameObject outcomeScreen;
     private GameObject backdropViewportPanel;
     private InterviewRoomBackdropController roomBackdrop;
+    private AudioSource uiAudioSource;
+    private Coroutine activeFadeCoroutine;
+
+    [Header("Optional UI Audio")]
+    [SerializeField] private AudioClip answerSelectedClip;
+    [SerializeField] private AudioClip continueClip;
+    [SerializeField] private AudioClip stageCompleteClip;
+    [SerializeField] private AudioClip finalOutcomeClip;
 
     private readonly PlayerStats playerStats = new PlayerStats();
     private readonly InterviewStyleTracker styleTracker = new InterviewStyleTracker();
@@ -115,6 +125,7 @@ public class InterviewGameManager : MonoBehaviour
 
         ResetGame();
         EnsureRoomBackdropExists();
+        EnsureAudioSourceExists();
 
         if (!HasRequiredUi())
         {
@@ -142,6 +153,18 @@ public class InterviewGameManager : MonoBehaviour
 
         GameObject backdropObject = new GameObject("Final Round Interview Room Backdrop Controller");
         roomBackdrop = backdropObject.AddComponent<InterviewRoomBackdropController>();
+    }
+
+    private void EnsureAudioSourceExists()
+    {
+        uiAudioSource = GetComponent<AudioSource>();
+
+        if (uiAudioSource == null)
+        {
+            uiAudioSource = gameObject.AddComponent<AudioSource>();
+        }
+
+        uiAudioSource.playOnAwake = false;
     }
 
     private void OnDestroy()
@@ -327,20 +350,19 @@ public class InterviewGameManager : MonoBehaviour
     {
         backdropViewportPanel = CreatePanel("Backdrop Viewport Panel", parent, panelAccentColor);
         ConfigurePreferredLayoutElement(backdropViewportPanel, 600f, -1f);
-        AddPaddingLayout(backdropViewportPanel, new RectOffset(8, 8, 8, 8), 0f);
 
-        GameObject viewportObject = new GameObject("BackdropViewport", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter), typeof(LayoutElement));
+        GameObject viewportObject = new GameObject("BackdropViewport", typeof(RectTransform), typeof(RawImage));
         viewportObject.transform.SetParent(backdropViewportPanel.transform, false);
-        ConfigureFlexibleLayoutElement(viewportObject, 1f);
 
         RawImage viewportImage = viewportObject.GetComponent<RawImage>();
         viewportImage.texture = roomBackdrop == null ? null : roomBackdrop.ViewportTexture;
         viewportImage.color = Color.white;
         viewportImage.raycastTarget = false;
 
-        AspectRatioFitter aspectRatioFitter = viewportObject.GetComponent<AspectRatioFitter>();
-        aspectRatioFitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-        aspectRatioFitter.aspectRatio = 16f / 9f;
+        RectTransform viewportRect = viewportObject.GetComponent<RectTransform>();
+        StretchToParent(viewportRect);
+        viewportRect.offsetMin = new Vector2(8f, 8f);
+        viewportRect.offsetMax = new Vector2(-8f, -8f);
     }
 
     private void CreateMenuScreen(Transform parent)
@@ -414,9 +436,9 @@ public class InterviewGameManager : MonoBehaviour
         TMP_Text statsTitle = CreateText("Stats Title", panel.transform, "CANDIDATE READ", 22, FontStyles.Bold, TextAlignmentOptions.Left);
         statsTitle.color = accentColor;
 
-        statsText = CreateText("Stats Text", panel.transform, string.Empty, 24, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        statsText = CreateText("Stats Text", panel.transform, string.Empty, 25, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         statsText.color = textColor;
-        statsText.lineSpacing = 16f;
+        statsText.lineSpacing = 15f;
         ConfigureFlexibleLayoutElement(statsText.gameObject, 1f);
     }
 
@@ -424,15 +446,15 @@ public class InterviewGameManager : MonoBehaviour
     {
         feedbackPanel = CreatePanel("Answer Feedback Panel", parent, panelAccentColor);
         ConfigurePreferredLayoutElement(feedbackPanel, -1f, 292f);
-        AddPaddingLayout(feedbackPanel, new RectOffset(32, 32, 24, 28), 16f);
+        AddPaddingLayout(feedbackPanel, new RectOffset(32, 32, 24, 28), 18f);
 
         TMP_Text feedbackTitle = CreateText("Feedback Title", feedbackPanel.transform, "INTERVIEWER REACTION", 22, FontStyles.Bold, TextAlignmentOptions.Left);
         feedbackTitle.color = accentColor;
 
-        feedbackText = CreateText("Feedback Text", feedbackPanel.transform, string.Empty, 27, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        feedbackText = CreateText("Feedback Text", feedbackPanel.transform, string.Empty, 28, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         feedbackText.color = textColor;
         feedbackText.textWrappingMode = TextWrappingModes.Normal;
-        feedbackText.lineSpacing = 8f;
+        feedbackText.lineSpacing = 9f;
         ConfigurePreferredLayoutElement(feedbackText.gameObject, -1f, 156f);
 
         GameObject continueButtonObject = CreateButton("Continue Button", feedbackPanel.transform);
@@ -597,6 +619,7 @@ public class InterviewGameManager : MonoBehaviour
         Button button = buttonObject.GetComponent<Button>();
         button.targetGraphic = image;
         button.colors = BuildButtonColors(buttonColor, buttonHoverColor, new Color32(32, 36, 47, 180));
+        buttonObject.AddComponent<ButtonJuice>();
 
         return buttonObject;
     }
@@ -699,6 +722,55 @@ public class InterviewGameManager : MonoBehaviour
         rectTransform.anchorMax = Vector2.one;
         rectTransform.offsetMin = Vector2.zero;
         rectTransform.offsetMax = Vector2.zero;
+    }
+
+    private void FadeInScreen(GameObject screen)
+    {
+        if (screen == null || !screen.activeInHierarchy)
+        {
+            return;
+        }
+
+        CanvasGroup canvasGroup = screen.GetComponent<CanvasGroup>();
+
+        if (canvasGroup == null)
+        {
+            canvasGroup = screen.AddComponent<CanvasGroup>();
+        }
+
+        if (activeFadeCoroutine != null)
+        {
+            StopCoroutine(activeFadeCoroutine);
+        }
+
+        activeFadeCoroutine = StartCoroutine(FadeCanvasGroup(canvasGroup));
+    }
+
+    private IEnumerator FadeCanvasGroup(CanvasGroup canvasGroup)
+    {
+        canvasGroup.alpha = 0f;
+
+        float elapsed = 0f;
+
+        while (elapsed < ScreenFadeDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            canvasGroup.alpha = Mathf.Clamp01(elapsed / ScreenFadeDuration);
+            yield return null;
+        }
+
+        canvasGroup.alpha = 1f;
+        activeFadeCoroutine = null;
+    }
+
+    private void PlayUiSound(AudioClip clip)
+    {
+        if (uiAudioSource == null || clip == null)
+        {
+            return;
+        }
+
+        uiAudioSource.PlayOneShot(clip);
     }
 
     private void BuildStages()
@@ -1028,6 +1100,7 @@ public class InterviewGameManager : MonoBehaviour
         subtitleText.text = "Choose when to begin the process.";
         menuBodyText.text = "A short interview process about confidence, stamina, technical credibility, and commercial judgment.";
         UpdateRoomBackdrop("Main Menu");
+        FadeInScreen(menuScreen);
     }
 
     private void ShowHowToPlay()
@@ -1058,6 +1131,7 @@ public class InterviewGameManager : MonoBehaviour
         outcomeScreen.SetActive(false);
         ShowCurrentQuestion();
         UpdateStatsText();
+        FadeInScreen(questionScreen);
     }
 
     private void ShowCurrentQuestion()
@@ -1100,6 +1174,7 @@ public class InterviewGameManager : MonoBehaviour
         InterviewQuestion question = stages[currentStageIndex].Questions[currentQuestionIndex];
         AnswerOption answer = question.Answers[answerIndex];
 
+        PlayUiSound(answerSelectedClip);
         playerStats.Apply(answer);
         styleTracker.Apply(answer);
 
@@ -1119,7 +1194,7 @@ public class InterviewGameManager : MonoBehaviour
     {
         feedbackText.text =
             $"{answer.ConsequenceText}\n\n" +
-            "<b>Stat changes</b>  " +
+            "<b>Stat changes</b>\n" +
             $"{FormatStatChange("Confidence", answer.ConfidenceChange)}\n" +
             $"{FormatStatChange("Energy", answer.EnergyChange)}\n" +
             $"{FormatStatChange("Technical Credibility", answer.TechnicalCredibilityChange)}\n" +
@@ -1204,8 +1279,10 @@ public class InterviewGameManager : MonoBehaviour
 
     private void ContinueAfterFeedback()
     {
+        PlayUiSound(continueClip);
         currentQuestionIndex++;
         ShowCurrentQuestion();
+        FadeInScreen(questionScreen);
     }
 
     private void ShowStageTransition()
@@ -1228,6 +1305,8 @@ public class InterviewGameManager : MonoBehaviour
             $"{stage.StageCompleteText}\n\n" +
             GetStatsSummary() +
             BuildTransitionBonusText();
+        PlayUiSound(stageCompleteClip);
+        FadeInScreen(stageTransitionScreen);
     }
 
     private bool CalculateCurrentStageWasStrong()
@@ -1264,6 +1343,7 @@ public class InterviewGameManager : MonoBehaviour
 
     private void ContinueAfterStageTransition()
     {
+        PlayUiSound(continueClip);
         bool hasNextStage = currentStageIndex < stages.Length - 1;
 
         currentStageIndex++;
@@ -1329,6 +1409,7 @@ public class InterviewGameManager : MonoBehaviour
                 interviewEvent.BurnedOutStyleChange) +
             "\n\n" +
             GetStatsSummary();
+        FadeInScreen(randomEventScreen);
     }
 
     private void ApplyRandomEvent(RandomInterviewEvent interviewEvent)
@@ -1339,6 +1420,7 @@ public class InterviewGameManager : MonoBehaviour
 
     private void ContinueAfterRandomEvent()
     {
+        PlayUiSound(continueClip);
         StartNextStage();
     }
 
@@ -1442,6 +1524,8 @@ public class InterviewGameManager : MonoBehaviour
             GetStatsSummary() + "\n\n" +
             $"Dominant Style: {styleResult.StyleName}";
 
+        PlayUiSound(finalOutcomeClip);
+        FadeInScreen(outcomeScreen);
         LogRunSummary(outcomeName, styleResult);
     }
 
@@ -1490,4 +1574,61 @@ public class InterviewGameManager : MonoBehaviour
             $"Dominant Style: {styleResult.StyleName}");
     }
 
+}
+
+public class ButtonJuice : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler
+{
+    private const float HoverScale = 1.018f;
+    private const float PressedScale = 0.985f;
+    private const float LerpSpeed = 16f;
+
+    private RectTransform rectTransform;
+    private Vector3 baseScale;
+    private Vector3 targetScale;
+
+    private void Awake()
+    {
+        rectTransform = GetComponent<RectTransform>();
+        baseScale = rectTransform.localScale;
+        targetScale = baseScale;
+    }
+
+    private void OnDisable()
+    {
+        if (rectTransform != null)
+        {
+            rectTransform.localScale = baseScale;
+            targetScale = baseScale;
+        }
+    }
+
+    private void Update()
+    {
+        if (rectTransform == null)
+        {
+            return;
+        }
+
+        rectTransform.localScale = Vector3.Lerp(rectTransform.localScale, targetScale, Time.unscaledDeltaTime * LerpSpeed);
+    }
+
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        targetScale = baseScale * HoverScale;
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        targetScale = baseScale;
+    }
+
+    public void OnPointerDown(PointerEventData eventData)
+    {
+        targetScale = baseScale * PressedScale;
+    }
+
+    public void OnPointerUp(PointerEventData eventData)
+    {
+        targetScale = baseScale * HoverScale;
+    }
 }
