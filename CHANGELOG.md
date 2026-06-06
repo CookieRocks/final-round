@@ -1,5 +1,61 @@
 # Changelog
 
+## v0.5.0 - Pressure And UI Juice Pass
+
+Released: 2026-06-06
+
+### Overview
+
+`v0.5.0` adds an Interview Pressure meter and lightweight UI animation so Final Round feels more tense and responsive moment to moment. It keeps the existing scoring thresholds, company rules, question pools, Prep Cards, Recovery Choices, random events, final summary, and 3D viewport structure intact.
+
+### Added
+
+- Added Interview Pressure as a run-level value from 0 to 100.
+- Added pressure states:
+  - `Calm`
+  - `Focused`
+  - `Tense`
+  - `Spiralling`
+- Added compact Interview Pressure display to the Candidate Read panel.
+- Added pressure changes from answers, Prep Cards, Recovery Choices, and random events.
+- Added pressure delta feedback in answer, recovery, and random event panels.
+- Added pressure-based final summary lines for very low or very high final pressure.
+- Added subtle pressure reactions to the 3D viewport lighting.
+- Added lightweight UI animation:
+  - answer card fade-in
+  - selected answer pulse/dim
+  - feedback panel fade-in
+  - stat/pressure flash feedback
+  - screen fade/scale transitions
+  - quick final outcome section reveal
+- Added Inspector-only `reduceMotion` toggle to reduce pulse/scale motion.
+
+### Changed
+
+- Updated in-game prototype label to `Prototype v0.5`.
+- Compactened Candidate Read stat text to make room for Interview Pressure.
+- Tuned question and feedback panel layout after adding pressure and animation.
+- Kept feedback panel animation layout-safe by using fade only.
+
+### Fixed
+
+- Fixed cramped question header/stage intro text after v0.5 pressure layout changes.
+- Fixed feedback panel animation overlap caused by moving a layout-controlled panel.
+- Fixed pressure meter presentation so it does not dominate the question screen.
+
+### Validation
+
+- `dotnet build Assembly-CSharp.csproj` passes with 0 warnings and 0 errors.
+- Confirmed v0.5 Windows standalone build exists under `Builds/v0.5`.
+- Completed v0.5 smoke testing.
+
+### Build
+
+- Created Windows prototype build:
+  - `Builds/v0.5/Final Round.exe`
+- Tagged release:
+  - `v0.5.0`
+
 ## v0.4.0 - Company Identity Pass
 
 Released: 2026-06-06

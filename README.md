@@ -1,8 +1,20 @@
 # Final Round
 
-Prototype version: `Prototype v0.3`
+Prototype version: `Prototype v0.5`
 
-Final Round is a Unity prototype about surviving a multi-stage Sales Engineering interview loop. Each run includes randomized answer order, fictional company/process modifiers, Prep Cards, between-round recovery choices, between-stage events, a cosmetic 3D interview-room viewport, and a final report-card summary.
+Final Round is a Unity prototype about surviving a multi-stage Sales Engineering interview loop. Each run includes randomized answer order, company-specific process rules, an Interview Pressure meter, Prep Cards, between-round recovery choices, between-stage events, lightweight UI animation, a cosmetic 3D interview-room viewport, and a final report-card summary.
+
+## Current Features
+
+- Multi-stage Sales Engineering interview process with randomized question pools and answer order.
+- Company-specific rules and visual identity for each process profile.
+- Interview Pressure meter that rises and falls based on answers, Prep Cards, recovery choices, and random events.
+- Limited-use Prep Cards during questions.
+- Between-round recovery choices.
+- Non-repeating between-stage random events.
+- Process ID/run seed support for repeatable testing.
+- Final summary with outcome, stats, style, pressure, prep/recovery/event highlights, and company rule context.
+- Runtime-generated UI and 3D viewport with lightweight transitions and feedback animation.
 
 ## Run In Unity
 
@@ -33,11 +45,13 @@ Final Round is a Unity prototype about surviving a multi-stage Sales Engineering
 - The project uses Unity's Input System backend; keyboard shortcuts use `Keyboard.current` in that mode.
 - Runtime UI and the 3D backdrop are generated from scripts at play/build time.
 - Optional UI audio hooks exist, but no sound files are required.
+- `reduceMotion` is available as an Inspector-only toggle for reducing pulse/scale animation.
 
 ## Known Limitations
 
 - Prototype balance is intentionally lightweight and may still need more full-run testing.
 - The 3D interview room is cosmetic only.
 - The game is built around 1920x1080 and 1366x768 style layouts; unusual aspect ratios may need more UI tuning.
-- No save system, accessibility options, localization, or controller support yet.
-- Company/process modifiers are small run-to-run flavor changes, not a full simulation system.
+- No save system, localization, or controller support yet.
+- Accessibility is currently limited to the Inspector-only `reduceMotion` toggle.
+- Company/process rules and pressure are intentionally lightweight, not a full interview simulation system.

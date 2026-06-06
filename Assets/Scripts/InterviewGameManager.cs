@@ -15,9 +15,10 @@ public class InterviewGameManager : MonoBehaviour
     private const int StartingEnergy = 70;
     private const int StartingTechnicalCredibility = 50;
     private const int StartingCommercialAlignment = 50;
+    private const int StartingInterviewPressure = 35;
     private const float BetweenStageEventChance = 0.6f;
     private const float ScreenFadeDuration = 0.16f;
-    private const string BuildVersion = "Prototype v0.3";
+    private const string BuildVersion = "Prototype v0.5";
 
     private static InterviewGameManager activeManager;
 
@@ -102,11 +103,21 @@ public class InterviewGameManager : MonoBehaviour
     private GameObject recoveryChoiceButtonColumn;
     private GameObject randomEventScreen;
     private GameObject outcomeScreen;
+    private GameObject outcomeStatsPanel;
+    private GameObject outcomeHighlightsPanel;
+    private GameObject outcomeAdvicePanel;
+    private GameObject outcomeButtonRow;
     private GameObject pauseOverlay;
     private GameObject backdropViewportPanel;
     private InterviewRoomBackdropController roomBackdrop;
     private AudioSource uiAudioSource;
     private Coroutine activeFadeCoroutine;
+    private Coroutine answerEntranceCoroutine;
+    private Coroutine answerSelectionCoroutine;
+    private Coroutine feedbackRevealCoroutine;
+    private Coroutine statsFlashCoroutine;
+    private Coroutine finalRevealCoroutine;
+    private Color statsBaseColor;
 
     [Header("Optional UI Audio")]
     [SerializeField] private AudioClip answerSelectedClip;
@@ -115,6 +126,7 @@ public class InterviewGameManager : MonoBehaviour
     [SerializeField] private AudioClip finalOutcomeClip;
 
     [Header("Debug Options")]
+    [SerializeField] private bool reduceMotion;
     [SerializeField] private bool randomizeAnswerOrder = true;
     [SerializeField] private bool useCompanyProfileModifiers = true;
     [SerializeField] private bool debugAllowRepeatedRandomEvents;
@@ -148,6 +160,7 @@ public class InterviewGameManager : MonoBehaviour
     private string prepCardFeedbackNote;
     private int strongAnswerCount;
     private int riskyAnswerCount;
+    private int interviewPressure;
     private bool firstChaoticAnswerBonusApplied;
     private readonly List<string> activeRuleRunNotes = new List<string>();
 
@@ -378,7 +391,7 @@ public class InterviewGameManager : MonoBehaviour
     {
         GameObject header = new GameObject("Header", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(LayoutElement));
         header.transform.SetParent(parent, false);
-        ConfigurePreferredLayoutElement(header, -1f, 150f);
+        ConfigurePreferredLayoutElement(header, -1f, 158f);
 
         VerticalLayoutGroup headerLayout = header.GetComponent<VerticalLayoutGroup>();
         headerLayout.spacing = 6f;
@@ -388,7 +401,7 @@ public class InterviewGameManager : MonoBehaviour
         headerLayout.childForceExpandWidth = true;
         headerLayout.childForceExpandHeight = false;
 
-        TMP_Text titleText = CreateText("Title", header.transform, "FINAL ROUND", 58, FontStyles.Bold, TextAlignmentOptions.Left);
+        TMP_Text titleText = CreateText("Title", header.transform, "FINAL ROUND", 54, FontStyles.Bold, TextAlignmentOptions.Left);
         titleText.color = textColor;
         titleText.characterSpacing = 4f;
 
@@ -396,10 +409,11 @@ public class InterviewGameManager : MonoBehaviour
             "Subtitle",
             header.transform,
             "A multi-stage interview gauntlet about confidence, stamina, credibility, and commercial judgment.",
-            25,
+            24,
             FontStyles.Normal,
             TextAlignmentOptions.Left);
         subtitleText.color = mutedTextColor;
+        subtitleText.textWrappingMode = TextWrappingModes.Normal;
 
         progressText = CreateText("Progress", header.transform, string.Empty, 22, FontStyles.Bold, TextAlignmentOptions.Left);
         progressText.color = accentColor;
@@ -605,16 +619,19 @@ public class InterviewGameManager : MonoBehaviour
     {
         GameObject panel = CreatePanel("Question Text Area", parent, panelColor);
         ConfigureFlexibleLayoutElement(panel, 1f);
-        AddPaddingLayout(panel, new RectOffset(34, 34, 30, 32), 12f);
+        AddPaddingLayout(panel, new RectOffset(34, 34, 28, 30), 10f);
 
-        questionStageNameText = CreateText("Question Stage Name", panel.transform, string.Empty, 30, FontStyles.Bold, TextAlignmentOptions.Left);
+        questionStageNameText = CreateText("Question Stage Name", panel.transform, string.Empty, 31, FontStyles.Bold, TextAlignmentOptions.Left);
         questionStageNameText.color = accentColor;
 
-        questionStageIntroText = CreateText("Question Stage Intro", panel.transform, string.Empty, 22, FontStyles.Normal, TextAlignmentOptions.Left);
+        questionStageIntroText = CreateText("Question Stage Intro", panel.transform, string.Empty, 24, FontStyles.Normal, TextAlignmentOptions.Left);
         questionStageIntroText.color = mutedTextColor;
         questionStageIntroText.textWrappingMode = TextWrappingModes.Normal;
+        questionStageIntroText.lineSpacing = 4f;
+        ConfigurePreferredLayoutElement(questionStageIntroText.gameObject, -1f, 54f);
+        SetMinimumLayoutHeight(questionStageIntroText.gameObject, 44f);
 
-        questionText = CreateText("Question Text", panel.transform, string.Empty, 32, FontStyles.Bold, TextAlignmentOptions.TopLeft);
+        questionText = CreateText("Question Text", panel.transform, string.Empty, 34, FontStyles.Bold, TextAlignmentOptions.TopLeft);
         questionText.textWrappingMode = TextWrappingModes.Normal;
         questionText.color = textColor;
         ConfigureFlexibleLayoutElement(questionText.gameObject, 1f);
@@ -623,18 +640,19 @@ public class InterviewGameManager : MonoBehaviour
     private void CreateStatsPanel(Transform parent)
     {
         GameObject panel = CreatePanel("Stats Panel", parent, panelAccentColor);
-        ConfigurePreferredLayoutElement(panel, -1f, 152f);
-        SetMinimumLayoutHeight(panel, 146f);
-        AddPaddingLayout(panel, new RectOffset(26, 26, 18, 20), 10f);
+        ConfigurePreferredLayoutElement(panel, -1f, 146f);
+        SetMinimumLayoutHeight(panel, 136f);
+        AddPaddingLayout(panel, new RectOffset(24, 24, 14, 16), 7f);
 
         TMP_Text statsTitle = CreateText("Stats Title", panel.transform, "CANDIDATE READ", 22, FontStyles.Bold, TextAlignmentOptions.Left);
         statsTitle.color = accentColor;
 
-        statsText = CreateText("Stats Text", panel.transform, string.Empty, 26, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        statsText = CreateText("Stats Text", panel.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         statsText.color = textColor;
-        statsText.lineSpacing = 18f;
-        ConfigurePreferredLayoutElement(statsText.gameObject, -1f, 88f);
-        SetMinimumLayoutHeight(statsText.gameObject, 84f);
+        statsBaseColor = statsText.color;
+        statsText.lineSpacing = 5f;
+        ConfigurePreferredLayoutElement(statsText.gameObject, -1f, 84f);
+        SetMinimumLayoutHeight(statsText.gameObject, 78f);
         ConfigureFlexibleLayoutElement(statsText.gameObject, 1f);
     }
 
@@ -688,17 +706,17 @@ public class InterviewGameManager : MonoBehaviour
     private void CreateFeedbackPanel(Transform parent)
     {
         feedbackPanel = CreatePanel("Answer Feedback Panel", parent, panelAccentColor);
-        ConfigurePreferredLayoutElement(feedbackPanel, -1f, 336f);
-        SetMinimumLayoutHeight(feedbackPanel, 320f);
-        AddPaddingLayout(feedbackPanel, new RectOffset(32, 32, 24, 30), 16f);
+        ConfigurePreferredLayoutElement(feedbackPanel, -1f, 304f);
+        SetMinimumLayoutHeight(feedbackPanel, 286f);
+        AddPaddingLayout(feedbackPanel, new RectOffset(28, 28, 20, 24), 12f);
 
         TMP_Text feedbackTitle = CreateText("Feedback Title", feedbackPanel.transform, "INTERVIEWER REACTION", 22, FontStyles.Bold, TextAlignmentOptions.Left);
         feedbackTitle.color = accentColor;
 
         GameObject feedbackBodyRow = new GameObject("Feedback Body Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
         feedbackBodyRow.transform.SetParent(feedbackPanel.transform, false);
-        ConfigurePreferredLayoutElement(feedbackBodyRow, -1f, 190f);
-        SetMinimumLayoutHeight(feedbackBodyRow, 184f);
+        ConfigurePreferredLayoutElement(feedbackBodyRow, -1f, 168f);
+        SetMinimumLayoutHeight(feedbackBodyRow, 154f);
 
         HorizontalLayoutGroup bodyRowLayout = feedbackBodyRow.GetComponent<HorizontalLayoutGroup>();
         bodyRowLayout.spacing = 22f;
@@ -715,21 +733,21 @@ public class InterviewGameManager : MonoBehaviour
         prepColumn.transform.SetParent(feedbackBodyRow.transform, false);
         ConfigureFlexibleLayoutElement(prepColumn, 0.9f, 400f);
 
-        feedbackText = CreateText("Feedback Text", reactionColumn.transform, string.Empty, 27, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        feedbackText = CreateText("Feedback Text", reactionColumn.transform, string.Empty, 24, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         feedbackText.color = textColor;
         feedbackText.textWrappingMode = TextWrappingModes.Normal;
-        feedbackText.lineSpacing = 8f;
+        feedbackText.lineSpacing = 5f;
         StretchToParent(feedbackText.GetComponent<RectTransform>());
 
-        feedbackPrepCardText = CreateText("Feedback Prep Card Text", prepColumn.transform, string.Empty, 25, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        feedbackPrepCardText = CreateText("Feedback Prep Card Text", prepColumn.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         feedbackPrepCardText.color = mutedTextColor;
         feedbackPrepCardText.textWrappingMode = TextWrappingModes.Normal;
-        feedbackPrepCardText.lineSpacing = 8f;
+        feedbackPrepCardText.lineSpacing = 5f;
         StretchToParent(feedbackPrepCardText.GetComponent<RectTransform>());
 
         GameObject continueButtonObject = CreateButton("Continue Button", feedbackPanel.transform);
-        ConfigurePreferredLayoutElement(continueButtonObject, -1f, 58f);
-        SetMinimumLayoutHeight(continueButtonObject, 58f);
+        ConfigurePreferredLayoutElement(continueButtonObject, -1f, 54f);
+        SetMinimumLayoutHeight(continueButtonObject, 54f);
 
         TMP_Text continueButtonText = CreateText("Label", continueButtonObject.transform, "Continue", 24, FontStyles.Bold, TextAlignmentOptions.Center);
         continueButtonText.color = textColor;
@@ -949,57 +967,57 @@ public class InterviewGameManager : MonoBehaviour
         contentRowLayout.childForceExpandWidth = true;
         contentRowLayout.childForceExpandHeight = true;
 
-        GameObject statsPanel = CreatePanel("Outcome Stats Panel", outcomeContentRow.transform, panelAccentColor);
-        ConfigureFlexibleLayoutElement(statsPanel, 1f, 480f);
-        AddPaddingLayout(statsPanel, new RectOffset(24, 24, 20, 20), 10f);
+        outcomeStatsPanel = CreatePanel("Outcome Stats Panel", outcomeContentRow.transform, panelAccentColor);
+        ConfigureFlexibleLayoutElement(outcomeStatsPanel, 1f, 480f);
+        AddPaddingLayout(outcomeStatsPanel, new RectOffset(24, 24, 20, 20), 10f);
 
-        TMP_Text statsHeading = CreateText("Outcome Stats Heading", statsPanel.transform, "FINAL READ", 22, FontStyles.Bold, TextAlignmentOptions.Left);
+        TMP_Text statsHeading = CreateText("Outcome Stats Heading", outcomeStatsPanel.transform, "FINAL READ", 22, FontStyles.Bold, TextAlignmentOptions.Left);
         statsHeading.color = accentColor;
 
-        outcomeStatsText = CreateText("Outcome Stats", statsPanel.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        outcomeStatsText = CreateText("Outcome Stats", outcomeStatsPanel.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         outcomeStatsText.color = textColor;
         outcomeStatsText.lineSpacing = 8f;
         ConfigureFlexibleLayoutElement(outcomeStatsText.gameObject, 1f);
 
-        GameObject highlightsPanel = CreatePanel("Outcome Highlights Panel", outcomeContentRow.transform, panelAccentColor);
-        ConfigureFlexibleLayoutElement(highlightsPanel, 1f, 480f);
-        AddPaddingLayout(highlightsPanel, new RectOffset(24, 24, 20, 20), 10f);
+        outcomeHighlightsPanel = CreatePanel("Outcome Highlights Panel", outcomeContentRow.transform, panelAccentColor);
+        ConfigureFlexibleLayoutElement(outcomeHighlightsPanel, 1f, 480f);
+        AddPaddingLayout(outcomeHighlightsPanel, new RectOffset(24, 24, 20, 20), 10f);
 
-        TMP_Text highlightsHeading = CreateText("Outcome Highlights Heading", highlightsPanel.transform, "RUN HIGHLIGHTS", 22, FontStyles.Bold, TextAlignmentOptions.Left);
+        TMP_Text highlightsHeading = CreateText("Outcome Highlights Heading", outcomeHighlightsPanel.transform, "RUN HIGHLIGHTS", 22, FontStyles.Bold, TextAlignmentOptions.Left);
         highlightsHeading.color = accentColor;
 
-        outcomeHighlightsText = CreateText("Outcome Highlights", highlightsPanel.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        outcomeHighlightsText = CreateText("Outcome Highlights", outcomeHighlightsPanel.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         outcomeHighlightsText.color = textColor;
         outcomeHighlightsText.lineSpacing = 8f;
         outcomeHighlightsText.textWrappingMode = TextWrappingModes.Normal;
         ConfigureFlexibleLayoutElement(outcomeHighlightsText.gameObject, 1f);
 
-        GameObject advicePanel = CreatePanel("Outcome Advice Panel", outcomeScreen.transform, transitionPanelColor);
-        ConfigurePreferredLayoutElement(advicePanel, -1f, 94f);
-        SetMinimumLayoutHeight(advicePanel, 86f);
-        AddPaddingLayout(advicePanel, new RectOffset(24, 24, 16, 16), 8f);
+        outcomeAdvicePanel = CreatePanel("Outcome Advice Panel", outcomeScreen.transform, transitionPanelColor);
+        ConfigurePreferredLayoutElement(outcomeAdvicePanel, -1f, 94f);
+        SetMinimumLayoutHeight(outcomeAdvicePanel, 86f);
+        AddPaddingLayout(outcomeAdvicePanel, new RectOffset(24, 24, 16, 16), 8f);
 
-        TMP_Text adviceHeading = CreateText("Outcome Advice Heading", advicePanel.transform, "NEXT RUN ADVICE", 21, FontStyles.Bold, TextAlignmentOptions.Left);
+        TMP_Text adviceHeading = CreateText("Outcome Advice Heading", outcomeAdvicePanel.transform, "NEXT RUN ADVICE", 21, FontStyles.Bold, TextAlignmentOptions.Left);
         adviceHeading.color = accentColor;
 
-        outcomeAdviceText = CreateText("Outcome Advice", advicePanel.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        outcomeAdviceText = CreateText("Outcome Advice", outcomeAdvicePanel.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         outcomeAdviceText.color = textColor;
         outcomeAdviceText.textWrappingMode = TextWrappingModes.Normal;
         ConfigureFlexibleLayoutElement(outcomeAdviceText.gameObject, 1f);
 
-        GameObject buttonRow = new GameObject("Outcome Button Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
-        buttonRow.transform.SetParent(outcomeScreen.transform, false);
-        ConfigurePreferredLayoutElement(buttonRow, -1f, 58f);
+        outcomeButtonRow = new GameObject("Outcome Button Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+        outcomeButtonRow.transform.SetParent(outcomeScreen.transform, false);
+        ConfigurePreferredLayoutElement(outcomeButtonRow, -1f, 58f);
 
-        HorizontalLayoutGroup buttonRowLayout = buttonRow.GetComponent<HorizontalLayoutGroup>();
+        HorizontalLayoutGroup buttonRowLayout = outcomeButtonRow.GetComponent<HorizontalLayoutGroup>();
         buttonRowLayout.spacing = 18f;
         buttonRowLayout.childControlWidth = true;
         buttonRowLayout.childControlHeight = true;
         buttonRowLayout.childForceExpandWidth = true;
         buttonRowLayout.childForceExpandHeight = true;
 
-        CreateMenuButton(buttonRow.transform, "Restart Interview", RestartGame);
-        CreateMenuButton(buttonRow.transform, "Return to Menu", ShowMenu);
+        CreateMenuButton(outcomeButtonRow.transform, "Restart Interview", RestartGame);
+        CreateMenuButton(outcomeButtonRow.transform, "Return to Menu", ShowMenu);
         outcomeScreen.SetActive(false);
     }
 
@@ -1159,24 +1177,398 @@ public class InterviewGameManager : MonoBehaviour
             StopCoroutine(activeFadeCoroutine);
         }
 
-        activeFadeCoroutine = StartCoroutine(FadeCanvasGroup(canvasGroup));
+        activeFadeCoroutine = StartCoroutine(FadeCanvasGroup(canvasGroup, screen.GetComponent<RectTransform>()));
     }
 
-    private IEnumerator FadeCanvasGroup(CanvasGroup canvasGroup)
+    private IEnumerator FadeCanvasGroup(CanvasGroup canvasGroup, RectTransform rectTransform)
     {
         canvasGroup.alpha = 0f;
+        Vector3 originalScale = rectTransform == null ? Vector3.one : rectTransform.localScale;
+        if (!reduceMotion && rectTransform != null)
+        {
+            rectTransform.localScale = originalScale * 0.992f;
+        }
 
         float elapsed = 0f;
 
         while (elapsed < ScreenFadeDuration)
         {
             elapsed += Time.unscaledDeltaTime;
-            canvasGroup.alpha = Mathf.Clamp01(elapsed / ScreenFadeDuration);
+            float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / ScreenFadeDuration));
+            canvasGroup.alpha = t;
+            if (!reduceMotion && rectTransform != null)
+            {
+                rectTransform.localScale = Vector3.Lerp(originalScale * 0.992f, originalScale, t);
+            }
             yield return null;
         }
 
         canvasGroup.alpha = 1f;
+        if (rectTransform != null)
+        {
+            rectTransform.localScale = originalScale;
+        }
         activeFadeCoroutine = null;
+    }
+
+    private CanvasGroup EnsureCanvasGroup(GameObject target)
+    {
+        if (target == null)
+        {
+            return null;
+        }
+
+        CanvasGroup canvasGroup = target.GetComponent<CanvasGroup>();
+        if (canvasGroup == null)
+        {
+            canvasGroup = target.AddComponent<CanvasGroup>();
+        }
+
+        return canvasGroup;
+    }
+
+    private void StopAnimation(ref Coroutine coroutine)
+    {
+        if (coroutine == null)
+        {
+            return;
+        }
+
+        StopCoroutine(coroutine);
+        coroutine = null;
+    }
+
+    private void AnimateAnswerCardsIn()
+    {
+        StopAnimation(ref answerEntranceCoroutine);
+
+        if (answerButtons == null)
+        {
+            return;
+        }
+
+        if (reduceMotion)
+        {
+            for (int i = 0; i < answerButtons.Length; i++)
+            {
+                CanvasGroup group = EnsureCanvasGroup(answerButtons[i].gameObject);
+                if (group != null)
+                {
+                    group.alpha = 1f;
+                }
+            }
+            return;
+        }
+
+        answerEntranceCoroutine = StartCoroutine(AnimateAnswerCardsInRoutine());
+    }
+
+    private IEnumerator AnimateAnswerCardsInRoutine()
+    {
+        for (int i = 0; i < answerButtons.Length; i++)
+        {
+            CanvasGroup group = EnsureCanvasGroup(answerButtons[i].gameObject);
+            if (group != null)
+            {
+                group.alpha = 0f;
+            }
+        }
+
+        float elapsed = 0f;
+        const float duration = 0.2f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
+
+            for (int i = 0; i < answerButtons.Length; i++)
+            {
+                CanvasGroup group = EnsureCanvasGroup(answerButtons[i].gameObject);
+                float stagger = Mathf.Clamp01((elapsed - i * 0.035f) / duration);
+                float itemT = Mathf.SmoothStep(0f, 1f, stagger);
+                if (group != null)
+                {
+                    group.alpha = Mathf.Max(t * 0.35f, itemT);
+                }
+            }
+
+            yield return null;
+        }
+
+        for (int i = 0; i < answerButtons.Length; i++)
+        {
+            CanvasGroup group = EnsureCanvasGroup(answerButtons[i].gameObject);
+            if (group != null)
+            {
+                group.alpha = 1f;
+            }
+        }
+
+        answerEntranceCoroutine = null;
+    }
+
+    private void AnimateAnswerSelection(int selectedAnswerIndex)
+    {
+        StopAnimation(ref answerEntranceCoroutine);
+        StopAnimation(ref answerSelectionCoroutine);
+
+        if (answerButtons == null || selectedAnswerIndex < 0 || selectedAnswerIndex >= answerButtons.Length)
+        {
+            return;
+        }
+
+        answerSelectionCoroutine = StartCoroutine(AnimateAnswerSelectionRoutine(selectedAnswerIndex));
+    }
+
+    private IEnumerator AnimateAnswerSelectionRoutine(int selectedAnswerIndex)
+    {
+        float elapsed = 0f;
+        float duration = reduceMotion ? 0.08f : 0.18f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+
+            for (int i = 0; i < answerButtons.Length; i++)
+            {
+                CanvasGroup group = EnsureCanvasGroup(answerButtons[i].gameObject);
+                RectTransform rect = answerButtons[i].GetComponent<RectTransform>();
+                bool selected = i == selectedAnswerIndex;
+
+                if (group != null)
+                {
+                    group.alpha = Mathf.Lerp(1f, selected ? 1f : 0.48f, t);
+                }
+
+                if (!reduceMotion && selected)
+                {
+                    float pulse = Mathf.Sin(t * Mathf.PI) * 0.018f;
+                    rect.localScale = Vector3.one * (1f + pulse);
+                }
+            }
+
+            yield return null;
+        }
+
+        for (int i = 0; i < answerButtons.Length; i++)
+        {
+            CanvasGroup group = EnsureCanvasGroup(answerButtons[i].gameObject);
+            if (group != null)
+            {
+                group.alpha = i == selectedAnswerIndex ? 1f : 0.48f;
+            }
+
+            answerButtons[i].GetComponent<RectTransform>().localScale = Vector3.one;
+        }
+
+        answerSelectionCoroutine = null;
+    }
+
+    private void RevealFeedbackPanel()
+    {
+        StopAnimation(ref feedbackRevealCoroutine);
+
+        if (feedbackPanel == null)
+        {
+            return;
+        }
+
+        CanvasGroup group = EnsureCanvasGroup(feedbackPanel);
+        if (group == null)
+        {
+            return;
+        }
+
+        feedbackRevealCoroutine = StartCoroutine(FadePanelRoutine(group, 0.14f));
+    }
+
+    private IEnumerator FadePanelRoutine(CanvasGroup canvasGroup, float duration)
+    {
+        canvasGroup.alpha = 0f;
+
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
+            canvasGroup.alpha = t;
+
+            yield return null;
+        }
+
+        canvasGroup.alpha = 1f;
+        feedbackRevealCoroutine = null;
+    }
+
+    private void FlashStatsText(int strongestChange, int pressureChange)
+    {
+        StopAnimation(ref statsFlashCoroutine);
+
+        if (statsText == null)
+        {
+            return;
+        }
+
+        Color flashColor = strongestChange >= 0 ? positiveStatColor : negativeStatColor;
+        if (pressureChange >= 8 || interviewPressure >= 75 && pressureChange > 0)
+        {
+            flashColor = negativeStatColor;
+        }
+        else if (pressureChange < 0 && Mathf.Abs(pressureChange) >= Mathf.Abs(strongestChange))
+        {
+            flashColor = positiveStatColor;
+        }
+
+        statsFlashCoroutine = StartCoroutine(FlashTextRoutine(statsText, flashColor));
+    }
+
+    private IEnumerator FlashTextRoutine(TMP_Text target, Color flashColor)
+    {
+        Color baseColor = statsBaseColor == default ? textColor : statsBaseColor;
+        float duration = reduceMotion ? 0.12f : 0.24f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float wave = Mathf.Sin(Mathf.Clamp01(elapsed / duration) * Mathf.PI);
+            target.color = Color.Lerp(baseColor, flashColor, wave * 0.55f);
+            if (!reduceMotion)
+            {
+                target.rectTransform.localScale = Vector3.one * (1f + wave * 0.01f);
+            }
+            yield return null;
+        }
+
+        target.color = baseColor;
+        target.rectTransform.localScale = Vector3.one;
+        statsFlashCoroutine = null;
+    }
+
+    private void FlashTransientText(TMP_Text target, int strongestChange, int pressureChange)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        Color flashColor = pressureChange > 0 ? negativeStatColor : pressureChange < 0 ? positiveStatColor : strongestChange >= 0 ? positiveStatColor : negativeStatColor;
+        StartCoroutine(FlashTransientTextRoutine(target, target.color, flashColor));
+    }
+
+    private IEnumerator FlashTransientTextRoutine(TMP_Text target, Color baseColor, Color flashColor)
+    {
+        float duration = reduceMotion ? 0.1f : 0.22f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float wave = Mathf.Sin(Mathf.Clamp01(elapsed / duration) * Mathf.PI);
+            target.color = Color.Lerp(baseColor, flashColor, wave * 0.45f);
+            yield return null;
+        }
+
+        target.color = baseColor;
+    }
+
+    private int GetLargestAbsoluteStatChange(params int[] changes)
+    {
+        int strongest = 0;
+
+        for (int i = 0; i < changes.Length; i++)
+        {
+            if (Mathf.Abs(changes[i]) > Mathf.Abs(strongest))
+            {
+                strongest = changes[i];
+            }
+        }
+
+        return strongest;
+    }
+
+    private void RevealFinalOutcomeSections()
+    {
+        StopAnimation(ref finalRevealCoroutine);
+
+        if (reduceMotion || outcomeScreen == null)
+        {
+            SetOutcomeSectionAlpha(1f);
+            return;
+        }
+
+        finalRevealCoroutine = StartCoroutine(RevealFinalOutcomeSectionsRoutine());
+    }
+
+    private IEnumerator RevealFinalOutcomeSectionsRoutine()
+    {
+        GameObject[] sections =
+        {
+            outcomeTitleText == null ? null : outcomeTitleText.gameObject,
+            outcomeBodyText == null ? null : outcomeBodyText.gameObject,
+            outcomeStatsPanel,
+            outcomeHighlightsPanel,
+            outcomeAdvicePanel,
+            outcomeButtonRow
+        };
+
+        for (int i = 0; i < sections.Length; i++)
+        {
+            CanvasGroup group = EnsureCanvasGroup(sections[i]);
+            if (group != null)
+            {
+                group.alpha = 0f;
+            }
+        }
+
+        for (int i = 0; i < sections.Length; i++)
+        {
+            CanvasGroup group = EnsureCanvasGroup(sections[i]);
+            if (group == null)
+            {
+                continue;
+            }
+
+            float elapsed = 0f;
+            const float duration = 0.09f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                group.alpha = Mathf.Clamp01(elapsed / duration);
+                yield return null;
+            }
+
+            group.alpha = 1f;
+            yield return new WaitForSecondsRealtime(0.035f);
+        }
+
+        finalRevealCoroutine = null;
+    }
+
+    private void SetOutcomeSectionAlpha(float alpha)
+    {
+        GameObject[] sections =
+        {
+            outcomeTitleText == null ? null : outcomeTitleText.gameObject,
+            outcomeBodyText == null ? null : outcomeBodyText.gameObject,
+            outcomeStatsPanel,
+            outcomeHighlightsPanel,
+            outcomeAdvicePanel,
+            outcomeButtonRow
+        };
+
+        for (int i = 0; i < sections.Length; i++)
+        {
+            CanvasGroup group = EnsureCanvasGroup(sections[i]);
+            if (group != null)
+            {
+                group.alpha = alpha;
+            }
+        }
     }
 
     private void PlayUiSound(AudioClip clip)
@@ -1749,6 +2141,7 @@ public class InterviewGameManager : MonoBehaviour
         InitializePrepCards();
         strongAnswerCount = 0;
         riskyAnswerCount = 0;
+        interviewPressure = StartingInterviewPressure;
         firstChaoticAnswerBonusApplied = false;
         activeRuleRunNotes.Clear();
         playerStats.Reset(StartingConfidence, StartingEnergy, StartingTechnicalCredibility, StartingCommercialAlignment);
@@ -2378,9 +2771,14 @@ public class InterviewGameManager : MonoBehaviour
         subtitleText.text = GetCompanyProcessLine();
         UpdateRoomBackdrop(stage.StageName);
         questionStageNameText.text = stage.StageName.ToUpperInvariant();
-        questionStageIntroText.text = $"{stage.StageIntroText}\nToday's process: {GetCompanyProcessLine()}";
+        questionStageIntroText.text = stage.StageIntroText;
         questionText.text = question.QuestionText;
         feedbackPanel.SetActive(false);
+        CanvasGroup feedbackGroup = EnsureCanvasGroup(feedbackPanel);
+        if (feedbackGroup != null)
+        {
+            feedbackGroup.alpha = 1f;
+        }
         prepCardsPanel.SetActive(true);
         SetBackdropViewportVisible(true);
         reframedCommercialAlignmentBonus = 0;
@@ -2391,11 +2789,18 @@ public class InterviewGameManager : MonoBehaviour
         {
             answerButtons[i].gameObject.SetActive(true);
             answerButtons[i].interactable = true;
+            CanvasGroup answerGroup = EnsureCanvasGroup(answerButtons[i].gameObject);
+            if (answerGroup != null)
+            {
+                answerGroup.alpha = 1f;
+            }
+            answerButtons[i].GetComponent<RectTransform>().localScale = Vector3.one;
             SetAnswerButtonText(i);
             SetAnswerButtonVisual(i, false);
         }
 
         UpdatePrepCardButtons(true);
+        AnimateAnswerCardsIn();
     }
 
     private AnswerOption[] BuildDisplayedAnswerOrder(InterviewQuestion question)
@@ -2434,6 +2839,11 @@ public class InterviewGameManager : MonoBehaviour
         AnswerOption answer = displayedAnswers[answerIndex];
         int commercialAlignmentModifier = reframedCommercialAlignmentBonus;
         int confidenceModifier = GetFirstChaoticAnswerConfidenceBonus(answer);
+        int pressureChange = CalculateAnswerPressureChange(answer, confidenceModifier, commercialAlignmentModifier);
+        if (commercialAlignmentModifier > 0)
+        {
+            pressureChange -= 3;
+        }
 
         PlayUiSound(answerSelectedClip);
         playerStats.ApplyDirectChanges(
@@ -2441,6 +2851,7 @@ public class InterviewGameManager : MonoBehaviour
             answer.EnergyChange,
             answer.TechnicalCredibilityChange,
             answer.CommercialAlignmentChange + commercialAlignmentModifier);
+        pressureChange = ApplyPressureChange(pressureChange);
         TrackAnswerSummary(answer);
         styleTracker.Apply(answer);
         ApplyCompanyStyleModifier(answer);
@@ -2456,7 +2867,15 @@ public class InterviewGameManager : MonoBehaviour
         }
 
         UpdateStatsText();
-        ShowFeedback(answer, commercialAlignmentModifier, confidenceModifier);
+        FlashStatsText(
+            GetLargestAbsoluteStatChange(
+                answer.ConfidenceChange + confidenceModifier,
+                answer.EnergyChange,
+                answer.TechnicalCredibilityChange,
+                answer.CommercialAlignmentChange + commercialAlignmentModifier),
+            pressureChange);
+        AnimateAnswerSelection(answerIndex);
+        ShowFeedback(answer, commercialAlignmentModifier, confidenceModifier, pressureChange);
         reframedCommercialAlignmentBonus = 0;
     }
 
@@ -2482,23 +2901,39 @@ public class InterviewGameManager : MonoBehaviour
         {
             case PrepCardType.TakeABreath:
                 playerStats.ApplyDirectChanges(0, 8, 0, 0);
-                AppendPrepCardFeedbackNote("You take a breath. Energy +8.");
+                int breathPressureChange = ApplyPressureChange(-8);
+                AppendPrepCardFeedbackNote($"You take a breath. Energy +8. Interview Pressure {FormatSignedNumber(breathPressureChange)}.");
                 break;
             case PrepCardType.ClarifyingQuestion:
                 playerStats.ApplyDirectChanges(0, -3, 0, 0);
+                int clarifyPressureChange = ApplyPressureChange(-2);
                 clarifiedAnswerIndex = GetHighestCommercialAlignmentAnswerIndex();
-                AppendPrepCardFeedbackNote("Prep Card used: Ask a Clarifying Question (-3 Energy).");
+                AppendPrepCardFeedbackNote($"Prep Card used: Ask a Clarifying Question (-3 Energy, Interview Pressure {FormatSignedNumber(clarifyPressureChange)}).");
                 break;
             case PrepCardType.ReframeBusinessValue:
                 reframedCommercialAlignmentBonus += 5;
-                AppendPrepCardFeedbackNote("Prep Card used: Reframe to Business Value (+5 Commercial Alignment on the selected answer).");
+                AppendPrepCardFeedbackNote("Prep Card used: Reframe to Business Value (+5 Commercial Alignment and Interview Pressure -3 on the selected answer).");
                 break;
         }
 
         UpdateStatsText();
+        FlashStatsText(0, GetPrepCardFlashPressureChange(card.CardType));
         UpdateAnswerButtonLabels();
         UpdateAnswerButtonVisuals();
         UpdatePrepCardButtons(true);
+    }
+
+    private int GetPrepCardFlashPressureChange(PrepCardType cardType)
+    {
+        switch (cardType)
+        {
+            case PrepCardType.TakeABreath:
+                return -8;
+            case PrepCardType.ClarifyingQuestion:
+                return -2;
+            default:
+                return 0;
+        }
     }
 
     private bool CanUsePrepCards()
@@ -2722,7 +3157,7 @@ public class InterviewGameManager : MonoBehaviour
             || lowerText.Contains("without warning");
     }
 
-    private void ShowFeedback(AnswerOption answer, int commercialAlignmentModifier, int confidenceModifier)
+    private void ShowFeedback(AnswerOption answer, int commercialAlignmentModifier, int confidenceModifier, int pressureChange)
     {
         feedbackText.text =
             $"{answer.ConsequenceText}\n\n" +
@@ -2730,7 +3165,8 @@ public class InterviewGameManager : MonoBehaviour
             $"{FormatStatChange("Confidence", answer.ConfidenceChange + confidenceModifier)}\n" +
             $"{FormatStatChange("Energy", answer.EnergyChange)}\n" +
             $"{FormatStatChange("Technical Credibility", answer.TechnicalCredibilityChange)}\n" +
-            $"{FormatStatChange("Commercial Alignment", answer.CommercialAlignmentChange + commercialAlignmentModifier)}" +
+            $"{FormatStatChange("Commercial Alignment", answer.CommercialAlignmentChange + commercialAlignmentModifier)}\n" +
+            $"{FormatStatChange("Interview Pressure", pressureChange)}" +
             BuildAnswerRuleFeedback(confidenceModifier);
 
         feedbackPrepCardText.text = string.IsNullOrEmpty(prepCardFeedbackNote)
@@ -2740,6 +3176,7 @@ public class InterviewGameManager : MonoBehaviour
         feedbackPanel.SetActive(true);
         prepCardsPanel.SetActive(false);
         SetBackdropViewportVisible(false);
+        RevealFeedbackPanel();
     }
 
     private string BuildAnswerRuleFeedback(int confidenceModifier)
@@ -2763,7 +3200,9 @@ public class InterviewGameManager : MonoBehaviour
     private string FormatStatChange(string statName, int change)
     {
         string sign = change > 0 ? "+" : string.Empty;
-        string color = GetStatChangeColor(change);
+        string color = statName == "Interview Pressure"
+            ? GetPressureChangeColor(change)
+            : GetStatChangeColor(change);
         return $"{statName}: <color=#{color}><b>{sign}{change}</b></color>";
     }
 
@@ -2783,6 +3222,21 @@ public class InterviewGameManager : MonoBehaviour
         return ColorUtility.ToHtmlStringRGB(color);
     }
 
+    private string GetPressureChangeColor(int change)
+    {
+        if (change > 0)
+        {
+            return ColorUtility.ToHtmlStringRGB(negativeStatColor);
+        }
+
+        if (change < 0)
+        {
+            return ColorUtility.ToHtmlStringRGB(positiveStatColor);
+        }
+
+        return ColorUtility.ToHtmlStringRGB(neutralStatColor);
+    }
+
     private string BuildChangeSummary(
         int confidenceChange,
         int energyChange,
@@ -2793,13 +3247,15 @@ public class InterviewGameManager : MonoBehaviour
         int commercialStyleChange,
         int technicalStyleChange,
         int chaoticStyleChange,
-        int burnedOutStyleChange)
+        int burnedOutStyleChange,
+        int pressureChange = 0)
     {
         string summary = string.Empty;
         AppendChangeLine(ref summary, "Confidence", confidenceChange);
         AppendChangeLine(ref summary, "Energy", energyChange);
         AppendChangeLine(ref summary, "Technical Credibility", technicalCredibilityChange);
         AppendChangeLine(ref summary, "Commercial Alignment", commercialAlignmentChange);
+        AppendChangeLine(ref summary, "Interview Pressure", pressureChange);
         AppendChangeLine(ref summary, "Diplomatic Style", diplomaticStyleChange);
         AppendChangeLine(ref summary, "Blunt Style", bluntStyleChange);
         AppendChangeLine(ref summary, "Commercial Style", commercialStyleChange);
@@ -3005,6 +3461,7 @@ public class InterviewGameManager : MonoBehaviour
         int energyChange = ApplyRecoveryPositiveBonus(choice.EnergyChange);
         int technicalCredibilityChange = ApplyRecoveryPositiveBonus(choice.TechnicalCredibilityChange);
         int commercialAlignmentChange = ApplyRecoveryPositiveBonus(choice.CommercialAlignmentChange);
+        int pressureChange = ApplyPressureChange(GetRecoveryChoicePressureChange(choice.ChoiceType));
 
         playerStats.ApplyDirectChanges(
             confidenceChange,
@@ -3034,9 +3491,14 @@ public class InterviewGameManager : MonoBehaviour
                 choice.CommercialStyleChange,
                 choice.TechnicalStyleChange,
                 choice.ChaoticStyleChange,
-                choice.BurnedOutStyleChange) +
+                choice.BurnedOutStyleChange,
+                pressureChange) +
             "\n\n<b>Current stats</b>\n" +
             GetStatsSummary();
+        FlashTransientText(
+            recoveryChoiceStatsText,
+            GetLargestAbsoluteStatChange(confidenceChange, energyChange, technicalCredibilityChange, commercialAlignmentChange),
+            pressureChange);
         recoveryChoiceButtonColumn.SetActive(false);
         recoveryChoiceContinueButton.gameObject.SetActive(true);
         recoveryChoiceContinueButton.interactable = true;
@@ -3056,6 +3518,25 @@ public class InterviewGameManager : MonoBehaviour
         return change + activeCompanyProfile.RecoveryPositiveEffectBonus;
     }
 
+    private int GetRecoveryChoicePressureChange(RecoveryChoiceType choiceType)
+    {
+        switch (choiceType)
+        {
+            case RecoveryChoiceType.ReviewNotes:
+                return -3;
+            case RecoveryChoiceType.ReframeBusinessCase:
+                return -3;
+            case RecoveryChoiceType.TakeAWalk:
+                return -8;
+            case RecoveryChoiceType.MessageFriendlyAe:
+                return -4;
+            case RecoveryChoiceType.DoomScrollGlassdoor:
+                return 12;
+            default:
+                return 0;
+        }
+    }
+
     private void SetRecoveryStatsLayout(bool confirmationState)
     {
         if (recoveryChoiceStatsText == null)
@@ -3063,8 +3544,8 @@ public class InterviewGameManager : MonoBehaviour
             return;
         }
 
-        float preferredHeight = confirmationState ? 252f : 118f;
-        float minimumHeight = confirmationState ? 238f : 104f;
+        float preferredHeight = confirmationState ? 308f : 174f;
+        float minimumHeight = confirmationState ? 292f : 160f;
         ConfigurePreferredLayoutElement(recoveryChoiceStatsText.gameObject, -1f, preferredHeight);
         SetMinimumLayoutHeight(recoveryChoiceStatsText.gameObject, minimumHeight);
     }
@@ -3150,7 +3631,7 @@ public class InterviewGameManager : MonoBehaviour
         }
 
         RandomInterviewEvent interviewEvent = BuildCompanyAdjustedEvent(randomEvents[eventIndex]);
-        ApplyRandomEvent(interviewEvent);
+        int pressureChange = ApplyRandomEvent(interviewEvent);
 
         HidePauseOverlay();
         questionScreen.SetActive(false);
@@ -3180,9 +3661,18 @@ public class InterviewGameManager : MonoBehaviour
                 interviewEvent.CommercialStyleChange,
                 interviewEvent.TechnicalStyleChange,
                 interviewEvent.ChaoticStyleChange,
-                interviewEvent.BurnedOutStyleChange) +
+                interviewEvent.BurnedOutStyleChange,
+                pressureChange) +
             "\n\n" +
             GetStatsSummary();
+        FlashTransientText(
+            randomEventChangesText,
+            GetLargestAbsoluteStatChange(
+                interviewEvent.ConfidenceChange,
+                interviewEvent.EnergyChange,
+                interviewEvent.TechnicalCredibilityChange,
+                interviewEvent.CommercialAlignmentChange),
+            pressureChange);
         FadeInScreen(randomEventScreen);
         return true;
     }
@@ -3224,12 +3714,14 @@ public class InterviewGameManager : MonoBehaviour
         return -1;
     }
 
-    private void ApplyRandomEvent(RandomInterviewEvent interviewEvent)
+    private int ApplyRandomEvent(RandomInterviewEvent interviewEvent)
     {
         int totalScoreBefore = playerStats.TotalScore;
         playerStats.Apply(interviewEvent);
         styleTracker.Apply(interviewEvent);
+        int pressureChange = ApplyPressureChange(CalculateRandomEventPressureChange(interviewEvent));
         randomEventRunSummaries.Add(new RandomEventRunSummary(interviewEvent.EventTitle, playerStats.TotalScore - totalScoreBefore));
+        return pressureChange;
     }
 
     private RandomInterviewEvent BuildCompanyAdjustedEvent(RandomInterviewEvent interviewEvent)
@@ -3307,10 +3799,131 @@ public class InterviewGameManager : MonoBehaviour
     private string GetStatsSummary()
     {
         return
-            $"Confidence: <b>{playerStats.Confidence}/100</b>\n" +
-            $"Energy: <b>{playerStats.Energy}/100</b>\n" +
-            $"Technical Credibility: <b>{playerStats.TechnicalCredibility}/100</b>\n" +
-            $"Commercial Alignment: <b>{playerStats.CommercialAlignment}/100</b>";
+            $"Confidence <b>{playerStats.Confidence}/100</b> | Energy <b>{playerStats.Energy}/100</b>\n" +
+            $"Technical <b>{playerStats.TechnicalCredibility}/100</b> | Commercial <b>{playerStats.CommercialAlignment}/100</b>\n\n" +
+            BuildPressureSummary();
+    }
+
+    private string BuildPressureSummary()
+    {
+        return
+            $"INTERVIEW PRESSURE: {BuildPressureBar()} <b>{interviewPressure}/100</b> | {GetPressureStateLabel()}" +
+            BuildPressureWarningLine();
+    }
+
+    private string BuildPressureBar()
+    {
+        const int segmentCount = 8;
+        int filledSegments = Mathf.Clamp(Mathf.CeilToInt(interviewPressure / 12.5f), 0, segmentCount);
+        string bar = "[";
+
+        for (int i = 0; i < segmentCount; i++)
+        {
+            bar += i < filledSegments ? "#" : "-";
+        }
+
+        return bar + "]";
+    }
+
+    private string BuildPressureWarningLine()
+    {
+        if (interviewPressure < 80)
+        {
+            return string.Empty;
+        }
+
+        return "\n<color=#FF8B8B>The room feels unstable. Another bad answer could spiral.</color>";
+    }
+
+    private string GetPressureStateLabel()
+    {
+        if (interviewPressure <= 24)
+        {
+            return "Calm";
+        }
+
+        if (interviewPressure <= 49)
+        {
+            return "Focused";
+        }
+
+        if (interviewPressure <= 74)
+        {
+            return "Tense";
+        }
+
+        return "Spiralling";
+    }
+
+    private int ApplyPressureChange(int pressureChange)
+    {
+        int pressureBefore = interviewPressure;
+        interviewPressure = Mathf.Clamp(interviewPressure + pressureChange, 0, 100);
+        int actualChange = interviewPressure - pressureBefore;
+
+        if (actualChange != 0 && roomBackdrop != null)
+        {
+            UpdateRoomBackdrop(GetCurrentBackdropStageName());
+        }
+
+        return actualChange;
+    }
+
+    private int CalculateAnswerPressureChange(AnswerOption answer, int confidenceModifier, int commercialAlignmentModifier)
+    {
+        int totalDelta = answer.ConfidenceChange
+            + confidenceModifier
+            + answer.EnergyChange
+            + answer.TechnicalCredibilityChange
+            + answer.CommercialAlignmentChange
+            + commercialAlignmentModifier;
+
+        if (totalDelta >= 18)
+        {
+            return -6;
+        }
+
+        if (totalDelta >= 10)
+        {
+            return -4;
+        }
+
+        if (totalDelta >= 0)
+        {
+            return 3;
+        }
+
+        if (totalDelta >= -9)
+        {
+            return 7;
+        }
+
+        return 11;
+    }
+
+    private int CalculateRandomEventPressureChange(RandomInterviewEvent interviewEvent)
+    {
+        int totalDelta = interviewEvent.ConfidenceChange
+            + interviewEvent.EnergyChange
+            + interviewEvent.TechnicalCredibilityChange
+            + interviewEvent.CommercialAlignmentChange;
+
+        if (totalDelta >= 8)
+        {
+            return -3;
+        }
+
+        if (totalDelta >= 0)
+        {
+            return 3;
+        }
+
+        if (totalDelta >= -9)
+        {
+            return 6;
+        }
+
+        return 10;
     }
 
     private void ShowOutcome()
@@ -3386,6 +3999,7 @@ public class InterviewGameManager : MonoBehaviour
 
         PlayUiSound(finalOutcomeClip);
         FadeInScreen(outcomeScreen);
+        RevealFinalOutcomeSections();
         LogRunSummary(outcomeName, styleResult);
     }
 
@@ -3425,6 +4039,7 @@ public class InterviewGameManager : MonoBehaviour
             $"{mainFeedback}\n\n" +
             $"{BuildCompanyOutcomeLine()}\n\n" +
             $"{BuildRuleOutcomeLine()}\n\n" +
+            $"{BuildPressureOutcomeLine()}\n\n" +
             $"Final note: {finalComment}\n\n" +
             $"Dominant style: {styleResult.StyleName}.";
     }
@@ -3437,6 +4052,21 @@ public class InterviewGameManager : MonoBehaviour
         }
 
         return $"Against a {activeCompanyProfile.CompanyName} process, the panel weighted the run through {activeCompanyProfile.ProfileName.ToLowerInvariant()}: {activeCompanyProfile.PreferredStyle}";
+    }
+
+    private string BuildPressureOutcomeLine()
+    {
+        if (interviewPressure >= 85)
+        {
+            return "Pressure read: The room felt unstable by the end, which added credibility risk to the debrief.";
+        }
+
+        if (interviewPressure < 25)
+        {
+            return "Pressure read: You kept the room calm enough that the panel could focus on the signal.";
+        }
+
+        return $"Pressure read: Final pressure landed at {interviewPressure}/100 ({GetPressureStateLabel()}).";
     }
 
     private string BuildRuleOutcomeLine()
@@ -3496,6 +4126,7 @@ public class InterviewGameManager : MonoBehaviour
             $"Outcome: <b>{outcomeName}</b>\n" +
             $"Style: <b>{styleResult.StyleName}</b>\n" +
             $"Total Score: <b>{playerStats.TotalScore}/400</b>\n\n" +
+            $"Final Pressure: <b>{interviewPressure}/100</b> | {GetPressureStateLabel()}\n\n" +
             $"Questions Faced: <b>{GetSelectedQuestionCount()}</b>\n\n" +
             BuildCompactStatsSummary() + "\n\n" +
             $"Strongest Stat: <b>{strongestStat.Name}</b> ({strongestStat.Value}/100)\n" +
@@ -3842,8 +4473,33 @@ public class InterviewGameManager : MonoBehaviour
         {
             roomBackdrop.SetProcessAtmosphere(
                 activeCompanyProfile == null ? string.Empty : activeCompanyProfile.CompanyName,
-                stageName);
+                stageName,
+                interviewPressure);
         }
+    }
+
+    private string GetCurrentBackdropStageName()
+    {
+        if (outcomeScreen != null && outcomeScreen.activeSelf)
+        {
+            return "Final Outcome";
+        }
+
+        if ((recoveryChoiceScreen != null && recoveryChoiceScreen.activeSelf)
+            || (randomEventScreen != null && randomEventScreen.activeSelf))
+        {
+            return "Between Rounds";
+        }
+
+        if (questionScreen != null && questionScreen.activeSelf
+            && stages != null
+            && currentStageIndex >= 0
+            && currentStageIndex < stages.Length)
+        {
+            return stages[currentStageIndex].StageName;
+        }
+
+        return "Main Menu";
     }
 
     private void LogRunSummary(string outcomeName, InterviewStyleResult styleResult)
@@ -3856,6 +4512,7 @@ public class InterviewGameManager : MonoBehaviour
             $"Rule: {(activeCompanyProfile == null ? "none" : activeCompanyProfile.RuleName)}\n" +
             $"Outcome: {outcomeName}\n" +
             $"Total Score: {playerStats.TotalScore}/400\n" +
+            $"Final Pressure: {interviewPressure}/100 ({GetPressureStateLabel()})\n" +
             playerStats.GetSummary() + "\n" +
             styleTracker.GetDebugSummary() + "\n" +
             $"Dominant Style: {styleResult.StyleName}\n" +

@@ -44,6 +44,7 @@ public class InterviewRoomBackdropController : MonoBehaviour
     private GameObject legacyEnterpriseProps;
     private GameObject saasVendorProps;
     private string activeCompanyProfileName = string.Empty;
+    private int activeInterviewPressure;
 
     public RenderTexture ViewportTexture => viewportTexture;
 
@@ -84,9 +85,10 @@ public class InterviewRoomBackdropController : MonoBehaviour
         }
     }
 
-    public void SetProcessAtmosphere(string companyProfileName, string stageName)
+    public void SetProcessAtmosphere(string companyProfileName, string stageName, int interviewPressure)
     {
         activeCompanyProfileName = companyProfileName ?? string.Empty;
+        activeInterviewPressure = Mathf.Clamp(interviewPressure, 0, 100);
         SetStageAtmosphere(stageName);
     }
 
@@ -171,6 +173,14 @@ public class InterviewRoomBackdropController : MonoBehaviour
             ref rimIntensity,
             ref laptopIntensity,
             ref displayText);
+        ApplyPressureAtmosphere(
+            activeInterviewPressure,
+            ref mainColor,
+            ref accentColor,
+            ref mainIntensity,
+            ref accentIntensity,
+            ref rimIntensity,
+            ref laptopIntensity);
 
         mainLight.color = mainColor;
         mainLight.intensity = debugBackdropVisibility ? mainIntensity + 0.75f : mainIntensity;
@@ -324,6 +334,47 @@ public class InterviewRoomBackdropController : MonoBehaviour
         {
             roomCamera.backgroundColor = cameraBackground;
         }
+    }
+
+    private void ApplyPressureAtmosphere(
+        int interviewPressure,
+        ref Color mainColor,
+        ref Color accentColor,
+        ref float mainIntensity,
+        ref float accentIntensity,
+        ref float rimIntensity,
+        ref float laptopIntensity)
+    {
+        if (interviewPressure < 50)
+        {
+            return;
+        }
+
+        if (interviewPressure < 75)
+        {
+            mainColor = Color.Lerp(mainColor, new Color32(194, 214, 238, 255), 0.18f);
+            mainIntensity -= 0.08f;
+            accentIntensity += 0.12f;
+            return;
+        }
+
+        if (interviewPressure < 90)
+        {
+            mainColor = Color.Lerp(mainColor, new Color32(178, 198, 230, 255), 0.26f);
+            accentColor = Color.Lerp(accentColor, new Color32(176, 82, 170, 255), 0.25f);
+            mainIntensity -= 0.14f;
+            accentIntensity += 0.34f;
+            rimIntensity += 0.22f;
+            laptopIntensity += 0.12f;
+            return;
+        }
+
+        mainColor = Color.Lerp(mainColor, new Color32(154, 158, 210, 255), 0.34f);
+        accentColor = Color.Lerp(accentColor, new Color32(224, 66, 120, 255), 0.36f);
+        mainIntensity -= 0.2f;
+        accentIntensity += 0.55f;
+        rimIntensity += 0.4f;
+        laptopIntensity += 0.18f;
     }
 
     private void ApplyRendererColor(Renderer renderer, Color color)
