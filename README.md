@@ -1,8 +1,8 @@
 # Final Round
 
-Prototype version: `Prototype v0.8`
+Prototype version: `Prototype v0.9`
 
-Final Round is a Unity prototype about surviving a multi-stage Sales Engineering interview loop. Each run includes randomized answer order, company-specific process rules, an Interview Pressure meter, Prep Cards, between-round recovery choices, between-stage events, lightweight UI animation, an animated video-call interview viewport, subtle audio feedback, end-of-run badges, and a final report-card summary.
+Final Round is a Unity prototype about surviving a multi-stage Sales Engineering interview loop. Each run includes randomized answer order, company-specific process rules, an Interview Pressure meter, Prep Cards, between-round recovery choices, between-stage events, lightweight UI animation, an animated video-call interview viewport, subtle audio feedback, a player-facing Settings screen, end-of-run badges, and a final report-card summary.
 
 ## Current Features
 
@@ -15,6 +15,7 @@ Final Round is a Unity prototype about surviving a multi-stage Sales Engineering
 - Process ID/run seed support for repeatable testing.
 - Final summary with outcome, stats, style, pressure, prep/recovery/event highlights, badges, and company rule context.
 - Runtime-generated UI and animated video-call viewport with lightweight transitions, feedback animation, and procedural SFX hooks.
+- Settings screen for audio, motion, run seed, and fullscreen options.
 
 ## Run In Unity
 
@@ -45,7 +46,8 @@ Final Round is a Unity prototype about surviving a multi-stage Sales Engineering
 - The project uses Unity's Input System backend; keyboard shortcuts use `Keyboard.current` in that mode.
 - Runtime UI and the animated video-call panel are generated from scripts at play/build time.
 - Audio feedback is optional and generated procedurally when no sound files are assigned.
-- `reduceMotion` is available as an Inspector-only toggle for reducing pulse/scale animation.
+- Settings use PlayerPrefs for current-machine persistence.
+- Reduce Motion is available from Settings for reducing pulse/scale animation.
 
 ## Known Limitations
 

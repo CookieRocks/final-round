@@ -18,8 +18,15 @@ public class InterviewGameManager : MonoBehaviour
     private const int StartingInterviewPressure = 35;
     private const float BetweenStageEventChance = 0.6f;
     private const float ScreenFadeDuration = 0.16f;
-    private const string BuildVersion = "Prototype v0.8";
+    private const string BuildVersion = "Prototype v0.9";
     private const int MaxDisplayedRunBadges = 4;
+    private const string PrefMasterVolume = "FinalRound.MasterVolume";
+    private const string PrefSfxVolume = "FinalRound.SfxVolume";
+    private const string PrefMuteAudio = "FinalRound.MuteAudio";
+    private const string PrefReduceMotion = "FinalRound.ReduceMotion";
+    private const string PrefDeterministicRunSeed = "FinalRound.DeterministicRunSeed";
+    private const string PrefRunSeed = "FinalRound.RunSeed";
+    private const string PrefFullscreen = "FinalRound.Fullscreen";
 
     private static InterviewGameManager activeManager;
 
@@ -89,12 +96,18 @@ public class InterviewGameManager : MonoBehaviour
     private Button startInterviewButton;
     private Button howToPlayButton;
     private Button aboutButton;
+    private Button settingsButton;
     private Button quitButton;
     private Button beginProcessButton;
     private Button processBriefingReturnButton;
     private Button[] prepCardButtons;
     private Button resumeButton;
+    private Button pauseSettingsButton;
     private Button pauseReturnToMenuButton;
+    private Button settingsBackButton;
+    private Button settingsResetDefaultsButton;
+    private Button applySeedButton;
+    private Button newRandomSeedButton;
     private GameObject feedbackPanel;
     private GameObject prepCardsPanel;
     private GameObject menuScreen;
@@ -111,6 +124,7 @@ public class InterviewGameManager : MonoBehaviour
     private GameObject outcomeAdvicePanel;
     private GameObject outcomeButtonRow;
     private GameObject pauseOverlay;
+    private GameObject settingsOverlay;
     private GameObject backdropViewportPanel;
     private GameObject callPanelRoot;
     private GameObject callStandbyCard;
@@ -120,6 +134,9 @@ public class InterviewGameManager : MonoBehaviour
     private TMP_Text callStageLabelText;
     private TMP_Text callStatusLabelText;
     private TMP_Text callStandbyText;
+    private TMP_Text masterVolumeValueText;
+    private TMP_Text sfxVolumeValueText;
+    private TMP_Text seedNoteText;
     private CallParticipantTile[] callParticipantTiles;
     private InterviewRoomBackdropController roomBackdrop;
     private AudioSource uiAudioSource;
@@ -191,6 +208,15 @@ public class InterviewGameManager : MonoBehaviour
     private bool callInterviewerSpeaking;
     private bool firstChaoticAnswerBonusApplied;
     private bool highPressureWarningPlayed;
+    private bool settingsOpenedFromPause;
+    private bool fullscreenEnabled;
+    private Slider masterVolumeSlider;
+    private Slider sfxVolumeSlider;
+    private Toggle muteAudioToggle;
+    private Toggle reduceMotionToggle;
+    private Toggle deterministicSeedToggle;
+    private Toggle fullscreenToggle;
+    private TMP_InputField seedInputField;
     private readonly List<string> activeRuleRunNotes = new List<string>();
 
     private InterviewStage[] stages;
@@ -220,6 +246,7 @@ public class InterviewGameManager : MonoBehaviour
         BuildStages();
         BuildRandomEvents();
         BuildCompanyProfiles();
+        LoadPlayerSettings();
 
         if (!ValidateGameData())
         {
@@ -403,6 +430,7 @@ public class InterviewGameManager : MonoBehaviour
             && startInterviewButton != null
             && howToPlayButton != null
             && aboutButton != null
+            && settingsButton != null
             && processBriefingScreen != null
             && processBriefingTitleText != null
             && processBriefingBodyText != null
@@ -447,7 +475,20 @@ public class InterviewGameManager : MonoBehaviour
             && backdropViewportPanel != null
             && pauseOverlay != null
             && resumeButton != null
+            && pauseSettingsButton != null
             && pauseReturnToMenuButton != null
+            && settingsOverlay != null
+            && settingsBackButton != null
+            && settingsResetDefaultsButton != null
+            && masterVolumeSlider != null
+            && sfxVolumeSlider != null
+            && muteAudioToggle != null
+            && reduceMotionToggle != null
+            && deterministicSeedToggle != null
+            && seedInputField != null
+            && applySeedButton != null
+            && newRandomSeedButton != null
+            && fullscreenToggle != null
             && versionText != null;
     }
 
@@ -493,8 +534,10 @@ public class InterviewGameManager : MonoBehaviour
         CreateRandomEventScreen(safeArea.transform);
         CreateOutcomeScreen(safeArea.transform);
         CreatePauseOverlay(canvasObject.transform);
+        CreateSettingsOverlay(canvasObject.transform);
         CreateVersionLabel(canvasObject.transform);
         UpdateVersionLabel();
+        RefreshSettingsControls();
     }
 
     private void DisableLegacySceneCanvas()
@@ -736,6 +779,7 @@ public class InterviewGameManager : MonoBehaviour
         ConfigureFlexibleLayoutElement(menuBodyText.gameObject, 1f);
 
         startInterviewButton = CreateMenuButton(menuScreen.transform, "Start Interview Process", StartInterviewProcess);
+        settingsButton = CreateMenuButton(menuScreen.transform, "Settings", OpenSettingsFromMenu);
         howToPlayButton = CreateMenuButton(menuScreen.transform, "How To Play", ShowHowToPlay);
         aboutButton = CreateMenuButton(menuScreen.transform, "About", ShowAbout);
         quitButton = CreateMenuButton(menuScreen.transform, "Quit", QuitGame);
@@ -897,8 +941,240 @@ public class InterviewGameManager : MonoBehaviour
         ConfigureFlexibleLayoutElement(pauseBody.gameObject, 1f);
 
         resumeButton = CreateMenuButton(pausePanel.transform, "Resume", ResumeFromPause);
+        pauseSettingsButton = CreateMenuButton(pausePanel.transform, "Settings", OpenSettingsFromPause);
         pauseReturnToMenuButton = CreateMenuButton(pausePanel.transform, "Return to Menu", ReturnToMenuFromPause);
         pauseOverlay.SetActive(false);
+    }
+
+    private void CreateSettingsOverlay(Transform parent)
+    {
+        settingsOverlay = CreatePanel("Settings Overlay", parent, new Color32(5, 7, 11, 210));
+        StretchToParent(settingsOverlay.GetComponent<RectTransform>());
+
+        GameObject settingsPanel = CreatePanel("Settings Panel", settingsOverlay.transform, panelColor);
+        AddPaddingLayout(settingsPanel, new RectOffset(34, 34, 28, 28), 10f);
+
+        RectTransform panelRect = settingsPanel.GetComponent<RectTransform>();
+        panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+        panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+        panelRect.pivot = new Vector2(0.5f, 0.5f);
+        panelRect.sizeDelta = new Vector2(980f, 900f);
+        panelRect.anchoredPosition = Vector2.zero;
+
+        TMP_Text title = CreateText("Settings Title", settingsPanel.transform, "SETTINGS", 42, FontStyles.Bold, TextAlignmentOptions.Left);
+        title.color = accentColor;
+
+        CreateSettingsSectionHeading(settingsPanel.transform, "AUDIO");
+        masterVolumeSlider = CreateSettingsSlider(settingsPanel.transform, "Master Volume", masterVolume, OnMasterVolumeChanged, out masterVolumeValueText);
+        sfxVolumeSlider = CreateSettingsSlider(settingsPanel.transform, "SFX Volume", sfxVolume, OnSfxVolumeChanged, out sfxVolumeValueText);
+        muteAudioToggle = CreateSettingsToggle(settingsPanel.transform, "Mute Audio", muteAudio, OnMuteAudioChanged);
+
+        CreateSettingsSectionHeading(settingsPanel.transform, "MOTION");
+        reduceMotionToggle = CreateSettingsToggle(settingsPanel.transform, "Reduce Motion", reduceMotion, OnReduceMotionChanged);
+
+        CreateSettingsSectionHeading(settingsPanel.transform, "RUN OPTIONS");
+        deterministicSeedToggle = CreateSettingsToggle(settingsPanel.transform, "Deterministic Run Seed", useDeterministicRunSeed, OnDeterministicSeedChanged);
+        seedInputField = CreateSettingsInputField(settingsPanel.transform, "Seed", debugRunSeed.ToString(), OnSeedInputChanged);
+
+        GameObject seedButtonRow = CreateSettingsButtonRow(settingsPanel.transform);
+        applySeedButton = CreateCompactSettingsButton(seedButtonRow.transform, "Apply Seed", ApplySeedSettings);
+        newRandomSeedButton = CreateCompactSettingsButton(seedButtonRow.transform, "New Random Seed", GenerateNewSettingsSeed);
+
+        seedNoteText = CreateText(
+            "Seed Note",
+            settingsPanel.transform,
+            "Seed changes apply to the next new process.",
+            20,
+            FontStyles.Normal,
+            TextAlignmentOptions.Left);
+        seedNoteText.color = mutedTextColor;
+
+        CreateSettingsSectionHeading(settingsPanel.transform, "DISPLAY");
+        fullscreenToggle = CreateSettingsToggle(settingsPanel.transform, "Fullscreen", fullscreenEnabled, OnFullscreenChanged);
+
+        GameObject buttonRow = CreateSettingsButtonRow(settingsPanel.transform);
+        settingsBackButton = CreateCompactSettingsButton(buttonRow.transform, "Back", CloseSettings);
+        settingsResetDefaultsButton = CreateCompactSettingsButton(buttonRow.transform, "Reset Defaults", ResetSettingsDefaults);
+
+        settingsOverlay.SetActive(false);
+    }
+
+    private void CreateSettingsSectionHeading(Transform parent, string text)
+    {
+        TMP_Text heading = CreateText($"{text} Settings Heading", parent, text, 23, FontStyles.Bold, TextAlignmentOptions.Left);
+        heading.color = accentColor;
+        ConfigurePreferredLayoutElement(heading.gameObject, -1f, 30f);
+    }
+
+    private Slider CreateSettingsSlider(
+        Transform parent,
+        string label,
+        float value,
+        UnityEngine.Events.UnityAction<float> onValueChanged,
+        out TMP_Text valueText)
+    {
+        GameObject row = CreateSettingsRow($"{label} Row", parent, 54f);
+
+        TMP_Text labelText = CreateText($"{label} Label", row.transform, label, 22, FontStyles.Bold, TextAlignmentOptions.Left);
+        labelText.color = textColor;
+        ConfigurePreferredLayoutElement(labelText.gameObject, 260f, -1f);
+
+        GameObject sliderObject = new GameObject($"{label} Slider", typeof(RectTransform), typeof(Slider), typeof(Image));
+        sliderObject.transform.SetParent(row.transform, false);
+        ConfigureFlexibleLayoutElement(sliderObject, 1f, 280f);
+
+        Image background = sliderObject.GetComponent<Image>();
+        background.color = new Color32(16, 22, 34, 255);
+
+        Slider slider = sliderObject.GetComponent<Slider>();
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.wholeNumbers = false;
+        slider.targetGraphic = background;
+
+        GameObject fillArea = new GameObject("Fill Area", typeof(RectTransform));
+        fillArea.transform.SetParent(sliderObject.transform, false);
+        RectTransform fillAreaRect = fillArea.GetComponent<RectTransform>();
+        StretchToParent(fillAreaRect);
+        fillAreaRect.offsetMin = new Vector2(8f, 8f);
+        fillAreaRect.offsetMax = new Vector2(-8f, -8f);
+
+        Image fillImage = CreateUiImage("Fill", fillArea.transform, accentColor);
+        slider.fillRect = fillImage.GetComponent<RectTransform>();
+        StretchToParent(slider.fillRect);
+
+        Image handleImage = CreateUiImage("Handle", sliderObject.transform, textColor);
+        RectTransform handleRect = handleImage.GetComponent<RectTransform>();
+        handleRect.anchorMin = new Vector2(0f, 0.5f);
+        handleRect.anchorMax = new Vector2(0f, 0.5f);
+        handleRect.pivot = new Vector2(0.5f, 0.5f);
+        handleRect.sizeDelta = new Vector2(18f, 34f);
+        slider.handleRect = handleRect;
+
+        valueText = CreateText($"{label} Value", row.transform, FormatPercent(value), 20, FontStyles.Bold, TextAlignmentOptions.Right);
+        valueText.color = mutedTextColor;
+        ConfigurePreferredLayoutElement(valueText.gameObject, 86f, -1f);
+
+        slider.SetValueWithoutNotify(value);
+        slider.onValueChanged.AddListener(onValueChanged);
+        return slider;
+    }
+
+    private Toggle CreateSettingsToggle(Transform parent, string label, bool value, UnityEngine.Events.UnityAction<bool> onValueChanged)
+    {
+        GameObject row = CreateSettingsRow($"{label} Row", parent, 48f);
+
+        GameObject toggleObject = new GameObject($"{label} Toggle", typeof(RectTransform), typeof(Toggle), typeof(Image));
+        toggleObject.transform.SetParent(row.transform, false);
+        ConfigurePreferredLayoutElement(toggleObject, 44f, 34f);
+
+        Image background = toggleObject.GetComponent<Image>();
+        background.color = new Color32(16, 22, 34, 255);
+
+        Image checkmark = CreateUiImage("Checkmark", toggleObject.transform, accentColor);
+        RectTransform checkRect = checkmark.GetComponent<RectTransform>();
+        StretchToParent(checkRect);
+        checkRect.offsetMin = new Vector2(9f, 8f);
+        checkRect.offsetMax = new Vector2(-9f, -8f);
+
+        Toggle toggle = toggleObject.GetComponent<Toggle>();
+        toggle.targetGraphic = background;
+        toggle.graphic = checkmark;
+        toggle.SetIsOnWithoutNotify(value);
+        toggle.onValueChanged.AddListener(onValueChanged);
+
+        TMP_Text labelText = CreateText($"{label} Label", row.transform, label, 22, FontStyles.Bold, TextAlignmentOptions.Left);
+        labelText.color = textColor;
+        ConfigureFlexibleLayoutElement(labelText.gameObject, 1f);
+
+        return toggle;
+    }
+
+    private TMP_InputField CreateSettingsInputField(
+        Transform parent,
+        string label,
+        string value,
+        UnityEngine.Events.UnityAction<string> onValueChanged)
+    {
+        GameObject row = CreateSettingsRow($"{label} Row", parent, 54f);
+
+        TMP_Text labelText = CreateText($"{label} Label", row.transform, label, 22, FontStyles.Bold, TextAlignmentOptions.Left);
+        labelText.color = textColor;
+        ConfigurePreferredLayoutElement(labelText.gameObject, 260f, -1f);
+
+        GameObject inputObject = new GameObject($"{label} Input", typeof(RectTransform), typeof(Image), typeof(TMP_InputField));
+        inputObject.transform.SetParent(row.transform, false);
+        ConfigureFlexibleLayoutElement(inputObject, 1f, 280f);
+        inputObject.GetComponent<Image>().color = new Color32(16, 22, 34, 255);
+
+        TMP_Text inputText = CreateText("Text", inputObject.transform, value, 22, FontStyles.Bold, TextAlignmentOptions.Left);
+        inputText.color = textColor;
+        RectTransform inputTextRect = inputText.GetComponent<RectTransform>();
+        StretchToParent(inputTextRect);
+        inputTextRect.offsetMin = new Vector2(16f, 6f);
+        inputTextRect.offsetMax = new Vector2(-16f, -6f);
+
+        TMP_Text placeholderText = CreateText("Placeholder", inputObject.transform, "Run seed", 22, FontStyles.Normal, TextAlignmentOptions.Left);
+        placeholderText.color = mutedTextColor;
+        RectTransform placeholderRect = placeholderText.GetComponent<RectTransform>();
+        StretchToParent(placeholderRect);
+        placeholderRect.offsetMin = new Vector2(16f, 6f);
+        placeholderRect.offsetMax = new Vector2(-16f, -6f);
+
+        TMP_InputField inputField = inputObject.GetComponent<TMP_InputField>();
+        inputField.textComponent = inputText;
+        inputField.placeholder = placeholderText;
+        inputField.contentType = TMP_InputField.ContentType.IntegerNumber;
+        inputField.text = value;
+        inputField.onEndEdit.AddListener(onValueChanged);
+        return inputField;
+    }
+
+    private GameObject CreateSettingsRow(string name, Transform parent, float preferredHeight)
+    {
+        GameObject row = new GameObject(name, typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+        row.transform.SetParent(parent, false);
+        ConfigurePreferredLayoutElement(row, -1f, preferredHeight);
+
+        HorizontalLayoutGroup layout = row.GetComponent<HorizontalLayoutGroup>();
+        layout.spacing = 14f;
+        layout.childAlignment = TextAnchor.MiddleLeft;
+        layout.childControlWidth = true;
+        layout.childControlHeight = true;
+        layout.childForceExpandWidth = false;
+        layout.childForceExpandHeight = false;
+        return row;
+    }
+
+    private GameObject CreateSettingsButtonRow(Transform parent)
+    {
+        GameObject row = new GameObject("Settings Button Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+        row.transform.SetParent(parent, false);
+        ConfigurePreferredLayoutElement(row, -1f, 58f);
+
+        HorizontalLayoutGroup layout = row.GetComponent<HorizontalLayoutGroup>();
+        layout.spacing = 14f;
+        layout.childControlWidth = true;
+        layout.childControlHeight = true;
+        layout.childForceExpandWidth = true;
+        layout.childForceExpandHeight = true;
+        return row;
+    }
+
+    private Button CreateCompactSettingsButton(Transform parent, string label, UnityEngine.Events.UnityAction onClick)
+    {
+        GameObject buttonObject = CreateButton(label + " Button", parent);
+        TMP_Text buttonText = CreateText("Label", buttonObject.transform, label, 22, FontStyles.Bold, TextAlignmentOptions.Center);
+        buttonText.color = textColor;
+        StretchToParent(buttonText.GetComponent<RectTransform>());
+
+        Button button = buttonObject.GetComponent<Button>();
+        button.onClick.AddListener(() =>
+        {
+            PlaySound(FinalRoundSoundEvent.UiClick);
+            onClick();
+        });
+        return button;
     }
 
     private Button CreateMenuButton(Transform parent, string label, UnityEngine.Events.UnityAction onClick, bool playClickSound = true)
@@ -1921,6 +2197,249 @@ public class InterviewGameManager : MonoBehaviour
         audioManager.Play(soundEvent);
     }
 
+    private void OpenSettingsFromMenu()
+    {
+        settingsOpenedFromPause = false;
+        if (settingsOverlay == null)
+        {
+            return;
+        }
+
+        RefreshSettingsControls();
+        settingsOverlay.SetActive(true);
+        FadeInScreen(settingsOverlay);
+    }
+
+    private void OpenSettingsFromPause()
+    {
+        settingsOpenedFromPause = true;
+        HidePauseOverlay();
+        if (settingsOverlay == null)
+        {
+            return;
+        }
+
+        RefreshSettingsControls();
+        settingsOverlay.SetActive(true);
+        FadeInScreen(settingsOverlay);
+    }
+
+    private void CloseSettings()
+    {
+        if (settingsOverlay != null)
+        {
+            settingsOverlay.SetActive(false);
+        }
+
+        if (settingsOpenedFromPause)
+        {
+            ShowPauseOverlay();
+            return;
+        }
+
+        if (menuScreen != null)
+        {
+            menuScreen.SetActive(true);
+        }
+    }
+
+    private void ResetSettingsDefaults()
+    {
+        masterVolume = 0.65f;
+        sfxVolume = 0.8f;
+        muteAudio = false;
+        reduceMotion = false;
+        useDeterministicRunSeed = false;
+        debugRunSeed = 48291;
+        fullscreenEnabled = true;
+
+        SavePlayerSettings();
+        ApplyAudioSettings();
+        ApplyDisplaySettings();
+        RefreshSettingsControls();
+        LogSettingsApplied("defaults reset");
+    }
+
+    private void LoadPlayerSettings()
+    {
+        masterVolume = PlayerPrefs.GetFloat(PrefMasterVolume, masterVolume);
+        sfxVolume = PlayerPrefs.GetFloat(PrefSfxVolume, sfxVolume);
+        muteAudio = PlayerPrefs.GetInt(PrefMuteAudio, muteAudio ? 1 : 0) == 1;
+        reduceMotion = PlayerPrefs.GetInt(PrefReduceMotion, reduceMotion ? 1 : 0) == 1;
+        useDeterministicRunSeed = PlayerPrefs.GetInt(PrefDeterministicRunSeed, useDeterministicRunSeed ? 1 : 0) == 1;
+        debugRunSeed = PlayerPrefs.GetInt(PrefRunSeed, debugRunSeed);
+        fullscreenEnabled = PlayerPrefs.GetInt(PrefFullscreen, Screen.fullScreen ? 1 : 0) == 1;
+
+        ApplyDisplaySettings();
+        LogSettingsApplied("loaded");
+    }
+
+    private void SavePlayerSettings()
+    {
+        PlayerPrefs.SetFloat(PrefMasterVolume, masterVolume);
+        PlayerPrefs.SetFloat(PrefSfxVolume, sfxVolume);
+        PlayerPrefs.SetInt(PrefMuteAudio, muteAudio ? 1 : 0);
+        PlayerPrefs.SetInt(PrefReduceMotion, reduceMotion ? 1 : 0);
+        PlayerPrefs.SetInt(PrefDeterministicRunSeed, useDeterministicRunSeed ? 1 : 0);
+        PlayerPrefs.SetInt(PrefRunSeed, debugRunSeed);
+        PlayerPrefs.SetInt(PrefFullscreen, fullscreenEnabled ? 1 : 0);
+        PlayerPrefs.Save();
+    }
+
+    private void RefreshSettingsControls()
+    {
+        if (masterVolumeSlider != null)
+        {
+            masterVolumeSlider.SetValueWithoutNotify(masterVolume);
+        }
+
+        if (sfxVolumeSlider != null)
+        {
+            sfxVolumeSlider.SetValueWithoutNotify(sfxVolume);
+        }
+
+        if (muteAudioToggle != null)
+        {
+            muteAudioToggle.SetIsOnWithoutNotify(muteAudio);
+        }
+
+        if (reduceMotionToggle != null)
+        {
+            reduceMotionToggle.SetIsOnWithoutNotify(reduceMotion);
+        }
+
+        if (deterministicSeedToggle != null)
+        {
+            deterministicSeedToggle.SetIsOnWithoutNotify(useDeterministicRunSeed);
+        }
+
+        if (fullscreenToggle != null)
+        {
+            fullscreenToggle.SetIsOnWithoutNotify(fullscreenEnabled);
+        }
+
+        if (seedInputField != null)
+        {
+            seedInputField.SetTextWithoutNotify(debugRunSeed.ToString());
+        }
+
+        UpdateSettingsValueLabels();
+    }
+
+    private void UpdateSettingsValueLabels()
+    {
+        if (masterVolumeValueText != null)
+        {
+            masterVolumeValueText.text = FormatPercent(masterVolume);
+        }
+
+        if (sfxVolumeValueText != null)
+        {
+            sfxVolumeValueText.text = FormatPercent(sfxVolume);
+        }
+
+        if (seedNoteText != null)
+        {
+            seedNoteText.text = useDeterministicRunSeed
+                ? $"Seed changes apply to the next new process. Current seed: {debugRunSeed}."
+                : "Seed changes apply to the next new process.";
+        }
+    }
+
+    private void OnMasterVolumeChanged(float value)
+    {
+        masterVolume = Mathf.Clamp01(value);
+        UpdateSettingsValueLabels();
+        SavePlayerSettings();
+        ApplyAudioSettings();
+    }
+
+    private void OnSfxVolumeChanged(float value)
+    {
+        sfxVolume = Mathf.Clamp01(value);
+        UpdateSettingsValueLabels();
+        SavePlayerSettings();
+        ApplyAudioSettings();
+    }
+
+    private void OnMuteAudioChanged(bool value)
+    {
+        muteAudio = value;
+        SavePlayerSettings();
+        ApplyAudioSettings();
+    }
+
+    private void OnReduceMotionChanged(bool value)
+    {
+        reduceMotion = value;
+        SavePlayerSettings();
+    }
+
+    private void OnDeterministicSeedChanged(bool value)
+    {
+        useDeterministicRunSeed = value;
+        SavePlayerSettings();
+        UpdateSettingsValueLabels();
+    }
+
+    private void OnSeedInputChanged(string value)
+    {
+        if (!int.TryParse(value, out int parsedSeed))
+        {
+            RefreshSettingsControls();
+            return;
+        }
+
+        debugRunSeed = Mathf.Max(1, parsedSeed);
+        SavePlayerSettings();
+        RefreshSettingsControls();
+    }
+
+    private void ApplySeedSettings()
+    {
+        OnSeedInputChanged(seedInputField == null ? debugRunSeed.ToString() : seedInputField.text);
+        LogSettingsApplied("seed applied");
+    }
+
+    private void GenerateNewSettingsSeed()
+    {
+        debugRunSeed = Random.Range(10000, 999999);
+        SavePlayerSettings();
+        RefreshSettingsControls();
+    }
+
+    private void OnFullscreenChanged(bool value)
+    {
+        fullscreenEnabled = value;
+        SavePlayerSettings();
+        ApplyDisplaySettings();
+    }
+
+    private void ApplyAudioSettings()
+    {
+        if (audioManager != null)
+        {
+            audioManager.Configure(uiAudioSource, masterVolume, sfxVolume, muteAudio);
+        }
+    }
+
+    private void ApplyDisplaySettings()
+    {
+        Screen.fullScreen = fullscreenEnabled;
+    }
+
+    private void LogSettingsApplied(string source)
+    {
+        Debug.Log(
+            $"Settings {source}: audio master {FormatPercent(masterVolume)}, sfx {FormatPercent(sfxVolume)}, mute {muteAudio}; " +
+            $"reduceMotion {reduceMotion}; deterministicSeed {useDeterministicRunSeed}, seed {debugRunSeed}; fullscreen {fullscreenEnabled}");
+    }
+
+    private string FormatPercent(float value)
+    {
+        return $"{Mathf.RoundToInt(Mathf.Clamp01(value) * 100f)}%";
+    }
+
     private void BuildStages()
     {
         stages = new InterviewStage[]
@@ -2708,6 +3227,11 @@ public class InterviewGameManager : MonoBehaviour
     {
         PrepareMenuRunPreview();
         HidePauseOverlay();
+        if (settingsOverlay != null)
+        {
+            settingsOverlay.SetActive(false);
+        }
+
         menuScreen.SetActive(true);
         processBriefingScreen.SetActive(false);
         questionScreen.SetActive(false);
@@ -2970,6 +3494,12 @@ public class InterviewGameManager : MonoBehaviour
 
     private void HandleEscapeShortcut()
     {
+        if (settingsOverlay != null && settingsOverlay.activeSelf)
+        {
+            CloseSettings();
+            return;
+        }
+
         if (pauseOverlay.activeSelf)
         {
             ResumeFromPause();
@@ -3608,7 +4138,7 @@ public class InterviewGameManager : MonoBehaviour
         int activeIndex = GetCallActiveSpeakerIndex();
         float pressureTension = Mathf.InverseLerp(45f, 100f, interviewPressure);
         float speed = Mathf.Lerp(1.6f, 3.4f, pressureTension);
-        float pulse = callInterviewerSpeaking ? 0.5f + Mathf.Sin(Time.unscaledTime * speed) * 0.5f : 0f;
+        float pulse = callInterviewerSpeaking && !reduceMotion ? 0.5f + Mathf.Sin(Time.unscaledTime * speed) * 0.5f : 0f;
         CallTheme theme = GetCallTheme();
 
         callPanelFrameImage.color = Color.Lerp(

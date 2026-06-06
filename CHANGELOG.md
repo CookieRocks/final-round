@@ -1,5 +1,43 @@
 # Changelog
 
+## v0.9 - Settings Screen
+
+Released: 2026-06-06
+
+### Overview
+
+`v0.9` adds a practical player-facing Settings screen for audio, motion, run seed, and fullscreen options. Settings can be opened from the main menu or pause overlay and persist through PlayerPrefs.
+
+### Added
+
+- Added Settings access from the Main Menu and Pause Overlay.
+- Added audio controls:
+  - Master Volume slider
+  - SFX Volume slider
+  - Mute Audio toggle
+- Added Motion control:
+  - Reduce Motion toggle connected to existing UI animation paths and call-panel pulse behavior.
+- Added Run Options:
+  - Deterministic Run Seed toggle
+  - Seed input field
+  - Apply Seed button
+  - New Random Seed button
+  - note that seed changes apply to the next new process
+- Added Display option:
+  - Fullscreen toggle
+- Added PlayerPrefs persistence for audio, motion, seed, and fullscreen settings.
+- Added concise settings load/apply debug logging.
+
+### Polished
+
+- Back from Settings now returns to the existing Main Menu state without regenerating the menu preview.
+- Reduced settings debug logging to avoid noisy logs on routine toggle changes.
+
+### Validation
+
+- `dotnet build Assembly-CSharp.csproj` passes with 0 warnings and 0 errors.
+- Windows standalone batch build succeeded and produced `Builds/v0.9/Final Round.exe`.
+
 ## v0.8 - Audio Feedback and Sound Hooks
 
 Released: 2026-06-06
