@@ -7,6 +7,8 @@ public class InterviewStyleTracker
     private int chaoticStyle;
     private int burnedOutStyle;
 
+    public int ChaoticStyle => chaoticStyle;
+
     public void Reset()
     {
         diplomaticStyle = 0;
@@ -35,6 +37,11 @@ public class InterviewStyleTracker
         technicalStyle += interviewEvent.TechnicalStyleChange;
         chaoticStyle += interviewEvent.ChaoticStyleChange;
         burnedOutStyle += interviewEvent.BurnedOutStyleChange;
+    }
+
+    public void AddChaoticStyle(int change)
+    {
+        chaoticStyle += change;
     }
 
     public string GetDebugSummary()

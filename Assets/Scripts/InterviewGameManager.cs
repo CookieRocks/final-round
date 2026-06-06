@@ -1,9 +1,11 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 #if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 #endif
 
@@ -15,6 +17,7 @@ public class InterviewGameManager : MonoBehaviour
     private const int StartingCommercialAlignment = 50;
     private const float BetweenStageEventChance = 0.6f;
     private const float ScreenFadeDuration = 0.16f;
+    private const string BuildVersion = "Prototype v0.1";
 
     private static InterviewGameManager activeManager;
 
@@ -60,6 +63,9 @@ public class InterviewGameManager : MonoBehaviour
     private TMP_Text outcomeTitleText;
     private TMP_Text outcomeBodyText;
     private TMP_Text outcomeStatsText;
+    private TMP_Text outcomeHighlightsText;
+    private TMP_Text outcomeAdviceText;
+    private TMP_Text versionText;
 
     private Button[] answerButtons;
     private TMP_Text[] answerButtonTexts;
@@ -68,13 +74,17 @@ public class InterviewGameManager : MonoBehaviour
     private Button randomEventContinueButton;
     private Button startInterviewButton;
     private Button howToPlayButton;
+    private Button aboutButton;
     private Button quitButton;
+    private Button resumeButton;
+    private Button pauseReturnToMenuButton;
     private GameObject feedbackPanel;
     private GameObject menuScreen;
     private GameObject questionScreen;
     private GameObject stageTransitionScreen;
     private GameObject randomEventScreen;
     private GameObject outcomeScreen;
+    private GameObject pauseOverlay;
     private GameObject backdropViewportPanel;
     private InterviewRoomBackdropController roomBackdrop;
     private AudioSource uiAudioSource;
@@ -86,15 +96,29 @@ public class InterviewGameManager : MonoBehaviour
     [SerializeField] private AudioClip stageCompleteClip;
     [SerializeField] private AudioClip finalOutcomeClip;
 
+    [Header("Debug Options")]
+    [SerializeField] private bool randomizeAnswerOrder = true;
+    [SerializeField] private bool useCompanyProfileModifiers = true;
+    [SerializeField] private bool useDeterministicAnswerSeed;
+    [SerializeField] private int debugAnswerSeed = 12345;
+
     private readonly PlayerStats playerStats = new PlayerStats();
     private readonly InterviewStyleTracker styleTracker = new InterviewStyleTracker();
     private int currentStageIndex;
     private int currentQuestionIndex;
     private PlayerStats stageStartStats;
     private bool currentStageWasStrong;
+    private AnswerOption[] displayedAnswers;
+    private System.Random answerOrderRandom;
+    private readonly List<StageRunSummary> stageRunSummaries = new List<StageRunSummary>();
+    private readonly List<RandomEventRunSummary> randomEventRunSummaries = new List<RandomEventRunSummary>();
+    private int strongAnswerCount;
+    private int riskyAnswerCount;
 
     private InterviewStage[] stages;
     private RandomInterviewEvent[] randomEvents;
+    private CompanyProfile[] companyProfiles;
+    private CompanyProfile activeCompanyProfile;
 
     private void Awake()
     {
@@ -116,6 +140,7 @@ public class InterviewGameManager : MonoBehaviour
 
         BuildStages();
         BuildRandomEvents();
+        BuildCompanyProfiles();
 
         if (!ValidateGameData())
         {
@@ -123,9 +148,10 @@ public class InterviewGameManager : MonoBehaviour
             return;
         }
 
-        ResetGame();
+        ResetGame(true);
         EnsureRoomBackdropExists();
         EnsureAudioSourceExists();
+        LogDemoStart();
 
         if (!HasRequiredUi())
         {
@@ -140,6 +166,11 @@ public class InterviewGameManager : MonoBehaviour
         }
 
         ShowMenu();
+    }
+
+    private void Update()
+    {
+        HandleKeyboardShortcuts();
     }
 
     private void EnsureRoomBackdropExists()
@@ -180,6 +211,7 @@ public class InterviewGameManager : MonoBehaviour
         return menuScreen != null
             && startInterviewButton != null
             && howToPlayButton != null
+            && aboutButton != null
             && questionStageNameText != null
             && questionStageIntroText != null
             && questionText != null
@@ -196,7 +228,13 @@ public class InterviewGameManager : MonoBehaviour
             && randomEventScreen != null
             && randomEventContinueButton != null
             && outcomeScreen != null
-            && backdropViewportPanel != null;
+            && outcomeHighlightsText != null
+            && outcomeAdviceText != null
+            && backdropViewportPanel != null
+            && pauseOverlay != null
+            && resumeButton != null
+            && pauseReturnToMenuButton != null
+            && versionText != null;
     }
 
     private void CreateRuntimeUi()
@@ -238,6 +276,8 @@ public class InterviewGameManager : MonoBehaviour
         CreateStageTransitionScreen(safeArea.transform);
         CreateRandomEventScreen(safeArea.transform);
         CreateOutcomeScreen(safeArea.transform);
+        CreatePauseOverlay(canvasObject.transform);
+        CreateVersionLabel(canvasObject.transform);
     }
 
     private void DisableLegacySceneCanvas()
@@ -302,6 +342,19 @@ public class InterviewGameManager : MonoBehaviour
 
         progressText = CreateText("Progress", header.transform, string.Empty, 22, FontStyles.Bold, TextAlignmentOptions.Left);
         progressText.color = accentColor;
+    }
+
+    private void CreateVersionLabel(Transform parent)
+    {
+        versionText = CreateText("Version Label", parent, BuildVersion, 18, FontStyles.Bold, TextAlignmentOptions.Right);
+        versionText.color = new Color32(142, 152, 168, 210);
+
+        RectTransform versionRect = versionText.GetComponent<RectTransform>();
+        versionRect.anchorMin = new Vector2(1f, 0f);
+        versionRect.anchorMax = new Vector2(1f, 0f);
+        versionRect.pivot = new Vector2(1f, 0f);
+        versionRect.sizeDelta = new Vector2(260f, 32f);
+        versionRect.anchoredPosition = new Vector2(-18f, 14f);
     }
 
     private void CreateQuestionScreen(Transform parent)
@@ -388,10 +441,45 @@ public class InterviewGameManager : MonoBehaviour
 
         startInterviewButton = CreateMenuButton(menuScreen.transform, "Start Interview Process", StartInterviewProcess);
         howToPlayButton = CreateMenuButton(menuScreen.transform, "How To Play", ShowHowToPlay);
+        aboutButton = CreateMenuButton(menuScreen.transform, "About", ShowAbout);
         quitButton = CreateMenuButton(menuScreen.transform, "Quit", QuitGame);
         quitButton.gameObject.SetActive(!Application.isEditor);
 
         menuScreen.SetActive(false);
+    }
+
+    private void CreatePauseOverlay(Transform parent)
+    {
+        pauseOverlay = CreatePanel("Pause Overlay", parent, new Color32(5, 7, 11, 186));
+        StretchToParent(pauseOverlay.GetComponent<RectTransform>());
+
+        GameObject pausePanel = CreatePanel("Pause Panel", pauseOverlay.transform, panelColor);
+        AddPaddingLayout(pausePanel, new RectOffset(34, 34, 30, 30), 16f);
+
+        RectTransform panelRect = pausePanel.GetComponent<RectTransform>();
+        panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+        panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+        panelRect.pivot = new Vector2(0.5f, 0.5f);
+        panelRect.sizeDelta = new Vector2(560f, 348f);
+        panelRect.anchoredPosition = Vector2.zero;
+
+        TMP_Text pauseTitle = CreateText("Pause Title", pausePanel.transform, "PAUSED", 42, FontStyles.Bold, TextAlignmentOptions.Left);
+        pauseTitle.color = accentColor;
+
+        TMP_Text pauseBody = CreateText(
+            "Pause Body",
+            pausePanel.transform,
+            "Take a breath, then resume the interview or return to the main menu.",
+            24,
+            FontStyles.Normal,
+            TextAlignmentOptions.TopLeft);
+        pauseBody.color = mutedTextColor;
+        pauseBody.textWrappingMode = TextWrappingModes.Normal;
+        ConfigureFlexibleLayoutElement(pauseBody.gameObject, 1f);
+
+        resumeButton = CreateMenuButton(pausePanel.transform, "Resume", ResumeFromPause);
+        pauseReturnToMenuButton = CreateMenuButton(pausePanel.transform, "Return to Menu", ReturnToMenuFromPause);
+        pauseOverlay.SetActive(false);
     }
 
     private Button CreateMenuButton(Transform parent, string label, UnityEngine.Events.UnityAction onClick)
@@ -430,23 +518,27 @@ public class InterviewGameManager : MonoBehaviour
     private void CreateStatsPanel(Transform parent)
     {
         GameObject panel = CreatePanel("Stats Panel", parent, panelAccentColor);
-        ConfigurePreferredLayoutElement(panel, -1f, 162f);
-        AddPaddingLayout(panel, new RectOffset(26, 26, 22, 22), 12f);
+        ConfigurePreferredLayoutElement(panel, -1f, 152f);
+        SetMinimumLayoutHeight(panel, 146f);
+        AddPaddingLayout(panel, new RectOffset(26, 26, 18, 20), 10f);
 
         TMP_Text statsTitle = CreateText("Stats Title", panel.transform, "CANDIDATE READ", 22, FontStyles.Bold, TextAlignmentOptions.Left);
         statsTitle.color = accentColor;
 
-        statsText = CreateText("Stats Text", panel.transform, string.Empty, 25, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        statsText = CreateText("Stats Text", panel.transform, string.Empty, 26, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         statsText.color = textColor;
-        statsText.lineSpacing = 15f;
+        statsText.lineSpacing = 18f;
+        ConfigurePreferredLayoutElement(statsText.gameObject, -1f, 88f);
+        SetMinimumLayoutHeight(statsText.gameObject, 84f);
         ConfigureFlexibleLayoutElement(statsText.gameObject, 1f);
     }
 
     private void CreateFeedbackPanel(Transform parent)
     {
         feedbackPanel = CreatePanel("Answer Feedback Panel", parent, panelAccentColor);
-        ConfigurePreferredLayoutElement(feedbackPanel, -1f, 292f);
-        AddPaddingLayout(feedbackPanel, new RectOffset(32, 32, 24, 28), 18f);
+        ConfigurePreferredLayoutElement(feedbackPanel, -1f, 324f);
+        SetMinimumLayoutHeight(feedbackPanel, 310f);
+        AddPaddingLayout(feedbackPanel, new RectOffset(32, 32, 24, 30), 20f);
 
         TMP_Text feedbackTitle = CreateText("Feedback Title", feedbackPanel.transform, "INTERVIEWER REACTION", 22, FontStyles.Bold, TextAlignmentOptions.Left);
         feedbackTitle.color = accentColor;
@@ -455,10 +547,12 @@ public class InterviewGameManager : MonoBehaviour
         feedbackText.color = textColor;
         feedbackText.textWrappingMode = TextWrappingModes.Normal;
         feedbackText.lineSpacing = 9f;
-        ConfigurePreferredLayoutElement(feedbackText.gameObject, -1f, 156f);
+        ConfigurePreferredLayoutElement(feedbackText.gameObject, -1f, 186f);
+        SetMinimumLayoutHeight(feedbackText.gameObject, 178f);
 
         GameObject continueButtonObject = CreateButton("Continue Button", feedbackPanel.transform);
         ConfigurePreferredLayoutElement(continueButtonObject, -1f, 58f);
+        SetMinimumLayoutHeight(continueButtonObject, 58f);
 
         TMP_Text continueButtonText = CreateText("Label", continueButtonObject.transform, "Continue", 24, FontStyles.Bold, TextAlignmentOptions.Center);
         continueButtonText.color = textColor;
@@ -474,7 +568,8 @@ public class InterviewGameManager : MonoBehaviour
     {
         GameObject buttonColumn = new GameObject("Answer Button Column", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(LayoutElement));
         buttonColumn.transform.SetParent(parent, false);
-        ConfigurePreferredLayoutElement(buttonColumn, -1f, 252f);
+        ConfigurePreferredLayoutElement(buttonColumn, -1f, 236f);
+        SetMinimumLayoutHeight(buttonColumn, 210f);
 
         VerticalLayoutGroup buttonLayout = buttonColumn.GetComponent<VerticalLayoutGroup>();
         buttonLayout.spacing = 14f;
@@ -581,22 +676,81 @@ public class InterviewGameManager : MonoBehaviour
     {
         outcomeScreen = CreatePanel("Outcome Screen", parent, panelColor);
         ConfigureFlexibleLayoutElement(outcomeScreen, 1f);
-        AddPaddingLayout(outcomeScreen, new RectOffset(42, 42, 40, 40), 20f);
+        AddPaddingLayout(outcomeScreen, new RectOffset(34, 34, 26, 26), 14f);
 
-        outcomeTitleText = CreateText("Outcome Title", outcomeScreen.transform, string.Empty, 44, FontStyles.Bold, TextAlignmentOptions.Left);
+        outcomeTitleText = CreateText("Outcome Title", outcomeScreen.transform, string.Empty, 48, FontStyles.Bold, TextAlignmentOptions.Left);
         outcomeTitleText.color = accentColor;
 
-        outcomeBodyText = CreateText("Outcome Body", outcomeScreen.transform, string.Empty, 30, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        outcomeBodyText = CreateText("Outcome Body", outcomeScreen.transform, string.Empty, 27, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         outcomeBodyText.color = textColor;
         outcomeBodyText.textWrappingMode = TextWrappingModes.Normal;
-        ConfigureFlexibleLayoutElement(outcomeBodyText.gameObject, 1f);
+        outcomeBodyText.lineSpacing = 8f;
+        ConfigurePreferredLayoutElement(outcomeBodyText.gameObject, -1f, 150f);
+        SetMinimumLayoutHeight(outcomeBodyText.gameObject, 122f);
 
-        outcomeStatsText = CreateText("Outcome Stats", outcomeScreen.transform, string.Empty, 24, FontStyles.Normal, TextAlignmentOptions.TopLeft);
-        outcomeStatsText.color = mutedTextColor;
-        outcomeStatsText.lineSpacing = 10f;
+        GameObject outcomeContentRow = new GameObject("Outcome Content Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+        outcomeContentRow.transform.SetParent(outcomeScreen.transform, false);
+        ConfigureFlexibleLayoutElement(outcomeContentRow, 1f);
+        SetMinimumLayoutHeight(outcomeContentRow, 250f);
 
-        CreateMenuButton(outcomeScreen.transform, "Restart Interview", RestartGame);
-        CreateMenuButton(outcomeScreen.transform, "Return to Menu", ShowMenu);
+        HorizontalLayoutGroup contentRowLayout = outcomeContentRow.GetComponent<HorizontalLayoutGroup>();
+        contentRowLayout.spacing = 22f;
+        contentRowLayout.childControlWidth = true;
+        contentRowLayout.childControlHeight = true;
+        contentRowLayout.childForceExpandWidth = true;
+        contentRowLayout.childForceExpandHeight = true;
+
+        GameObject statsPanel = CreatePanel("Outcome Stats Panel", outcomeContentRow.transform, panelAccentColor);
+        ConfigureFlexibleLayoutElement(statsPanel, 1f, 480f);
+        AddPaddingLayout(statsPanel, new RectOffset(24, 24, 20, 20), 10f);
+
+        TMP_Text statsHeading = CreateText("Outcome Stats Heading", statsPanel.transform, "FINAL READ", 22, FontStyles.Bold, TextAlignmentOptions.Left);
+        statsHeading.color = accentColor;
+
+        outcomeStatsText = CreateText("Outcome Stats", statsPanel.transform, string.Empty, 25, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        outcomeStatsText.color = textColor;
+        outcomeStatsText.lineSpacing = 13f;
+        ConfigureFlexibleLayoutElement(outcomeStatsText.gameObject, 1f);
+
+        GameObject highlightsPanel = CreatePanel("Outcome Highlights Panel", outcomeContentRow.transform, panelAccentColor);
+        ConfigureFlexibleLayoutElement(highlightsPanel, 1f, 480f);
+        AddPaddingLayout(highlightsPanel, new RectOffset(24, 24, 20, 20), 10f);
+
+        TMP_Text highlightsHeading = CreateText("Outcome Highlights Heading", highlightsPanel.transform, "RUN HIGHLIGHTS", 22, FontStyles.Bold, TextAlignmentOptions.Left);
+        highlightsHeading.color = accentColor;
+
+        outcomeHighlightsText = CreateText("Outcome Highlights", highlightsPanel.transform, string.Empty, 25, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        outcomeHighlightsText.color = textColor;
+        outcomeHighlightsText.lineSpacing = 13f;
+        outcomeHighlightsText.textWrappingMode = TextWrappingModes.Normal;
+        ConfigureFlexibleLayoutElement(outcomeHighlightsText.gameObject, 1f);
+
+        GameObject advicePanel = CreatePanel("Outcome Advice Panel", outcomeScreen.transform, transitionPanelColor);
+        ConfigurePreferredLayoutElement(advicePanel, -1f, 104f);
+        SetMinimumLayoutHeight(advicePanel, 96f);
+        AddPaddingLayout(advicePanel, new RectOffset(24, 24, 16, 16), 8f);
+
+        TMP_Text adviceHeading = CreateText("Outcome Advice Heading", advicePanel.transform, "NEXT RUN ADVICE", 21, FontStyles.Bold, TextAlignmentOptions.Left);
+        adviceHeading.color = accentColor;
+
+        outcomeAdviceText = CreateText("Outcome Advice", advicePanel.transform, string.Empty, 25, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        outcomeAdviceText.color = textColor;
+        outcomeAdviceText.textWrappingMode = TextWrappingModes.Normal;
+        ConfigureFlexibleLayoutElement(outcomeAdviceText.gameObject, 1f);
+
+        GameObject buttonRow = new GameObject("Outcome Button Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+        buttonRow.transform.SetParent(outcomeScreen.transform, false);
+        ConfigurePreferredLayoutElement(buttonRow, -1f, 68f);
+
+        HorizontalLayoutGroup buttonRowLayout = buttonRow.GetComponent<HorizontalLayoutGroup>();
+        buttonRowLayout.spacing = 18f;
+        buttonRowLayout.childControlWidth = true;
+        buttonRowLayout.childControlHeight = true;
+        buttonRowLayout.childForceExpandWidth = true;
+        buttonRowLayout.childForceExpandHeight = true;
+
+        CreateMenuButton(buttonRow.transform, "Restart Interview", RestartGame);
+        CreateMenuButton(buttonRow.transform, "Return to Menu", ShowMenu);
         outcomeScreen.SetActive(false);
     }
 
@@ -697,6 +851,17 @@ public class InterviewGameManager : MonoBehaviour
         {
             layoutElement.preferredHeight = preferredHeight;
         }
+    }
+
+    private void SetMinimumLayoutHeight(GameObject target, float minimumHeight)
+    {
+        LayoutElement layoutElement = target.GetComponent<LayoutElement>();
+        if (layoutElement == null)
+        {
+            layoutElement = target.AddComponent<LayoutElement>();
+        }
+
+        layoutElement.minHeight = minimumHeight;
     }
 
     private void ConfigureFlexibleLayoutElement(GameObject target, float flexibleWidth, float minWidth = -1f)
@@ -822,6 +987,22 @@ public class InterviewGameManager : MonoBehaviour
                             new AnswerOption("I would want to leave my current team cleanly, so four weeks is realistic and keeps the handover professional.", "Responsible answer. You sound like someone who does not disappear the moment paperwork appears.", 5, 0, 0, 5, diplomaticStyleChange: 1),
                             new AnswerOption("Technically two weeks, if everyone accepts that my handover will be a haunted spreadsheet.", "The recruiter appreciates the honesty, then writes down four weeks in their notes.", 0, -5, 0, -5, chaoticStyleChange: 1, burnedOutStyleChange: 1),
                             new AnswerOption("If the offer is right, I can be surprisingly available.", "Funny, but slightly mercenary. The recruiter has heard worse, usually from people wearing gilets.", 5, 0, 0, -5, bluntStyleChange: 1, chaoticStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "What are your expectations around remote or hybrid work?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I work well remotely, and I am comfortable being in office when it improves collaboration, onboarding, or customer work.", "The recruiter hears flexibility with a reason behind it, which is more useful than a slogan about deep work.", 5, 0, 0, 10, diplomaticStyleChange: 1, commercialStyleChange: 1),
+                            new AnswerOption("Hybrid is fine as long as the office days are not just Teams calls with worse coffee.", "Accurate enough to sting. The recruiter smiles, then gently checks whether you can say that with less seasoning.", 0, -5, 0, 0, chaoticStyleChange: 1),
+                            new AnswerOption("I really prefer fully remote and would struggle if there were regular office expectations.", "Clear, but narrow. It may be true, but it gives the recruiter less room to position you.", -5, 0, 0, -10, bluntStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "What made you respond to this company specifically?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("The market problem is familiar, the buyer is technical, and the SE role looks close to revenue rather than just demo support.", "The recruiter gets a company-specific answer instead of a lightly reheated LinkedIn paragraph.", 5, 0, 5, 10, commercialStyleChange: 1, technicalStyleChange: 1),
+                            new AnswerOption("You seem less chaotic than some companies in this space, which I mean as a compliment.", "The recruiter laughs because the bar is real, but still wants evidence you did homework.", 0, 0, 0, -5, chaoticStyleChange: 1),
+                            new AnswerOption("The job description looked solid, and honestly I am exploring a few things right now.", "Reasonable, but forgettable. The recruiter cannot do much with 'solid'.", -5, 0, 0, -5, burnedOutStyleChange: 1)
                         })
                 }),
 
@@ -870,6 +1051,22 @@ public class InterviewGameManager : MonoBehaviour
                             new AnswerOption("I separate what happened from blame, align on the customer risk, and agree what we change before the next call.", "The manager hears someone who can navigate sales politics without pretending politics do not exist.", 5, 0, 0, 15, diplomaticStyleChange: 1, commercialStyleChange: 2),
                             new AnswerOption("I am direct. If they talked over discovery for twenty minutes, I say that.", "Useful signal, abrasive delivery. The manager wonders how many 'quick syncs' follow you around.", -5, 0, 0, -5, bluntStyleChange: 2),
                             new AnswerOption("I write it in the shared notes so the truth has version control.", "Technically efficient, socially combustible. A beautiful way to start a tiny office war.", 0, 0, 5, -10, technicalStyleChange: 1, chaoticStyleChange: 2)
+                        }),
+                    new InterviewQuestion(
+                        "How do you use MEDDPICC or qualification without turning it into theatre?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I treat it as a shared map: where technical proof supports pain, decision criteria, champion strength, and commercial urgency.", "The manager hears qualification as deal hygiene, not a spreadsheet everyone resents.", 5, 0, 5, 15, commercialStyleChange: 2, technicalStyleChange: 1),
+                            new AnswerOption("I use it when the deal is real. Early stage MEDDPICC can become astrology with fields.", "The manager enjoys the line, then waits to see if you can still operate inside the process.", 0, 0, 0, 0, bluntStyleChange: 1, chaoticStyleChange: 1),
+                            new AnswerOption("I mostly leave MEDDPICC to the AE because they own the forecast.", "Clean boundary, but too passive. The manager wanted technical qualification to show up in the forecast quality.", -5, 0, 0, -10, burnedOutStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "How do you talk about burnout or load without sounding negative?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I focus on operating model: clear priorities, sustainable coverage, and using SE time where it changes deal quality.", "The manager hears self-awareness without a complaint cloud forming over the call.", 5, 5, 0, 10, diplomaticStyleChange: 1, commercialStyleChange: 1),
+                            new AnswerOption("I say I have learned the difference between urgency and every Slack message wearing a little hat.", "The joke lands, but the manager gently parks it under 'monitor for edge'.", 0, -5, 0, 0, chaoticStyleChange: 1, burnedOutStyleChange: 1),
+                            new AnswerOption("I am trying to avoid another role where the calendar eats the actual job.", "Understandable, but raw. The manager hears a real concern before they hear a solution.", -5, -10, 0, -5, burnedOutStyleChange: 2)
                         })
                 }),
 
@@ -918,6 +1115,22 @@ public class InterviewGameManager : MonoBehaviour
                             new AnswerOption("When we have proven the agreed success criteria and can connect the evidence to the buying decision.", "The panel hears the rare sound of technical work tied to revenue reality.", 5, 0, 10, 15, commercialStyleChange: 2, technicalStyleChange: 1),
                             new AnswerOption("When the architecture works cleanly and the edge cases are understood.", "Correct, but incomplete. The panel wants the buyer's decision in the answer, not just the system state.", 0, 0, 10, -10, technicalStyleChange: 2),
                             new AnswerOption("When nobody adds 'just one more thing' to the success criteria document.", "The panel laughs in a tired way. Everyone has seen that document become a garden shed.", 0, -5, 0, -5, burnedOutStyleChange: 1, chaoticStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "A customer asks for a feature that is not on the roadmap. How do you handle it?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I confirm the underlying requirement, explain the current gap plainly, and look for a supported workflow or product feedback path.", "The panel likes that you did not turn a missing feature into either panic or vapor.", 5, 0, 10, 10, diplomaticStyleChange: 1, technicalStyleChange: 1, commercialStyleChange: 1),
+                            new AnswerOption("I say Product has heard similar requests, then immediately check whether that sentence is still legally alive.", "The panel laughs, but also notices you know the danger zone.", 0, 0, 0, -5, chaoticStyleChange: 1),
+                            new AnswerOption("I tell them we can probably make it work with services.", "Maybe, maybe not. The panel hears a custom commitment trying to sneak out wearing a hoodie.", 0, -5, -10, -10, chaoticStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "How would you adapt a technical demo for a CISO who joins late?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I quickly reset the agenda around risk, controls, evidence, and governance, then use the product details only to support those points.", "The panel sees audience control without abandoning technical credibility.", 5, 0, 10, 10, diplomaticStyleChange: 1, commercialStyleChange: 1, technicalStyleChange: 1),
+                            new AnswerOption("I ask what they care about most and then cut whatever no longer serves that answer.", "Pragmatic and a little brisk. The panel likes the instinct, even if the phrasing has sharp elbows.", 0, 0, 5, 5, bluntStyleChange: 1),
+                            new AnswerOption("I keep going but mention security more often.", "The panel does not love the find-and-replace approach to executive relevance.", -5, 0, -5, -10, chaoticStyleChange: 1)
                         })
                 }),
 
@@ -966,6 +1179,22 @@ public class InterviewGameManager : MonoBehaviour
                             new AnswerOption("I would learn the product, shadow strong calls, map the sales motion, and start contributing where I can create low-risk customer value.", "The VP hears momentum without bravado. A tidy answer, which is underrated in final rounds.", 10, 0, 5, 10, diplomaticStyleChange: 1, commercialStyleChange: 1),
                             new AnswerOption("I would rebuild the demo story once I understand what buyers actually care about.", "Potentially valuable, but spicy. The VP wonders whether you have met the people who own the current demo.", 0, 0, 5, 0, bluntStyleChange: 1, technicalStyleChange: 1),
                             new AnswerOption("I would try not to become the person everyone forwards weird RFP questions to by week three.", "The room laughs because that person exists. The VP still wants an answer with a little more altitude.", 0, -5, 0, -5, burnedOutStyleChange: 1, chaoticStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "How do you handle a competitive deal where the other vendor is technically strong?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I stay honest about parity, find the customer's decision criteria, and prove where our approach changes risk, speed, or business outcome.", "The VP hears competitive discipline instead of feature jousting in a nicer shirt.", 10, 0, 5, 15, commercialStyleChange: 2, diplomaticStyleChange: 1),
+                            new AnswerOption("I avoid trashing the competitor unless they have really earned it, which unfortunately some do.", "The VP appreciates restraint right up until the sentence takes a scenic route.", 0, 0, 0, 0, bluntStyleChange: 1, chaoticStyleChange: 1),
+                            new AnswerOption("I focus on our roadmap and try to make the gap feel temporary.", "That can sound hopeful, but the VP hears future tense doing too much sales work.", -5, 0, -5, -10, chaoticStyleChange: 1)
+                        }),
+                    new InterviewQuestion(
+                        "If we moved to offer, how would you think about timing and notice?",
+                        new AnswerOption[]
+                        {
+                            new AnswerOption("I would want to move decisively, align on details quickly, and give professional notice so I can start cleanly.", "The VP hears momentum with adult supervision, a surprisingly marketable combination.", 10, 0, 0, 10, diplomaticStyleChange: 1, commercialStyleChange: 1),
+                            new AnswerOption("I can move fast if the numbers, scope, and paperwork all decide to be adults at the same time.", "Fair, dry, and only mildly haunted by procurement energy. The VP takes the point.", 5, 0, 0, 0, chaoticStyleChange: 1),
+                            new AnswerOption("I would need to see the offer before I can say anything real.", "True, but closed down. The VP wanted practical readiness, not a locked filing cabinet.", -5, 0, 0, -5, bluntStyleChange: 1)
                         })
                 })
         };
@@ -1022,6 +1251,48 @@ public class InterviewGameManager : MonoBehaviour
         };
     }
 
+    private void BuildCompanyProfiles()
+    {
+        companyProfiles = new CompanyProfile[]
+        {
+            new CompanyProfile(
+                "Big SaaS Vendor",
+                "Balanced Enterprise Motion",
+                "They care about consistent discovery, credible demos, and a clean partnership with sales.",
+                "Default process pressure.",
+                "Balanced, commercially aware answers land well."),
+            new CompanyProfile(
+                "Startup Rocketship",
+                "Fast, Messy, Urgent",
+                "They care about pace, ownership, and whether you can keep signal through moving parts.",
+                "Random events are slightly more likely; event energy losses are one point sharper.",
+                "Decisive answers help, but chaos has a cost.",
+                randomEventChanceModifier: 0.12f,
+                eventEnergyLossModifier: -1),
+            new CompanyProfile(
+                "Security Vendor",
+                "Risk-Framing Process",
+                "They care about risk framing, technical credibility, and clean customer communication.",
+                "No direct stat changes; technical and commercial framing matter in the authored answers.",
+                "Technical and commercial credibility are especially important signals."),
+            new CompanyProfile(
+                "AI Hype Company",
+                "Narrative-Heavy Growth Motion",
+                "They care about vision, speed, and whether you can stay grounded when the room starts saying agentic.",
+                "Risky AI-flavoured answers and chaotic events increase chaotic style slightly faster.",
+                "Grounded enthusiasm beats demo-theatre.",
+                aiChaoticStyleBonus: 1),
+            new CompanyProfile(
+                "Legacy Enterprise",
+                "Careful Procurement Maze",
+                "They care about patience, stakeholder management, and whether you can keep energy through process drag.",
+                "Random chaos is slightly lower; between-stage energy recovery is reduced.",
+                "Steady diplomatic answers travel best.",
+                randomEventChanceModifier: -0.12f,
+                betweenStageEnergyRecoveryModifier: -3)
+        };
+    }
+
     private bool ValidateGameData()
     {
         if (stages == null || stages.Length == 0)
@@ -1067,8 +1338,19 @@ public class InterviewGameManager : MonoBehaviour
         return true;
     }
 
-    private void ResetGame()
+    private void ResetGame(bool chooseNewCompanyProfile)
     {
+        if (chooseNewCompanyProfile)
+        {
+            SelectRandomCompanyProfile();
+        }
+
+        InitializeAnswerOrderRandom();
+        displayedAnswers = null;
+        stageRunSummaries.Clear();
+        randomEventRunSummaries.Clear();
+        strongAnswerCount = 0;
+        riskyAnswerCount = 0;
         playerStats.Reset(StartingConfidence, StartingEnergy, StartingTechnicalCredibility, StartingCommercialAlignment);
         styleTracker.Reset();
         currentStageIndex = 0;
@@ -1076,20 +1358,51 @@ public class InterviewGameManager : MonoBehaviour
         CaptureStageStartStats();
     }
 
+    private void SelectRandomCompanyProfile()
+    {
+        if (companyProfiles == null || companyProfiles.Length == 0)
+        {
+            activeCompanyProfile = null;
+            return;
+        }
+
+        activeCompanyProfile = companyProfiles[Random.Range(0, companyProfiles.Length)];
+    }
+
+    private void InitializeAnswerOrderRandom()
+    {
+        if (useDeterministicAnswerSeed)
+        {
+            answerOrderRandom = new System.Random(debugAnswerSeed);
+            return;
+        }
+
+        answerOrderRandom = new System.Random(System.Guid.NewGuid().GetHashCode());
+    }
+
     private void RestartGame()
     {
-        ResetGame();
+        HidePauseOverlay();
+        ResetGame(true);
         ShowQuestionScreen();
     }
 
     private void StartInterviewProcess()
     {
-        ResetGame();
+        HidePauseOverlay();
+        if (activeCompanyProfile == null)
+        {
+            SelectRandomCompanyProfile();
+        }
+
+        ResetGame(false);
         ShowQuestionScreen();
     }
 
     private void ShowMenu()
     {
+        SelectRandomCompanyProfile();
+        HidePauseOverlay();
         menuScreen.SetActive(true);
         questionScreen.SetActive(false);
         stageTransitionScreen.SetActive(false);
@@ -1098,7 +1411,9 @@ public class InterviewGameManager : MonoBehaviour
 
         progressText.text = "Main Menu";
         subtitleText.text = "Choose when to begin the process.";
-        menuBodyText.text = "A short interview process about confidence, stamina, technical credibility, and commercial judgment.";
+        menuBodyText.text =
+            "A short interview process about confidence, stamina, technical credibility, and commercial judgment.\n\n" +
+            GetCompanyProfileSummary();
         UpdateRoomBackdrop("Main Menu");
         FadeInScreen(menuScreen);
     }
@@ -1106,9 +1421,208 @@ public class InterviewGameManager : MonoBehaviour
     private void ShowHowToPlay()
     {
         menuBodyText.text =
-            "Pick one answer per question. Your choices change visible stats and hidden interview-style counters.\n\n" +
-            "After each answer, read the feedback and continue. Between stages, random events may shift the process.\n\n" +
-            "At the end, you receive a hiring outcome and a dominant interview style.";
+            "How To Play\n\n" +
+            "Choose answers with the mouse or number keys 1, 2, and 3.\n\n" +
+            "Manage Confidence, Energy, Technical Credibility, and Commercial Alignment.\n\n" +
+            "Random events may affect the process between stages.\n\n" +
+            "The final outcome depends on total score, weak stats, interview style, and the active company process.\n\n" +
+            GetCompanyProfileSummary();
+    }
+
+    private void ShowAbout()
+    {
+        menuBodyText.text =
+            "About\n\n" +
+            $"{BuildVersion}\n\n" +
+            "Final Round is a compact interview prototype about reading the room, staying sharp, and balancing technical and commercial signals.\n\n" +
+            "Created as a playable Unity demo with runtime UI and a cosmetic 3D interview-room viewport.";
+    }
+
+    private string GetCompanyProfileSummary()
+    {
+        if (activeCompanyProfile == null)
+        {
+            return "Today's process: Unknown";
+        }
+
+        return
+            $"Today's process: {activeCompanyProfile.CompanyName}\n" +
+            $"{activeCompanyProfile.Description}\n" +
+            $"{activeCompanyProfile.StatModifierNotes}";
+    }
+
+    private string GetCompanyProcessLine()
+    {
+        if (activeCompanyProfile == null)
+        {
+            return string.Empty;
+        }
+
+        return $"{activeCompanyProfile.CompanyName}: {activeCompanyProfile.PreferredStyle}";
+    }
+
+    private void HandleKeyboardShortcuts()
+    {
+        if (!HasRequiredUi())
+        {
+            return;
+        }
+
+        if (WasEscapePressed())
+        {
+            HandleEscapeShortcut();
+            return;
+        }
+
+        if (pauseOverlay.activeSelf)
+        {
+            return;
+        }
+
+        if (WasEnterPressed())
+        {
+            HandleEnterShortcut();
+            return;
+        }
+
+        if (WasNumberShortcutPressed(1))
+        {
+            TrySelectAnswerByShortcut(0);
+        }
+        else if (WasNumberShortcutPressed(2))
+        {
+            TrySelectAnswerByShortcut(1);
+        }
+        else if (WasNumberShortcutPressed(3))
+        {
+            TrySelectAnswerByShortcut(2);
+        }
+    }
+
+    private bool WasEscapePressed()
+    {
+#if ENABLE_INPUT_SYSTEM
+        return Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame;
+#else
+        return Input.GetKeyDown(KeyCode.Escape);
+#endif
+    }
+
+    private bool WasEnterPressed()
+    {
+#if ENABLE_INPUT_SYSTEM
+        return Keyboard.current != null
+            && (Keyboard.current.enterKey.wasPressedThisFrame || Keyboard.current.numpadEnterKey.wasPressedThisFrame);
+#else
+        return Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
+#endif
+    }
+
+    private bool WasNumberShortcutPressed(int number)
+    {
+#if ENABLE_INPUT_SYSTEM
+        if (Keyboard.current == null)
+        {
+            return false;
+        }
+
+        return number switch
+        {
+            1 => Keyboard.current.digit1Key.wasPressedThisFrame || Keyboard.current.numpad1Key.wasPressedThisFrame,
+            2 => Keyboard.current.digit2Key.wasPressedThisFrame || Keyboard.current.numpad2Key.wasPressedThisFrame,
+            3 => Keyboard.current.digit3Key.wasPressedThisFrame || Keyboard.current.numpad3Key.wasPressedThisFrame,
+            _ => false
+        };
+#else
+        return number switch
+        {
+            1 => Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1),
+            2 => Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2),
+            3 => Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3),
+            _ => false
+        };
+#endif
+    }
+
+    private void HandleEscapeShortcut()
+    {
+        if (pauseOverlay.activeSelf)
+        {
+            ResumeFromPause();
+            return;
+        }
+
+        if (menuScreen.activeSelf)
+        {
+            ShowMenu();
+            return;
+        }
+
+        ShowPauseOverlay();
+    }
+
+    private void HandleEnterShortcut()
+    {
+        if (questionScreen.activeSelf && feedbackPanel.activeSelf && continueButton.interactable)
+        {
+            ContinueAfterFeedback();
+            return;
+        }
+
+        if (stageTransitionScreen.activeSelf && stageContinueButton.interactable)
+        {
+            ContinueAfterStageTransition();
+            return;
+        }
+
+        if (randomEventScreen.activeSelf && randomEventContinueButton.interactable)
+        {
+            ContinueAfterRandomEvent();
+        }
+    }
+
+    private void TrySelectAnswerByShortcut(int answerIndex)
+    {
+        if (!questionScreen.activeSelf
+            || feedbackPanel.activeSelf
+            || answerButtons == null
+            || answerIndex < 0
+            || answerIndex >= answerButtons.Length
+            || !answerButtons[answerIndex].interactable)
+        {
+            return;
+        }
+
+        ChooseAnswer(answerIndex);
+    }
+
+    private void ShowPauseOverlay()
+    {
+        if (pauseOverlay == null)
+        {
+            return;
+        }
+
+        pauseOverlay.SetActive(true);
+    }
+
+    private void HidePauseOverlay()
+    {
+        if (pauseOverlay != null)
+        {
+            pauseOverlay.SetActive(false);
+        }
+    }
+
+    private void ResumeFromPause()
+    {
+        HidePauseOverlay();
+    }
+
+    private void ReturnToMenuFromPause()
+    {
+        HidePauseOverlay();
+        ShowMenu();
     }
 
     private void QuitGame()
@@ -1124,6 +1638,7 @@ public class InterviewGameManager : MonoBehaviour
 
     private void ShowQuestionScreen()
     {
+        HidePauseOverlay();
         menuScreen.SetActive(false);
         questionScreen.SetActive(true);
         stageTransitionScreen.SetActive(false);
@@ -1151,11 +1666,12 @@ public class InterviewGameManager : MonoBehaviour
         }
 
         InterviewQuestion question = stage.Questions[currentQuestionIndex];
+        displayedAnswers = BuildDisplayedAnswerOrder(question);
         progressText.text = $"{stage.StageName} - Question {currentQuestionIndex + 1} of {stage.Questions.Length}";
-        subtitleText.text = stage.StageIntroText;
+        subtitleText.text = GetCompanyProcessLine();
         UpdateRoomBackdrop(stage.StageName);
         questionStageNameText.text = stage.StageName.ToUpperInvariant();
-        questionStageIntroText.text = stage.StageIntroText;
+        questionStageIntroText.text = $"{stage.StageIntroText}\nToday's process: {GetCompanyProcessLine()}";
         questionText.text = question.QuestionText;
         feedbackPanel.SetActive(false);
         SetBackdropViewportVisible(true);
@@ -1164,30 +1680,121 @@ public class InterviewGameManager : MonoBehaviour
         {
             answerButtons[i].gameObject.SetActive(true);
             answerButtons[i].interactable = true;
-            answerButtonTexts[i].text = question.Answers[i].AnswerText;
+            answerButtonTexts[i].text = displayedAnswers[i].AnswerText;
             SetAnswerButtonVisual(i, false);
         }
+    }
+
+    private AnswerOption[] BuildDisplayedAnswerOrder(InterviewQuestion question)
+    {
+        AnswerOption[] answers = new AnswerOption[question.Answers.Length];
+        question.Answers.CopyTo(answers, 0);
+
+        if (!randomizeAnswerOrder || answers.Length <= 1)
+        {
+            return answers;
+        }
+
+        if (answerOrderRandom == null)
+        {
+            InitializeAnswerOrderRandom();
+        }
+
+        for (int i = answers.Length - 1; i > 0; i--)
+        {
+            int swapIndex = answerOrderRandom.Next(i + 1);
+            (answers[i], answers[swapIndex]) = (answers[swapIndex], answers[i]);
+        }
+
+        return answers;
     }
 
     private void ChooseAnswer(int answerIndex)
     {
         InterviewQuestion question = stages[currentStageIndex].Questions[currentQuestionIndex];
-        AnswerOption answer = question.Answers[answerIndex];
+        if (displayedAnswers == null || displayedAnswers.Length != question.Answers.Length)
+        {
+            Debug.LogError("Final Round runtime error: displayed answer order was not prepared for the current question.");
+            return;
+        }
+
+        AnswerOption answer = displayedAnswers[answerIndex];
 
         PlayUiSound(answerSelectedClip);
         playerStats.Apply(answer);
         styleTracker.Apply(answer);
+        ApplyCompanyStyleModifier(answer);
+        TrackAnswerSummary(answer);
 
         for (int i = 0; i < answerButtons.Length; i++)
         {
             bool selected = i == answerIndex;
             answerButtons[i].interactable = false;
             SetAnswerButtonVisual(i, selected);
-            answerButtonTexts[i].text = question.Answers[i].AnswerText;
+            answerButtonTexts[i].text = displayedAnswers[i].AnswerText;
         }
 
         UpdateStatsText();
         ShowFeedback(answer);
+    }
+
+    private void TrackAnswerSummary(AnswerOption answer)
+    {
+        int totalStatChange = GetAnswerStatImpact(answer);
+
+        if (totalStatChange >= 15 && answer.ChaoticStyleChange == 0 && answer.BurnedOutStyleChange == 0)
+        {
+            strongAnswerCount++;
+        }
+
+        if (totalStatChange < 0
+            || answer.ChaoticStyleChange > 0
+            || answer.BurnedOutStyleChange > 0
+            || answer.BluntStyleChange > 1)
+        {
+            riskyAnswerCount++;
+        }
+    }
+
+    private int GetAnswerStatImpact(AnswerOption answer)
+    {
+        return answer.ConfidenceChange
+            + answer.EnergyChange
+            + answer.TechnicalCredibilityChange
+            + answer.CommercialAlignmentChange;
+    }
+
+    private void ApplyCompanyStyleModifier(AnswerOption answer)
+    {
+        if (activeCompanyProfile == null || activeCompanyProfile.AiChaoticStyleBonus <= 0)
+        {
+            return;
+        }
+
+        if (!useCompanyProfileModifiers)
+        {
+            return;
+        }
+
+        if (answer.ChaoticStyleChange > 0 && IsAiOrChaoticSignal(answer.AnswerText + " " + answer.ConsequenceText))
+        {
+            styleTracker.AddChaoticStyle(activeCompanyProfile.AiChaoticStyleBonus);
+        }
+    }
+
+    private bool IsAiOrChaoticSignal(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return false;
+        }
+
+        string lowerText = text.ToLowerInvariant();
+        return lowerText.Contains("ai")
+            || lowerText.Contains("agentic")
+            || lowerText.Contains("chaotic")
+            || lowerText.Contains("side quests")
+            || lowerText.Contains("without warning");
     }
 
     private void ShowFeedback(AnswerOption answer)
@@ -1289,7 +1896,9 @@ public class InterviewGameManager : MonoBehaviour
     {
         InterviewStage stage = stages[currentStageIndex];
         currentStageWasStrong = CalculateCurrentStageWasStrong();
+        TrackStagePerformance(stage);
 
+        HidePauseOverlay();
         questionScreen.SetActive(false);
         menuScreen.SetActive(false);
         stageTransitionScreen.SetActive(true);
@@ -1307,6 +1916,29 @@ public class InterviewGameManager : MonoBehaviour
             BuildTransitionBonusText();
         PlayUiSound(stageCompleteClip);
         FadeInScreen(stageTransitionScreen);
+    }
+
+    private void TrackStagePerformance(InterviewStage stage)
+    {
+        if (stageStartStats == null || HasStageSummary(stage.StageName))
+        {
+            return;
+        }
+
+        stageRunSummaries.Add(new StageRunSummary(stage.StageName, playerStats.TotalScore - stageStartStats.TotalScore));
+    }
+
+    private bool HasStageSummary(string stageName)
+    {
+        for (int i = 0; i < stageRunSummaries.Count; i++)
+        {
+            if (stageRunSummaries[i].StageName == stageName)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private bool CalculateCurrentStageWasStrong()
@@ -1357,7 +1989,10 @@ public class InterviewGameManager : MonoBehaviour
 
         if (hasNextStage)
         {
-            playerStats.RecoverBetweenStages(currentStageWasStrong);
+            int energyRecoveryModifier = !useCompanyProfileModifiers || activeCompanyProfile == null
+                ? 0
+                : activeCompanyProfile.BetweenStageEnergyRecoveryModifier;
+            playerStats.RecoverBetweenStages(currentStageWasStrong, energyRecoveryModifier);
         }
 
         if (ShouldShowRandomEvent())
@@ -1373,14 +2008,23 @@ public class InterviewGameManager : MonoBehaviour
     {
         return randomEvents != null
             && randomEvents.Length > 0
-            && Random.value < BetweenStageEventChance;
+            && Random.value < GetAdjustedRandomEventChance();
+    }
+
+    private float GetAdjustedRandomEventChance()
+    {
+        float modifier = !useCompanyProfileModifiers || activeCompanyProfile == null
+            ? 0f
+            : activeCompanyProfile.RandomEventChanceModifier;
+        return Mathf.Clamp01(BetweenStageEventChance + modifier);
     }
 
     private void ShowRandomEvent()
     {
-        RandomInterviewEvent interviewEvent = randomEvents[Random.Range(0, randomEvents.Length)];
+        RandomInterviewEvent interviewEvent = BuildCompanyAdjustedEvent(randomEvents[Random.Range(0, randomEvents.Length)]);
         ApplyRandomEvent(interviewEvent);
 
+        HidePauseOverlay();
         questionScreen.SetActive(false);
         menuScreen.SetActive(false);
         stageTransitionScreen.SetActive(false);
@@ -1414,8 +2058,44 @@ public class InterviewGameManager : MonoBehaviour
 
     private void ApplyRandomEvent(RandomInterviewEvent interviewEvent)
     {
+        int totalScoreBefore = playerStats.TotalScore;
         playerStats.Apply(interviewEvent);
         styleTracker.Apply(interviewEvent);
+        randomEventRunSummaries.Add(new RandomEventRunSummary(interviewEvent.EventTitle, playerStats.TotalScore - totalScoreBefore));
+    }
+
+    private RandomInterviewEvent BuildCompanyAdjustedEvent(RandomInterviewEvent interviewEvent)
+    {
+        if (!useCompanyProfileModifiers || activeCompanyProfile == null)
+        {
+            return interviewEvent;
+        }
+
+        int energyChange = interviewEvent.EnergyChange;
+        if (energyChange < 0)
+        {
+            energyChange += activeCompanyProfile.EventEnergyLossModifier;
+        }
+
+        int chaoticStyleChange = interviewEvent.ChaoticStyleChange;
+        if (activeCompanyProfile.AiChaoticStyleBonus > 0 && IsAiOrChaoticSignal(interviewEvent.EventTitle + " " + interviewEvent.EventDescription))
+        {
+            chaoticStyleChange += activeCompanyProfile.AiChaoticStyleBonus;
+        }
+
+        return new RandomInterviewEvent(
+            interviewEvent.EventTitle,
+            interviewEvent.EventDescription,
+            interviewEvent.ConfidenceChange,
+            energyChange,
+            interviewEvent.TechnicalCredibilityChange,
+            interviewEvent.CommercialAlignmentChange,
+            interviewEvent.DiplomaticStyleChange,
+            interviewEvent.BluntStyleChange,
+            interviewEvent.CommercialStyleChange,
+            interviewEvent.TechnicalStyleChange,
+            chaoticStyleChange,
+            interviewEvent.BurnedOutStyleChange);
     }
 
     private void ContinueAfterRandomEvent()
@@ -1458,6 +2138,7 @@ public class InterviewGameManager : MonoBehaviour
 
     private void ShowOutcome()
     {
+        HidePauseOverlay();
         questionScreen.SetActive(false);
         menuScreen.SetActive(false);
         stageTransitionScreen.SetActive(false);
@@ -1519,10 +2200,9 @@ public class InterviewGameManager : MonoBehaviour
                 styleResult);
         }
 
-        outcomeStatsText.text =
-            $"Final Total Score: {totalScore}/400\n" +
-            GetStatsSummary() + "\n\n" +
-            $"Dominant Style: {styleResult.StyleName}";
+        outcomeStatsText.text = BuildFinalReadSummary(outcomeName, styleResult);
+        outcomeHighlightsText.text = BuildRunHighlightsSummary();
+        outcomeAdviceText.text = BuildRunAdvice();
 
         PlayUiSound(finalOutcomeClip);
         FadeInScreen(outcomeScreen);
@@ -1533,8 +2213,235 @@ public class InterviewGameManager : MonoBehaviour
     {
         return
             $"{mainFeedback}\n\n" +
+            $"{BuildCompanyOutcomeLine()}\n\n" +
             $"Final note: {finalComment}\n\n" +
-            styleResult.SummaryText;
+            $"Dominant style: {styleResult.StyleName}.";
+    }
+
+    private string BuildCompanyOutcomeLine()
+    {
+        if (activeCompanyProfile == null)
+        {
+            return "Company process: The panel weighed the run against a fairly standard interview process.";
+        }
+
+        return $"Against a {activeCompanyProfile.CompanyName} process, the panel weighted the run through {activeCompanyProfile.ProfileName.ToLowerInvariant()}: {activeCompanyProfile.PreferredStyle}";
+    }
+
+    private string BuildFinalReadSummary(string outcomeName, InterviewStyleResult styleResult)
+    {
+        StatSummary strongestStat = GetStrongestStat();
+        StatSummary weakestStat = GetWeakestStat();
+
+        return
+            $"Company: <b>{GetCompanyNameForSummary()}</b>\n" +
+            $"Outcome: <b>{outcomeName}</b>\n" +
+            $"Style: <b>{styleResult.StyleName}</b>\n" +
+            $"Total Score: <b>{playerStats.TotalScore}/400</b>\n\n" +
+            BuildCompactStatsSummary() + "\n\n" +
+            $"Strongest Stat: <b>{strongestStat.Name}</b> ({strongestStat.Value}/100)\n" +
+            $"Weakest Stat: <b>{weakestStat.Name}</b> ({weakestStat.Value}/100)";
+    }
+
+    private string BuildRunHighlightsSummary()
+    {
+        StatSummary strongestStat = GetStrongestStat();
+        StatSummary weakestStat = GetWeakestStat();
+        StageRunSummary strongestStage = GetStrongestStage();
+        StageRunSummary weakestStage = GetWeakestStage();
+        RandomEventRunSummary mostHelpfulEvent = GetMostHelpfulEvent();
+        RandomEventRunSummary mostDamagingEvent = GetMostDamagingEvent();
+
+        return
+            $"Best stat: <b>{strongestStat.Name}</b> ({strongestStat.Value}/100)\n" +
+            $"Watch stat: <b>{weakestStat.Name}</b> ({weakestStat.Value}/100)\n\n" +
+            $"Best stage: <b>{FormatStageSummary(strongestStage)}</b>\n" +
+            $"Hardest stage: <b>{FormatStageSummary(weakestStage)}</b>\n\n" +
+            $"Helpful event: {FormatEventSummary(mostHelpfulEvent, true)}\n" +
+            $"Damaging event: {FormatEventSummary(mostDamagingEvent, false)}\n\n" +
+            $"Answer mix: <b>{strongAnswerCount}</b> strong | <b>{riskyAnswerCount}</b> risky";
+    }
+
+    private string BuildCompactStatsSummary()
+    {
+        return
+            $"Confidence {playerStats.Confidence}/100 | Energy {playerStats.Energy}/100\n" +
+            $"Technical {playerStats.TechnicalCredibility}/100 | Commercial {playerStats.CommercialAlignment}/100";
+    }
+
+    private string GetCompanyNameForSummary()
+    {
+        return activeCompanyProfile == null ? "Standard Process" : activeCompanyProfile.CompanyName;
+    }
+
+    private StatSummary GetStrongestStat()
+    {
+        StatSummary strongest = new StatSummary("Confidence", playerStats.Confidence);
+        strongest = PickHigherStat(strongest, new StatSummary("Energy", playerStats.Energy));
+        strongest = PickHigherStat(strongest, new StatSummary("Technical Credibility", playerStats.TechnicalCredibility));
+        strongest = PickHigherStat(strongest, new StatSummary("Commercial Alignment", playerStats.CommercialAlignment));
+        return strongest;
+    }
+
+    private StatSummary GetWeakestStat()
+    {
+        StatSummary weakest = new StatSummary("Confidence", playerStats.Confidence);
+        weakest = PickLowerStat(weakest, new StatSummary("Energy", playerStats.Energy));
+        weakest = PickLowerStat(weakest, new StatSummary("Technical Credibility", playerStats.TechnicalCredibility));
+        weakest = PickLowerStat(weakest, new StatSummary("Commercial Alignment", playerStats.CommercialAlignment));
+        return weakest;
+    }
+
+    private StatSummary PickHigherStat(StatSummary current, StatSummary candidate)
+    {
+        return candidate.Value > current.Value ? candidate : current;
+    }
+
+    private StatSummary PickLowerStat(StatSummary current, StatSummary candidate)
+    {
+        return candidate.Value < current.Value ? candidate : current;
+    }
+
+    private StageRunSummary GetStrongestStage()
+    {
+        if (stageRunSummaries.Count == 0)
+        {
+            return null;
+        }
+
+        StageRunSummary strongest = stageRunSummaries[0];
+        for (int i = 1; i < stageRunSummaries.Count; i++)
+        {
+            if (stageRunSummaries[i].NetScoreChange > strongest.NetScoreChange)
+            {
+                strongest = stageRunSummaries[i];
+            }
+        }
+
+        return strongest;
+    }
+
+    private StageRunSummary GetWeakestStage()
+    {
+        if (stageRunSummaries.Count == 0)
+        {
+            return null;
+        }
+
+        StageRunSummary weakest = stageRunSummaries[0];
+        for (int i = 1; i < stageRunSummaries.Count; i++)
+        {
+            if (stageRunSummaries[i].NetScoreChange < weakest.NetScoreChange)
+            {
+                weakest = stageRunSummaries[i];
+            }
+        }
+
+        return weakest;
+    }
+
+    private string FormatStageSummary(StageRunSummary stageSummary)
+    {
+        if (stageSummary == null)
+        {
+            return "No stage data";
+        }
+
+        return $"{stageSummary.StageName} ({FormatSignedNumber(stageSummary.NetScoreChange)} net)";
+    }
+
+    private RandomEventRunSummary GetMostHelpfulEvent()
+    {
+        RandomEventRunSummary bestEvent = null;
+
+        for (int i = 0; i < randomEventRunSummaries.Count; i++)
+        {
+            RandomEventRunSummary eventSummary = randomEventRunSummaries[i];
+            if (eventSummary.NetScoreImpact <= 0)
+            {
+                continue;
+            }
+
+            if (bestEvent == null || eventSummary.NetScoreImpact > bestEvent.NetScoreImpact)
+            {
+                bestEvent = eventSummary;
+            }
+        }
+
+        return bestEvent;
+    }
+
+    private RandomEventRunSummary GetMostDamagingEvent()
+    {
+        RandomEventRunSummary worstEvent = null;
+
+        for (int i = 0; i < randomEventRunSummaries.Count; i++)
+        {
+            RandomEventRunSummary eventSummary = randomEventRunSummaries[i];
+            if (eventSummary.NetScoreImpact >= 0)
+            {
+                continue;
+            }
+
+            if (worstEvent == null || eventSummary.NetScoreImpact < worstEvent.NetScoreImpact)
+            {
+                worstEvent = eventSummary;
+            }
+        }
+
+        return worstEvent;
+    }
+
+    private string FormatEventSummary(RandomEventRunSummary eventSummary, bool helpful)
+    {
+        if (randomEventRunSummaries.Count == 0)
+        {
+            return "No major external drama this time.";
+        }
+
+        if (eventSummary == null)
+        {
+            return helpful ? "No event materially helped." : "No event materially damaged the run.";
+        }
+
+        return $"{eventSummary.EventTitle} ({FormatSignedNumber(eventSummary.NetScoreImpact)} net)";
+    }
+
+    private string FormatSignedNumber(int value)
+    {
+        return value > 0 ? $"+{value}" : value.ToString();
+    }
+
+    private string BuildRunAdvice()
+    {
+        StatSummary weakestStat = GetWeakestStat();
+
+        if (styleTracker.ChaoticStyle >= 5 || riskyAnswerCount >= 7)
+        {
+            return "Funny answers can land, but too many make the panel nervous.";
+        }
+
+        if (weakestStat.Name == "Commercial Alignment")
+        {
+            return "Tie more answers back to business outcomes and deal progress.";
+        }
+
+        if (weakestStat.Name == "Technical Credibility")
+        {
+            return "Give clearer technical examples and defend your reasoning.";
+        }
+
+        if (weakestStat.Name == "Energy")
+        {
+            return "Protect stamina; not every answer needs to be a war story.";
+        }
+
+        if (weakestStat.Name == "Confidence")
+        {
+            return "Be more decisive and avoid sounding like the process happened to you.";
+        }
+
+        return "Keep balancing technical proof with commercial clarity.";
     }
 
     private string PickBetweenStageMessage()
@@ -1572,6 +2479,74 @@ public class InterviewGameManager : MonoBehaviour
             playerStats.GetSummary() + "\n" +
             styleTracker.GetDebugSummary() + "\n" +
             $"Dominant Style: {styleResult.StyleName}");
+    }
+
+    private void LogDemoStart()
+    {
+        Debug.Log(
+            $"Final Round {BuildVersion} started\n" +
+            $"Loaded stages: {GetLoadedStageSummary()}\n" +
+            $"Random events loaded: {(randomEvents == null ? 0 : randomEvents.Length)}");
+    }
+
+    private string GetLoadedStageSummary()
+    {
+        if (stages == null || stages.Length == 0)
+        {
+            return "none";
+        }
+
+        string summary = string.Empty;
+
+        for (int i = 0; i < stages.Length; i++)
+        {
+            InterviewStage stage = stages[i];
+            int questionCount = stage.Questions == null ? 0 : stage.Questions.Length;
+            summary += $"{stage.StageName} ({questionCount})";
+
+            if (i < stages.Length - 1)
+            {
+                summary += ", ";
+            }
+        }
+
+        return summary;
+    }
+
+    private sealed class StageRunSummary
+    {
+        public string StageName { get; }
+        public int NetScoreChange { get; }
+
+        public StageRunSummary(string stageName, int netScoreChange)
+        {
+            StageName = stageName;
+            NetScoreChange = netScoreChange;
+        }
+    }
+
+    private sealed class RandomEventRunSummary
+    {
+        public string EventTitle { get; }
+        public int NetScoreImpact { get; }
+
+        public RandomEventRunSummary(string eventTitle, int netScoreImpact)
+        {
+            EventTitle = eventTitle;
+            NetScoreImpact = netScoreImpact;
+        }
+    }
+
+    private readonly struct StatSummary
+    {
+        public string Name { get; }
+        public int Value { get; }
+
+        public StatSummary(string name, int value)
+        {
+            Name = name;
+            Value = value;
+        }
     }
 
 }
