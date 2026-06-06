@@ -21,12 +21,19 @@ public class InterviewGameManager : MonoBehaviour
     private readonly Color panelAccentColor = new Color32(34, 40, 55, 255);
     private readonly Color buttonColor = new Color32(48, 60, 82, 255);
     private readonly Color buttonHoverColor = new Color32(67, 84, 116, 255);
+    private readonly Color selectedAnswerColor = new Color32(78, 130, 118, 255);
+    private readonly Color transitionPanelColor = new Color32(18, 34, 46, 250);
     private readonly Color textColor = new Color32(238, 242, 248, 255);
     private readonly Color mutedTextColor = new Color32(172, 181, 196, 255);
     private readonly Color accentColor = new Color32(92, 188, 164, 255);
+    private readonly Color positiveStatColor = new Color32(122, 224, 159, 255);
+    private readonly Color negativeStatColor = new Color32(255, 139, 139, 255);
+    private readonly Color neutralStatColor = new Color32(194, 202, 214, 255);
 
     private TMP_Text subtitleText;
     private TMP_Text progressText;
+    private TMP_Text questionStageNameText;
+    private TMP_Text questionStageIntroText;
     private TMP_Text questionText;
     private TMP_Text statsText;
     private TMP_Text feedbackText;
@@ -123,6 +130,8 @@ public class InterviewGameManager : MonoBehaviour
         return menuScreen != null
             && startInterviewButton != null
             && howToPlayButton != null
+            && questionStageNameText != null
+            && questionStageIntroText != null
             && questionText != null
             && statsText != null
             && answerButtons != null
@@ -310,9 +319,16 @@ public class InterviewGameManager : MonoBehaviour
     {
         GameObject panel = CreatePanel("Question Text Area", parent, panelColor);
         ConfigureFlexibleLayoutElement(panel, 1f, 620f);
-        AddPaddingLayout(panel, new RectOffset(34, 34, 32, 32), 0f);
+        AddPaddingLayout(panel, new RectOffset(34, 34, 30, 32), 12f);
 
-        questionText = CreateText("Question Text", panel.transform, string.Empty, 34, FontStyles.Bold, TextAlignmentOptions.TopLeft);
+        questionStageNameText = CreateText("Question Stage Name", panel.transform, string.Empty, 30, FontStyles.Bold, TextAlignmentOptions.Left);
+        questionStageNameText.color = accentColor;
+
+        questionStageIntroText = CreateText("Question Stage Intro", panel.transform, string.Empty, 22, FontStyles.Normal, TextAlignmentOptions.Left);
+        questionStageIntroText.color = mutedTextColor;
+        questionStageIntroText.textWrappingMode = TextWrappingModes.Normal;
+
+        questionText = CreateText("Question Text", panel.transform, string.Empty, 32, FontStyles.Bold, TextAlignmentOptions.TopLeft);
         questionText.textWrappingMode = TextWrappingModes.Normal;
         questionText.color = textColor;
         ConfigureFlexibleLayoutElement(questionText.gameObject, 1f);
@@ -327,17 +343,17 @@ public class InterviewGameManager : MonoBehaviour
         TMP_Text statsTitle = CreateText("Stats Title", panel.transform, "CANDIDATE READ", 22, FontStyles.Bold, TextAlignmentOptions.Left);
         statsTitle.color = accentColor;
 
-        statsText = CreateText("Stats Text", panel.transform, string.Empty, 25, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        statsText = CreateText("Stats Text", panel.transform, string.Empty, 24, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         statsText.color = textColor;
-        statsText.lineSpacing = 14f;
+        statsText.lineSpacing = 16f;
         ConfigureFlexibleLayoutElement(statsText.gameObject, 1f);
     }
 
     private void CreateFeedbackPanel(Transform parent)
     {
         feedbackPanel = CreatePanel("Answer Feedback Panel", parent, panelAccentColor);
-        ConfigurePreferredLayoutElement(feedbackPanel, -1f, 220f);
-        AddPaddingLayout(feedbackPanel, new RectOffset(26, 26, 22, 22), 16f);
+        ConfigurePreferredLayoutElement(feedbackPanel, -1f, 238f);
+        AddPaddingLayout(feedbackPanel, new RectOffset(30, 30, 24, 24), 18f);
 
         TMP_Text feedbackTitle = CreateText("Feedback Title", feedbackPanel.transform, "INTERVIEWER REACTION", 22, FontStyles.Bold, TextAlignmentOptions.Left);
         feedbackTitle.color = accentColor;
@@ -345,7 +361,7 @@ public class InterviewGameManager : MonoBehaviour
         feedbackText = CreateText("Feedback Text", feedbackPanel.transform, string.Empty, 24, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         feedbackText.color = textColor;
         feedbackText.textWrappingMode = TextWrappingModes.Normal;
-        feedbackText.lineSpacing = 8f;
+        feedbackText.lineSpacing = 10f;
         ConfigureFlexibleLayoutElement(feedbackText.gameObject, 1f);
 
         GameObject continueButtonObject = CreateButton("Continue Button", feedbackPanel.transform);
@@ -365,7 +381,7 @@ public class InterviewGameManager : MonoBehaviour
     {
         GameObject buttonColumn = new GameObject("Answer Button Column", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(LayoutElement));
         buttonColumn.transform.SetParent(parent, false);
-        ConfigurePreferredLayoutElement(buttonColumn, -1f, 300f);
+        ConfigurePreferredLayoutElement(buttonColumn, -1f, 282f);
 
         VerticalLayoutGroup buttonLayout = buttonColumn.GetComponent<VerticalLayoutGroup>();
         buttonLayout.spacing = 14f;
@@ -383,7 +399,7 @@ public class InterviewGameManager : MonoBehaviour
             GameObject buttonObject = CreateButton($"Answer Button {i + 1}", buttonColumn.transform);
             ConfigureFlexibleLayoutElement(buttonObject, 1f);
 
-            TMP_Text label = CreateText("Label", buttonObject.transform, string.Empty, 24, FontStyles.Normal, TextAlignmentOptions.MidlineLeft);
+            TMP_Text label = CreateText("Label", buttonObject.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.MidlineLeft);
             label.color = textColor;
             label.textWrappingMode = TextWrappingModes.Normal;
 
@@ -402,14 +418,14 @@ public class InterviewGameManager : MonoBehaviour
 
     private void CreateStageTransitionScreen(Transform parent)
     {
-        stageTransitionScreen = CreatePanel("Stage Transition Screen", parent, panelColor);
+        stageTransitionScreen = CreatePanel("Stage Transition Screen", parent, transitionPanelColor);
         ConfigureFlexibleLayoutElement(stageTransitionScreen, 1f);
         AddPaddingLayout(stageTransitionScreen, new RectOffset(42, 42, 40, 40), 18f);
 
-        TMP_Text stageCompleteText = CreateText("Stage Complete Title", stageTransitionScreen.transform, "STAGE COMPLETE", 42, FontStyles.Bold, TextAlignmentOptions.Left);
+        TMP_Text stageCompleteText = CreateText("Stage Complete Title", stageTransitionScreen.transform, "ROUND DEBRIEF", 42, FontStyles.Bold, TextAlignmentOptions.Left);
         stageCompleteText.color = accentColor;
 
-        stageTransitionNameText = CreateText("Stage Name", stageTransitionScreen.transform, string.Empty, 34, FontStyles.Bold, TextAlignmentOptions.Left);
+        stageTransitionNameText = CreateText("Stage Name", stageTransitionScreen.transform, string.Empty, 40, FontStyles.Bold, TextAlignmentOptions.Left);
         stageTransitionNameText.color = textColor;
 
         stageTransitionBodyText = CreateText("Stage Feedback", stageTransitionScreen.transform, string.Empty, 27, FontStyles.Normal, TextAlignmentOptions.TopLeft);
@@ -436,7 +452,7 @@ public class InterviewGameManager : MonoBehaviour
 
     private void CreateRandomEventScreen(Transform parent)
     {
-        randomEventScreen = CreatePanel("Random Event Screen", parent, panelColor);
+        randomEventScreen = CreatePanel("Random Event Screen", parent, transitionPanelColor);
         ConfigureFlexibleLayoutElement(randomEventScreen, 1f);
         AddPaddingLayout(randomEventScreen, new RectOffset(42, 42, 40, 40), 20f);
 
@@ -509,18 +525,35 @@ public class InterviewGameManager : MonoBehaviour
 
         Button button = buttonObject.GetComponent<Button>();
         button.targetGraphic = image;
-        button.colors = new ColorBlock
+        button.colors = BuildButtonColors(buttonColor, buttonHoverColor, new Color32(32, 36, 47, 180));
+
+        return buttonObject;
+    }
+
+    private ColorBlock BuildButtonColors(Color normalColor, Color highlightedColor, Color disabledColor)
+    {
+        return new ColorBlock
         {
-            normalColor = buttonColor,
-            highlightedColor = buttonHoverColor,
+            normalColor = normalColor,
+            highlightedColor = highlightedColor,
             pressedColor = accentColor,
-            selectedColor = buttonHoverColor,
-            disabledColor = new Color32(32, 36, 47, 180),
+            selectedColor = highlightedColor,
+            disabledColor = disabledColor,
             colorMultiplier = 1f,
             fadeDuration = 0.08f
         };
+    }
 
-        return buttonObject;
+    private void SetAnswerButtonVisual(int answerIndex, bool selected)
+    {
+        Button button = answerButtons[answerIndex];
+        Image image = button.GetComponent<Image>();
+        Color normalColor = selected ? selectedAnswerColor : buttonColor;
+        Color disabledColor = selected ? selectedAnswerColor : new Color32(32, 36, 47, 180);
+
+        button.colors = BuildButtonColors(normalColor, buttonHoverColor, disabledColor);
+        image.color = normalColor;
+        answerButtonTexts[answerIndex].fontStyle = selected ? FontStyles.Bold : FontStyles.Normal;
     }
 
     private TMP_Text CreateText(string objectName, Transform parent, string text, int fontSize, FontStyles style, TextAlignmentOptions alignment)
@@ -973,6 +1006,8 @@ public class InterviewGameManager : MonoBehaviour
         InterviewQuestion question = stage.Questions[currentQuestionIndex];
         progressText.text = $"{stage.StageName} - Question {currentQuestionIndex + 1} of {stage.Questions.Length}";
         subtitleText.text = stage.StageIntroText;
+        questionStageNameText.text = stage.StageName.ToUpperInvariant();
+        questionStageIntroText.text = stage.StageIntroText;
         questionText.text = question.QuestionText;
         feedbackPanel.SetActive(false);
 
@@ -981,6 +1016,7 @@ public class InterviewGameManager : MonoBehaviour
             answerButtons[i].gameObject.SetActive(true);
             answerButtons[i].interactable = true;
             answerButtonTexts[i].text = question.Answers[i].AnswerText;
+            SetAnswerButtonVisual(i, false);
         }
     }
 
@@ -994,7 +1030,12 @@ public class InterviewGameManager : MonoBehaviour
 
         for (int i = 0; i < answerButtons.Length; i++)
         {
+            bool selected = i == answerIndex;
             answerButtons[i].interactable = false;
+            SetAnswerButtonVisual(i, selected);
+            answerButtonTexts[i].text = selected
+                ? $"SELECTED  {question.Answers[i].AnswerText}"
+                : question.Answers[i].AnswerText;
         }
 
         UpdateStatsText();
@@ -1005,7 +1046,7 @@ public class InterviewGameManager : MonoBehaviour
     {
         feedbackText.text =
             $"{answer.ConsequenceText}\n\n" +
-            "Stat changes:\n" +
+            "<b>Stat changes</b>\n" +
             $"{FormatStatChange("Confidence", answer.ConfidenceChange)}\n" +
             $"{FormatStatChange("Energy", answer.EnergyChange)}\n" +
             $"{FormatStatChange("Technical Credibility", answer.TechnicalCredibilityChange)}\n" +
@@ -1017,7 +1058,24 @@ public class InterviewGameManager : MonoBehaviour
     private string FormatStatChange(string statName, int change)
     {
         string sign = change > 0 ? "+" : string.Empty;
-        return $"{statName} {sign}{change}";
+        string color = GetStatChangeColor(change);
+        return $"{statName}: <color=#{color}><b>{sign}{change}</b></color>";
+    }
+
+    private string GetStatChangeColor(int change)
+    {
+        Color color = neutralStatColor;
+
+        if (change > 0)
+        {
+            color = positiveStatColor;
+        }
+        else if (change < 0)
+        {
+            color = negativeStatColor;
+        }
+
+        return ColorUtility.ToHtmlStringRGB(color);
     }
 
     private string BuildChangeSummary(
@@ -1098,12 +1156,27 @@ public class InterviewGameManager : MonoBehaviour
 
     private string BuildStageFeedback(InterviewStage stage)
     {
+        string recruiterNote = PickRecruiterStageNote();
+
         if (currentStageWasStrong)
         {
-            return "Recruiter-style feedback: Strong signal. The conversation had enough clarity and momentum to make the next round feel earned.";
+            return $"{recruiterNote}\n\nStrong signal from {stage.StageName}. The conversation had enough clarity and momentum to make the next round feel earned.";
         }
 
-        return "Recruiter-style feedback: Mixed signal. There were useful moments, but the next round will need sharper answers and steadier positioning.";
+        return $"{recruiterNote}\n\nMixed signal from {stage.StageName}. There were useful moments, but the next round will need sharper answers and steadier positioning.";
+    }
+
+    private string PickRecruiterStageNote()
+    {
+        string[] notes =
+        {
+            "Recruiter note: The team wants one more conversation before they compare notes.",
+            "Recruiter note: Feedback is moving, but the wording is doing that careful recruiter thing.",
+            "Recruiter note: The next round is being framed as a calibration chat, which is never just a calibration chat.",
+            "Recruiter note: They liked the direction and want to pressure-test the signal."
+        };
+
+        return notes[Random.Range(0, notes.Length)];
     }
 
     private void ContinueAfterStageTransition()
@@ -1154,7 +1227,9 @@ public class InterviewGameManager : MonoBehaviour
         progressText.text = "Between rounds";
         subtitleText.text = "The process shifts slightly before the next conversation.";
         randomEventTitleText.text = interviewEvent.EventTitle;
-        randomEventBodyText.text = interviewEvent.EventDescription;
+        randomEventBodyText.text =
+            $"{PickBetweenStageMessage()}\n\n" +
+            interviewEvent.EventDescription;
         randomEventChangesText.text =
             "Event changes:\n" +
             BuildChangeSummary(
@@ -1193,11 +1268,12 @@ public class InterviewGameManager : MonoBehaviour
     {
         if (currentStageIndex >= stages.Length - 1)
         {
-            return "\n\nContinue to final decision.";
+            return "\n\n<b>Next step</b>\nContinue to final decision.";
         }
 
-        return "\n\nContinue bonus: Energy +10" +
-            (currentStageWasStrong ? ", Confidence +5" : ", Confidence +0");
+        return "\n\n<b>Continue bonus</b>\n" +
+            $"{FormatStatChange("Energy", 10)}\n" +
+            $"{FormatStatChange("Confidence", currentStageWasStrong ? 5 : 0)}";
     }
 
     private void UpdateStatsText()
@@ -1207,7 +1283,11 @@ public class InterviewGameManager : MonoBehaviour
 
     private string GetStatsSummary()
     {
-        return playerStats.GetSummary();
+        return
+            $"Confidence: <b>{playerStats.Confidence}/100</b>\n" +
+            $"Energy: <b>{playerStats.Energy}/100</b>\n" +
+            $"Technical Credibility: <b>{playerStats.TechnicalCredibility}/100</b>\n" +
+            $"Commercial Alignment: <b>{playerStats.CommercialAlignment}/100</b>";
     }
 
     private void ShowOutcome()
@@ -1230,31 +1310,46 @@ public class InterviewGameManager : MonoBehaviour
         {
             outcomeName = "Process Ended";
             outcomeTitleText.text = "Outcome: Process Ended";
-            outcomeBodyText.text = "Across the process, one core signal dropped below the hiring bar. The team saw potential, but the risk felt too high to progress to offer.\n\n" + styleResult.SummaryText;
+            outcomeBodyText.text = BuildOutcomeBody(
+                "Across the process, one core signal dropped below the hiring bar. The team saw potential, but the risk felt too high to progress to offer.",
+                "One weak signal became the thing everyone kept circling back to.",
+                styleResult);
         }
         else if (totalScore >= 330)
         {
             outcomeName = "Offer Recommended";
             outcomeTitleText.text = "Outcome: Offer Recommended";
-            outcomeBodyText.text = "You carried a strong signal from recruiter screen through VP round. The feedback points to a credible, commercially sharp hire.\n\n" + styleResult.SummaryText;
+            outcomeBodyText.text = BuildOutcomeBody(
+                "You carried a strong signal from recruiter screen through VP round. The feedback points to a credible, commercially sharp hire.",
+                "This is the version of you the panel can easily defend in debrief.",
+                styleResult);
         }
         else if (totalScore >= 285)
         {
             outcomeName = "Final Debrief Pass";
             outcomeTitleText.text = "Outcome: Final Debrief Pass";
-            outcomeBodyText.text = "The process landed well overall. There are a few calibration notes, but the team has enough confidence to keep the offer conversation alive.\n\n" + styleResult.SummaryText;
+            outcomeBodyText.text = BuildOutcomeBody(
+                "The process landed well overall. There are a few calibration notes, but the team has enough confidence to keep the offer conversation alive.",
+                "Not flawless, but the room has enough to keep moving.",
+                styleResult);
         }
         else if (totalScore >= 230)
         {
             outcomeName = "Hold";
             outcomeTitleText.text = "Outcome: Hold";
-            outcomeBodyText.text = "The rounds produced mixed feedback. Some interviewers saw the fit, while others wanted stronger evidence before making the final call.\n\n" + styleResult.SummaryText;
+            outcomeBodyText.text = BuildOutcomeBody(
+                "The rounds produced mixed feedback. Some interviewers saw the fit, while others wanted stronger evidence before making the final call.",
+                "The debrief has enough positives to argue about, which is both good and exhausting.",
+                styleResult);
         }
         else
         {
             outcomeName = "Rejected";
             outcomeTitleText.text = "Outcome: Rejected";
-            outcomeBodyText.text = "The process never quite built enough momentum. The team decided the role needs a clearer blend of technical depth and commercial judgment.\n\n" + styleResult.SummaryText;
+            outcomeBodyText.text = BuildOutcomeBody(
+                "The process never quite built enough momentum. The team decided the role needs a clearer blend of technical depth and commercial judgment.",
+                "The process ended before your strongest version really arrived.",
+                styleResult);
         }
 
         outcomeStatsText.text =
@@ -1263,6 +1358,27 @@ public class InterviewGameManager : MonoBehaviour
             $"Dominant Style: {styleResult.StyleName}";
 
         LogRunSummary(outcomeName, styleResult);
+    }
+
+    private string BuildOutcomeBody(string mainFeedback, string finalComment, InterviewStyleResult styleResult)
+    {
+        return
+            $"{mainFeedback}\n\n" +
+            $"Final note: {finalComment}\n\n" +
+            styleResult.SummaryText;
+    }
+
+    private string PickBetweenStageMessage()
+    {
+        string[] messages =
+        {
+            "Recruiter message: Quick update before the next round.",
+            "Recruiter message: Small process wrinkle, nothing to panic about.",
+            "Recruiter message: The schedule shifted, but the conversation is still warm.",
+            "Recruiter message: Sharing context so you are not reading tea leaves in your inbox."
+        };
+
+        return messages[Random.Range(0, messages.Length)];
     }
 
     private void LogRunSummary(string outcomeName, InterviewStyleResult styleResult)
