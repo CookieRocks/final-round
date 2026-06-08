@@ -22,6 +22,11 @@ Released: 2026-06-06
 - `dotnet build Assembly-CSharp.csproj` passes with 0 warnings and 0 errors.
 - Windows standalone batch build succeeded and produced `Builds/v1.0-rc1/Final Round.exe`.
 
+### Build
+
+- Created zipped Windows release candidate build:
+  - `FinalRound_Windows_Prototype_v1.0-rc1.zip`
+
 ## v0.9 - Settings Screen
 
 Released: 2026-06-06
