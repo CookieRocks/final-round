@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22d0308a90dc49ae97395f1b651723b5, type: 3}
+  m_Name: Q_CTX_03_CisoLateJoin
+  questionId: CTX-03
+  category: 0
+  speakerName: Hiring Manager
+  questionText: >-
+    A CISO joins late, apologizes, and asks for the 'thirty-second version.' The technical team looks annoyed. How do you handle it?
+  answerOptions:
+  - {fileID: 11400001}
+  - {fileID: 11400002}
+  - {fileID: 11400003}
+  - {fileID: 11400004}
+--- !u!114 &11400001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_CTX_03_A1
+  answerText: >-
+    Give the executive risk summary, then invite the technical team to validate the assumptions.
+  technicalDelta: 1
+  commercialDelta: 2
+  rapportDelta: 3
+  energyDelta: 0
+--- !u!114 &11400002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_CTX_03_A2
+  answerText: >-
+    Restart from the architecture slide so the CISO has full context.
+  technicalDelta: 1
+  commercialDelta: -1
+  rapportDelta: 0
+  energyDelta: -1
+--- !u!114 &11400003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_CTX_03_A3
+  answerText: >-
+    Ask the CISO which decision they are trying to make today before summarizing.
+  technicalDelta: 0
+  commercialDelta: 3
+  rapportDelta: 2
+  energyDelta: 0
+--- !u!114 &11400004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_CTX_03_A4
+  answerText: >-
+    Keep going with the technical workshop and offer to brief the CISO later.
+  technicalDelta: 1
+  commercialDelta: 0
+  rapportDelta: -1
+  energyDelta: 0

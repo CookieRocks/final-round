@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22d0308a90dc49ae97395f1b651723b5, type: 3}
+  m_Name: Q_COMM_03_CfoTiming
+  questionId: COMM-03
+  category: 2
+  speakerName: Sales Director
+  questionText: >-
+    The CFO asks why this should be funded now instead of next fiscal year. The champion looks at you. What do you say?
+  answerOptions:
+  - {fileID: 11400001}
+  - {fileID: 11400002}
+  - {fileID: 11400003}
+  - {fileID: 11400004}
+--- !u!114 &11400001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_03_A1
+  answerText: >-
+    Tie delay to quantified exposure, audit deadlines, and the operational cost of current gaps.
+  technicalDelta: 2
+  commercialDelta: 3
+  rapportDelta: 1
+  energyDelta: 0
+--- !u!114 &11400002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_03_A2
+  answerText: >-
+    Explain that threat actors are moving quickly and waiting is dangerous.
+  technicalDelta: 1
+  commercialDelta: 1
+  rapportDelta: 0
+  energyDelta: 0
+--- !u!114 &11400003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_03_A3
+  answerText: >-
+    Offer phased scope that protects the highest-risk use case first.
+  technicalDelta: 1
+  commercialDelta: 3
+  rapportDelta: 2
+  energyDelta: 0
+--- !u!114 &11400004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_03_A4
+  answerText: >-
+    Say budget timing is a business decision and return to technical value.
+  technicalDelta: 1
+  commercialDelta: -1
+  rapportDelta: -1
+  energyDelta: -1

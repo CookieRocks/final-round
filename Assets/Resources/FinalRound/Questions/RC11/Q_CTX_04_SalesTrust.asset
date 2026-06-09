@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22d0308a90dc49ae97395f1b651723b5, type: 3}
+  m_Name: Q_CTX_04_SalesTrust
+  questionId: CTX-04
+  category: 0
+  speakerName: Hiring Manager
+  questionText: >-
+    The customer says their security team does not trust salespeople. The room goes quiet. What is your response?
+  answerOptions:
+  - {fileID: 11400001}
+  - {fileID: 11400002}
+  - {fileID: 11400003}
+  - {fileID: 11400004}
+--- !u!114 &11400001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_CTX_04_A1
+  answerText: >-
+    Say that is fair, then define what evidence they should expect before trusting any claim.
+  technicalDelta: 2
+  commercialDelta: 1
+  rapportDelta: 3
+  energyDelta: 0
+--- !u!114 &11400002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_CTX_04_A2
+  answerText: >-
+    Make a light comment and move to the customer logo slide.
+  technicalDelta: 0
+  commercialDelta: 1
+  rapportDelta: 1
+  energyDelta: 1
+--- !u!114 &11400003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_CTX_04_A3
+  answerText: >-
+    Push back that your role is technical enough for the discussion.
+  technicalDelta: 1
+  commercialDelta: 0
+  rapportDelta: -2
+  energyDelta: -1
+--- !u!114 &11400004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_CTX_04_A4
+  answerText: >-
+    Ask what previous vendors overclaimed, then set boundaries for what you can prove today.
+  technicalDelta: 2
+  commercialDelta: 2
+  rapportDelta: 2
+  energyDelta: 0

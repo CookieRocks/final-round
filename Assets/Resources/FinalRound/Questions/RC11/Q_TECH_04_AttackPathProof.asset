@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22d0308a90dc49ae97395f1b651723b5, type: 3}
+  m_Name: Q_TECH_04_AttackPathProof
+  questionId: TECH-04
+  category: 1
+  speakerName: Principal Security Architect
+  questionText: >-
+    A customer asks for proof that your attack path analysis is not just a prettier vulnerability scanner. What do you show?
+  answerOptions:
+  - {fileID: 11400001}
+  - {fileID: 11400002}
+  - {fileID: 11400003}
+  - {fileID: 11400004}
+--- !u!114 &11400001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_04_A1
+  answerText: >-
+    Show how exploitability, identity privilege, exposure, and compensating controls change prioritization.
+  technicalDelta: 3
+  commercialDelta: 2
+  rapportDelta: 1
+  energyDelta: 0
+--- !u!114 &11400002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_04_A2
+  answerText: >-
+    Show the UI and emphasize that executives understand it quickly.
+  technicalDelta: 0
+  commercialDelta: 2
+  rapportDelta: 1
+  energyDelta: 1
+--- !u!114 &11400003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_04_A3
+  answerText: >-
+    Compare scanner feature matrices line by line.
+  technicalDelta: 2
+  commercialDelta: 0
+  rapportDelta: 0
+  energyDelta: -1
+--- !u!114 &11400004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_04_A4
+  answerText: >-
+    Ask for a recent remediation debate and map how the model would have changed the decision.
+  technicalDelta: 3
+  commercialDelta: 2
+  rapportDelta: 2
+  energyDelta: 0

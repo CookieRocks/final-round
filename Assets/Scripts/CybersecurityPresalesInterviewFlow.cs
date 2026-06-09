@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -25,7 +26,10 @@ public enum ReactionSpeaker
 
 public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 {
+    private const string DefaultQuestionResourcePath = "FinalRound/Questions/RC11";
+
     private readonly InterviewScore score = new InterviewScore();
+    [SerializeField] private InterviewQuestionData[] questionBank;
     [SerializeField] private float positiveReactionDuration = 1.1f;
     [SerializeField] private float neutralReactionDuration = 1.25f;
     [SerializeField] private float awkwardReactionDuration = 1.45f;
@@ -35,15 +39,19 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     [SerializeField] private bool useDeterministicQuestionSeed;
     [SerializeField] private int deterministicQuestionSeed = 10603;
     [SerializeField] private float outcomeTransitionDelay = 1.15f;
+    [SerializeField] private bool demoModeEnabled = true;
 
-    private InterviewQuestionData[] contextQuestionPool;
-    private InterviewQuestionData[] technicalQuestionPool;
-    private InterviewQuestionData[] commercialQuestionPool;
-    private InterviewQuestionData[] questions;
+    private RuntimeInterviewQuestion[] contextQuestionPool;
+    private RuntimeInterviewQuestion[] technicalQuestionPool;
+    private RuntimeInterviewQuestion[] commercialQuestionPool;
+    private RuntimeInterviewQuestion[] questions;
     private System.Random questionRandom;
     private TheRoomPrototypeController roomController;
     private int currentQuestionIndex;
+    private int currentQuestionSeed;
     private bool answerLocked;
+    private bool runSummaryLogged;
+    private bool preserveForcedOutcomeOnRestart;
 
     private Canvas canvas;
     private GameObject panelRoot;
@@ -71,6 +79,12 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private void Awake()
     {
         roomController = GetComponent<TheRoomPrototypeController>();
+        if (demoModeEnabled)
+        {
+            debugForceOutcome = false;
+            preserveForcedOutcomeOnRestart = false;
+        }
+
         BuildQuestions();
         BuildUi();
         ResetFlow();
@@ -89,11 +103,18 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         EnsureUiReady();
         currentQuestionIndex = 0;
         answerLocked = false;
+        runSummaryLogged = false;
         score.Reset();
         SelectQuestionsForRun();
         if (roomController == null)
         {
             roomController = GetComponent<TheRoomPrototypeController>();
+        }
+
+        if (panelRoot == null || questionPanel == null || transitionPanel == null || outcomePanel == null || scorecardPanel == null)
+        {
+            Debug.LogWarning("Final Round RC10: interview UI could not be prepared. Check generated UI references.");
+            return;
         }
 
         roomController?.ClearJudgementReaction();
@@ -117,6 +138,12 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         StopAllCoroutines();
         currentQuestionIndex = 0;
         answerLocked = false;
+        runSummaryLogged = false;
+        if (!preserveForcedOutcomeOnRestart)
+        {
+            debugForceOutcome = false;
+        }
+
         score.Reset();
         roomController?.ClearJudgementReaction();
         ClearQuestionText();
@@ -131,7 +158,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     {
         if (questions == null || questions.Length == 0)
         {
-            Debug.LogWarning("Final Round RC7: no selected questions were available. Re-selecting question bank.");
+            Debug.LogWarning("Final Round RC10: no selected questions were available. Re-selecting question bank.");
             SelectQuestionsForRun();
         }
 
@@ -141,10 +168,10 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
             return;
         }
 
-        InterviewQuestionData question = questions[currentQuestionIndex];
+        RuntimeInterviewQuestion question = questions[currentQuestionIndex];
         if (question == null || question.Answers == null || question.Answers.Length != 4)
         {
-            Debug.LogWarning($"Final Round RC7: question {currentQuestionIndex + 1} is missing or malformed. Skipping to outcome.");
+            Debug.LogWarning($"Final Round RC10: question {currentQuestionIndex + 1} is missing or malformed. Skipping to outcome.");
             ShowOutcomeEmail();
             return;
         }
@@ -175,10 +202,10 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         }
 
         answerLocked = true;
-        InterviewQuestionData question = questions[currentQuestionIndex];
+        RuntimeInterviewQuestion question = questions[currentQuestionIndex];
         if (question == null || question.Answers == null || answerIndex < 0 || answerIndex >= question.Answers.Length)
         {
-            Debug.LogWarning("Final Round RC7: answer selection was invalid.");
+            Debug.LogWarning("Final Round RC10: answer selection was invalid.");
             return;
         }
 
@@ -207,6 +234,14 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
     private void ShowOutcomeEmail()
     {
+        EnsureUiReady();
+        if (questionPanel == null || outcomePanel == null || scorecardPanel == null)
+        {
+            Debug.LogWarning("Final Round RC10: outcome UI is missing required references.");
+            return;
+        }
+
+        roomController?.SetRoomObjectiveText(string.Empty);
         if (transitionPanel != null)
         {
             transitionPanel.SetActive(false);
@@ -224,11 +259,18 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         outcomeOpeningText.text = email.OpeningLine;
         outcomeBodyText.text = email.OutcomeParagraph;
         outcomeFeedbackText.text = email.FeedbackParagraph;
+        LogRoomRunSummaryOnce(outcome);
         RefreshDebugStatus();
     }
 
     private void ShowScorecard()
     {
+        if (scorecardPanel == null || scorecardText == null)
+        {
+            Debug.LogWarning("Final Round RC10: scorecard UI is missing required references.");
+            return;
+        }
+
         scorecardPanel.SetActive(true);
         scorecardText.text =
             "<b>Scorecard</b>\n" +
@@ -248,6 +290,12 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     {
         EnsureUiReady();
         StopAllCoroutines();
+        if (panelRoot == null)
+        {
+            Debug.LogWarning("Final Round RC10: cannot skip to outcome because the interview UI root is missing.");
+            return;
+        }
+
         panelRoot.SetActive(true);
         roomController?.ClearJudgementReaction();
         ShowOutcomeEmail();
@@ -255,6 +303,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
     private IEnumerator ShowOutcomeAfterTransition()
     {
+        roomController?.SetRoomObjectiveText(string.Empty);
         questionPanel.SetActive(false);
         ClearQuestionText();
         if (outcomePanel != null)
@@ -266,11 +315,15 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
             scorecardPanel.SetActive(false);
         }
 
-        transitionPanel.SetActive(true);
-        transitionText.text = "Inbox: 1 new message";
-        yield return new WaitForSeconds(outcomeTransitionDelay);
-        transitionText.text = "Later that afternoon...";
-        yield return new WaitForSeconds(0.55f);
+        if (transitionPanel != null && transitionText != null)
+        {
+            transitionPanel.SetActive(true);
+            transitionText.text = "Inbox: 1 new message";
+            yield return new WaitForSeconds(outcomeTransitionDelay);
+            transitionText.text = "Later that afternoon...";
+            yield return new WaitForSeconds(0.55f);
+        }
+
         ShowOutcomeEmail();
     }
 
@@ -299,6 +352,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     {
         debugForceOutcome = true;
         debugForcedOutcome = outcome;
+        preserveForcedOutcomeOnRestart = true;
         RefreshDebugStatus();
         if (outcomePanel != null && outcomePanel.activeSelf)
         {
@@ -309,6 +363,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private void ClearForcedOutcome()
     {
         debugForceOutcome = false;
+        preserveForcedOutcomeOnRestart = false;
         RefreshDebugStatus();
     }
 
@@ -516,7 +571,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
     private void BuildDebugPanel(Transform parent)
     {
-        debugPanel = CreatePanel("RC7 Debug Panel", parent, new Color32(8, 11, 16, 238));
+        debugPanel = CreatePanel("RC10 Debug Panel", parent, new Color32(8, 11, 16, 238));
         RectTransform debugRect = debugPanel.GetComponent<RectTransform>();
         debugRect.anchorMin = new Vector2(0.72f, 0.46f);
         debugRect.anchorMax = new Vector2(0.98f, 0.94f);
@@ -524,13 +579,13 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         debugRect.offsetMax = Vector2.zero;
         AddVerticalLayout(debugPanel, new RectOffset(18, 18, 16, 16), 8f);
 
-        TMP_Text titleText = CreateText("Debug Title", debugPanel.transform, "RC7 Debug Tools", 22, FontStyles.Bold, TextAlignmentOptions.Left);
+        TMP_Text titleText = CreateText("Debug Title", debugPanel.transform, "RC10 Debug Tools", 22, FontStyles.Bold, TextAlignmentOptions.Left);
         titleText.color = new Color32(130, 220, 198, 255);
         ConfigureLayout(titleText.gameObject, -1f, 28f);
 
         debugStatusText = CreateText("Debug Status", debugPanel.transform, string.Empty, 17, FontStyles.Normal, TextAlignmentOptions.Left);
         debugStatusText.color = new Color32(218, 226, 236, 255);
-        ConfigureLayout(debugStatusText.gameObject, -1f, 112f);
+        ConfigureLayout(debugStatusText.gameObject, -1f, 132f);
 
         CreateDebugButton("Toggle Deterministic Seed", debugPanel.transform, () => SetDeterministicSeedEnabled(!useDeterministicQuestionSeed));
         CreateDebugButton("Cycle Seed", debugPanel.transform, CycleSeed);
@@ -795,23 +850,33 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
             return;
         }
 
-        string selectedQuestions = questions == null || questions.Length == 0
-            ? "none"
-            : $"{GetQuestionIndex(contextQuestionPool, questions[0]) + 1}/" +
-              $"{GetQuestionIndex(technicalQuestionPool, questions.Length > 1 ? questions[1] : null) + 1}/" +
-              $"{GetQuestionIndex(commercialQuestionPool, questions.Length > 2 ? questions[2] : null) + 1}";
+        string selectedQuestions = GetSelectedQuestionIdSummary();
 
         debugStatusText.text =
-            "Prototype v1.0 RC7\n" +
+            "Prototype v1.0 RC10\n" +
             "Branch: prototype-v1.0-rc6-working\n" +
+            $"Demo mode: {(demoModeEnabled ? "on" : "off")}\n" +
             $"Seed mode: {(useDeterministicQuestionSeed ? "deterministic" : "random")}\n" +
-            $"Current seed: {deterministicQuestionSeed}\n" +
-            $"Question indexes: {selectedQuestions}\n" +
+            $"Current seed: {currentQuestionSeed}\n" +
+            $"Question IDs: {selectedQuestions}\n" +
             $"Forced outcome: {(debugForceOutcome ? debugForcedOutcome.ToString() : "off")}\n" +
             "Toggle: F1";
     }
 
-    private static int GetQuestionIndex(InterviewQuestionData[] pool, InterviewQuestionData question)
+    private string GetSelectedQuestionIdSummary()
+    {
+        if (questions == null || questions.Length == 0)
+        {
+            return "none";
+        }
+
+        string contextId = questions[0] == null ? "CTX-00" : questions[0].QuestionId;
+        string technicalId = questions.Length > 1 && questions[1] != null ? questions[1].QuestionId : "TECH-00";
+        string commercialId = questions.Length > 2 && questions[2] != null ? questions[2].QuestionId : "COMM-00";
+        return $"{contextId}, {technicalId}, {commercialId}";
+    }
+
+    private static int GetQuestionIndex(RuntimeInterviewQuestion[] pool, RuntimeInterviewQuestion question)
     {
         if (pool == null || question == null)
         {
@@ -840,9 +905,17 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
     private void BuildQuestions()
     {
+        if (TryBuildQuestionsFromAssets())
+        {
+            SelectQuestionsForRun();
+            return;
+        }
+
+        Debug.LogWarning("Final Round RC11: no valid ScriptableObject question bank found. Using built-in sample questions.");
         contextQuestionPool = new[]
         {
-            new InterviewQuestionData(
+            new RuntimeInterviewQuestion(
+                "CTX-01",
                 "Hiring Manager",
                 "A customer says their board wants measurable cyber risk reduction this quarter, but the security team only wants to discuss tooling. How do you open discovery?",
                 new[]
@@ -852,7 +925,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
                     new AnswerData("Explain that cyber risk is hard to quantify and suggest a platform overview first.", 0, -1, -1, -1),
                     new AnswerData("Ask who owns the board narrative, then separate technical validation from executive proof.", 1, 2, 3, 0)
                 }),
-            new InterviewQuestionData(
+            new RuntimeInterviewQuestion(
+                "CTX-02",
                 "Hiring Manager",
                 "The champion starts the meeting by saying, 'We have had three vendors tell us the same thing.' What do you do first?",
                 new[]
@@ -862,7 +936,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
                     new AnswerData("Move directly into a differentiated feature demo.", 1, 0, -1, 1),
                     new AnswerData("Ask who is most skeptical in the room and what would make the meeting worth their time.", 0, 2, 3, 0)
                 }),
-            new InterviewQuestionData(
+            new RuntimeInterviewQuestion(
+                "CTX-03",
                 "Hiring Manager",
                 "A CISO joins late, apologizes, and asks for the 'thirty-second version.' The technical team looks annoyed. How do you handle it?",
                 new[]
@@ -872,7 +947,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
                     new AnswerData("Ask the CISO which decision they are trying to make today before summarizing.", 0, 3, 2, 0),
                     new AnswerData("Keep going with the technical workshop and offer to brief the CISO later.", 1, 0, -1, 0)
                 }),
-            new InterviewQuestionData(
+            new RuntimeInterviewQuestion(
+                "CTX-04",
                 "Hiring Manager",
                 "The customer says their security team does not trust salespeople. The room goes quiet. What is your response?",
                 new[]
@@ -886,7 +962,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
         technicalQuestionPool = new[]
         {
-            new InterviewQuestionData(
+            new RuntimeInterviewQuestion(
+                "TECH-01",
                 "Principal Security Architect",
                 "During a technical workshop, the customer challenges your detection claims and asks how you reduce false positives without hiding real incidents. What do you do?",
                 new[]
@@ -896,7 +973,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
                     new AnswerData("Acknowledge the risk, explain the validation path, and define what evidence would make them comfortable.", 3, 2, 2, 0),
                     new AnswerData("Offer to bring in engineering later and move back to the slide deck.", 0, 0, 0, -1)
                 }),
-            new InterviewQuestionData(
+            new RuntimeInterviewQuestion(
+                "TECH-02",
                 "Principal Security Architect",
                 "The customer asks how your platform handles encrypted traffic visibility without creating privacy or compliance issues. What is your answer?",
                 new[]
@@ -906,7 +984,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
                     new AnswerData("Focus on executive risk reporting and avoid the privacy detail.", -1, 2, 0, 0),
                     new AnswerData("Separate what the product observes by default from what requires explicit customer policy decisions.", 3, 1, 2, 0)
                 }),
-            new InterviewQuestionData(
+            new RuntimeInterviewQuestion(
+                "TECH-03",
                 "Principal Security Architect",
                 "An architect says their SIEM already correlates identity, endpoint, and cloud telemetry. Where does your solution fit?",
                 new[]
@@ -916,7 +995,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
                     new AnswerData("Describe every integration available and let them decide what matters.", 2, -1, 0, -1),
                     new AnswerData("Position it as a board-level dashboard rather than a technical control.", -1, 2, 0, 0)
                 }),
-            new InterviewQuestionData(
+            new RuntimeInterviewQuestion(
+                "TECH-04",
                 "Principal Security Architect",
                 "A customer asks for proof that your attack path analysis is not just a prettier vulnerability scanner. What do you show?",
                 new[]
@@ -930,7 +1010,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
         commercialQuestionPool = new[]
         {
-            new InterviewQuestionData(
+            new RuntimeInterviewQuestion(
+                "COMM-01",
                 "Sales Director",
                 "Procurement says the incumbent is cheaper and good enough. The champion is nervous. What is your next move?",
                 new[]
@@ -946,11 +1027,12 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         SelectQuestionsForRun();
     }
 
-    private InterviewQuestionData[] AppendCommercialQuestions(InterviewQuestionData[] existing)
+    private RuntimeInterviewQuestion[] AppendCommercialQuestions(RuntimeInterviewQuestion[] existing)
     {
-        InterviewQuestionData[] expanded = new InterviewQuestionData[4];
+        RuntimeInterviewQuestion[] expanded = new RuntimeInterviewQuestion[4];
         existing.CopyTo(expanded, 0);
-        expanded[1] = new InterviewQuestionData(
+        expanded[1] = new RuntimeInterviewQuestion(
+            "COMM-02",
             "Sales Director",
             "The CRO wants a close plan, but the security team says they need another month of testing. How do you avoid losing the deal or the trust?",
             new[]
@@ -960,7 +1042,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
                 new AnswerData("Tell the CRO the team is dragging their feet and needs pressure.", -1, 2, -2, -1),
                 new AnswerData("Ask the technical team what unresolved risk blocks a recommendation, then convert that into the close plan.", 2, 2, 3, 0)
             });
-        expanded[2] = new InterviewQuestionData(
+        expanded[2] = new RuntimeInterviewQuestion(
+            "COMM-03",
             "Sales Director",
             "The CFO asks why this should be funded now instead of next fiscal year. The champion looks at you. What do you say?",
             new[]
@@ -970,7 +1053,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
                 new AnswerData("Offer phased scope that protects the highest-risk use case first.", 1, 3, 2, 0),
                 new AnswerData("Say budget timing is a business decision and return to technical value.", 1, -1, -1, -1)
             });
-        expanded[3] = new InterviewQuestionData(
+        expanded[3] = new RuntimeInterviewQuestion(
+            "COMM-04",
             "Sales Director",
             "Legal flags data residency concerns late in the cycle. Sales wants you to say it is standard. What do you do?",
             new[]
@@ -985,9 +1069,11 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
     private void SelectQuestionsForRun()
     {
-        questionRandom = useDeterministicQuestionSeed
-            ? new System.Random(deterministicQuestionSeed)
-            : new System.Random(System.Environment.TickCount);
+        currentQuestionSeed = useDeterministicQuestionSeed
+            ? deterministicQuestionSeed
+            : System.Environment.TickCount & int.MaxValue;
+
+        questionRandom = new System.Random(currentQuestionSeed);
 
         questions = new[]
         {
@@ -998,12 +1084,13 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         RefreshDebugStatus();
     }
 
-    private InterviewQuestionData PickQuestion(InterviewQuestionData[] pool)
+    private RuntimeInterviewQuestion PickQuestion(RuntimeInterviewQuestion[] pool)
     {
         if (pool == null || pool.Length == 0)
         {
-            Debug.LogError("Final Round RC6 question pool is empty.");
-            return new InterviewQuestionData(
+            Debug.LogError("Final Round RC11 question pool is empty.");
+            return new RuntimeInterviewQuestion(
+                "FALLBACK-01",
                 "Hiring Manager",
                 "The panel waits for a question that was not configured.",
                 new[]
@@ -1018,14 +1105,96 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         return pool[questionRandom.Next(pool.Length)];
     }
 
-    private sealed class InterviewQuestionData
+    private void LogRoomRunSummaryOnce(InterviewOutcomeType outcome)
     {
+        if (runSummaryLogged)
+        {
+            return;
+        }
+
+        runSummaryLogged = true;
+        Debug.Log(
+            "Final Round RC10 Room Run Summary\n" +
+            $"Seed Mode: {(useDeterministicQuestionSeed ? "deterministic" : "random")}\n" +
+            $"Seed: {currentQuestionSeed}\n" +
+            $"Selected Question IDs: {GetSelectedQuestionIdSummary()}\n" +
+            $"Final Scores: Technical {score.Technical}, Commercial {score.Commercial}, Rapport {score.Rapport}, Energy {score.Energy}\n" +
+            $"Outcome: {outcome}\n" +
+            $"Forced Outcome Used: {(debugForceOutcome ? debugForcedOutcome.ToString() : "off")}\n" +
+            $"Demo Mode: {(demoModeEnabled ? "on" : "off")}");
+    }
+
+    private bool TryBuildQuestionsFromAssets()
+    {
+        InterviewQuestionData[] sourceQuestions = questionBank;
+        if (sourceQuestions == null || sourceQuestions.Length == 0)
+        {
+            sourceQuestions = Resources.LoadAll<InterviewQuestionData>(DefaultQuestionResourcePath);
+        }
+
+        if (sourceQuestions == null || sourceQuestions.Length == 0)
+        {
+            return false;
+        }
+
+        contextQuestionPool = BuildCategoryPool(sourceQuestions, QuestionCategory.ContextCustomerScenario);
+        technicalQuestionPool = BuildCategoryPool(sourceQuestions, QuestionCategory.TechnicalSecurityJudgement);
+        commercialQuestionPool = BuildCategoryPool(sourceQuestions, QuestionCategory.CommercialExecutivePressure);
+
+        bool valid = contextQuestionPool.Length > 0 && technicalQuestionPool.Length > 0 && commercialQuestionPool.Length > 0;
+        if (!valid)
+        {
+            Debug.LogWarning("Final Round RC11: ScriptableObject question bank must include at least one valid question per category.");
+        }
+
+        return valid;
+    }
+
+    private RuntimeInterviewQuestion[] BuildCategoryPool(InterviewQuestionData[] sourceQuestions, QuestionCategory category)
+    {
+        List<RuntimeInterviewQuestion> pool = new List<RuntimeInterviewQuestion>();
+        for (int i = 0; i < sourceQuestions.Length; i++)
+        {
+            InterviewQuestionData question = sourceQuestions[i];
+            if (question == null || question.Category != category)
+            {
+                continue;
+            }
+
+            if (!question.IsValid(out string validationError))
+            {
+                Debug.LogWarning($"Final Round RC11: skipping question asset '{question.name}' because {validationError}");
+                continue;
+            }
+
+            AnswerData[] answers = new AnswerData[question.AnswerOptions.Length];
+            for (int answerIndex = 0; answerIndex < answers.Length; answerIndex++)
+            {
+                AnswerOptionData answer = question.AnswerOptions[answerIndex];
+                answers[answerIndex] = new AnswerData(
+                    answer.AnswerText,
+                    answer.TechnicalDelta,
+                    answer.CommercialDelta,
+                    answer.RapportDelta,
+                    answer.EnergyDelta);
+            }
+
+            pool.Add(new RuntimeInterviewQuestion(question.QuestionId, question.SpeakerName, question.QuestionText, answers));
+        }
+
+        return pool.ToArray();
+    }
+
+    private sealed class RuntimeInterviewQuestion
+    {
+        public string QuestionId { get; }
         public string InterviewerName { get; }
         public string QuestionText { get; }
         public AnswerData[] Answers { get; }
 
-        public InterviewQuestionData(string interviewerName, string questionText, AnswerData[] answers)
+        public RuntimeInterviewQuestion(string questionId, string interviewerName, string questionText, AnswerData[] answers)
         {
+            QuestionId = string.IsNullOrWhiteSpace(questionId) ? "QUESTION-UNSET" : questionId;
             InterviewerName = interviewerName;
             QuestionText = questionText;
             Answers = answers;

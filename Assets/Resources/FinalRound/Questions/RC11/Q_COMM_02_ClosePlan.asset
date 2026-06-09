@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22d0308a90dc49ae97395f1b651723b5, type: 3}
+  m_Name: Q_COMM_02_ClosePlan
+  questionId: COMM-02
+  category: 2
+  speakerName: Sales Director
+  questionText: >-
+    The CRO wants a close plan, but the security team says they need another month of testing. How do you avoid losing the deal or the trust?
+  answerOptions:
+  - {fileID: 11400001}
+  - {fileID: 11400002}
+  - {fileID: 11400003}
+  - {fileID: 11400004}
+--- !u!114 &11400001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_02_A1
+  answerText: >-
+    Split technical validation from commercial approval and agree what evidence must be produced by each date.
+  technicalDelta: 2
+  commercialDelta: 3
+  rapportDelta: 2
+  energyDelta: 0
+--- !u!114 &11400002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_02_A2
+  answerText: >-
+    Push for executive alignment and let the technical team continue testing in parallel.
+  technicalDelta: 0
+  commercialDelta: 3
+  rapportDelta: 0
+  energyDelta: 1
+--- !u!114 &11400003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_02_A3
+  answerText: >-
+    Tell the CRO the team is dragging their feet and needs pressure.
+  technicalDelta: -1
+  commercialDelta: 2
+  rapportDelta: -2
+  energyDelta: -1
+--- !u!114 &11400004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_02_A4
+  answerText: >-
+    Ask the technical team what unresolved risk blocks a recommendation, then convert that into the close plan.
+  technicalDelta: 2
+  commercialDelta: 2
+  rapportDelta: 3
+  energyDelta: 0

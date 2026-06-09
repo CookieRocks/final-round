@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22d0308a90dc49ae97395f1b651723b5, type: 3}
+  m_Name: Q_TECH_03_SiemFit
+  questionId: TECH-03
+  category: 1
+  speakerName: Principal Security Architect
+  questionText: >-
+    An architect says their SIEM already correlates identity, endpoint, and cloud telemetry. Where does your solution fit?
+  answerOptions:
+  - {fileID: 11400001}
+  - {fileID: 11400002}
+  - {fileID: 11400003}
+  - {fileID: 11400004}
+--- !u!114 &11400001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_03_A1
+  answerText: >-
+    Ask where correlation still fails operationally, then position around coverage gaps and response workflow.
+  technicalDelta: 3
+  commercialDelta: 2
+  rapportDelta: 2
+  energyDelta: 0
+--- !u!114 &11400002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_03_A2
+  answerText: >-
+    Argue that SIEMs are legacy and should be displaced.
+  technicalDelta: 1
+  commercialDelta: 1
+  rapportDelta: -2
+  energyDelta: -1
+--- !u!114 &11400003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_03_A3
+  answerText: >-
+    Describe every integration available and let them decide what matters.
+  technicalDelta: 2
+  commercialDelta: -1
+  rapportDelta: 0
+  energyDelta: -1
+--- !u!114 &11400004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_03_A4
+  answerText: >-
+    Position it as a board-level dashboard rather than a technical control.
+  technicalDelta: -1
+  commercialDelta: 2
+  rapportDelta: 0
+  energyDelta: 0

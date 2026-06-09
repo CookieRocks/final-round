@@ -180,6 +180,19 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
         }
     }
 
+    public void SetRoomObjectiveText(string objectiveText)
+    {
+        if (gameManager == null)
+        {
+            gameManager = FindAnyObjectByType<InterviewGameManager>();
+        }
+
+        if (gameManager != null)
+        {
+            gameManager.SetRoomObjectiveText(objectiveText);
+        }
+    }
+
     private void SitForInterview()
     {
         if (seatedCameraPoint == null)
@@ -198,10 +211,7 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
             gameManager = FindAnyObjectByType<InterviewGameManager>();
         }
 
-        if (gameManager != null)
-        {
-            gameManager.SetRoomObjectiveText("Interview in progress.");
-        }
+        SetRoomObjectiveText("Interview in progress.");
 
         sitCoroutine = StartCoroutine(SnapToSeatedView());
     }
