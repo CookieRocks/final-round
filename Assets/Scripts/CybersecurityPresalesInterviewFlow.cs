@@ -34,6 +34,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     [SerializeField] private InterviewOutcomeType debugForcedOutcome = InterviewOutcomeType.Pass;
     [SerializeField] private bool useDeterministicQuestionSeed;
     [SerializeField] private int deterministicQuestionSeed = 10603;
+    [SerializeField] private float outcomeTransitionDelay = 1.15f;
 
     private InterviewQuestionData[] contextQuestionPool;
     private InterviewQuestionData[] technicalQuestionPool;
@@ -47,12 +48,14 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private Canvas canvas;
     private GameObject panelRoot;
     private GameObject questionPanel;
+    private GameObject transitionPanel;
     private GameObject outcomePanel;
     private GameObject scorecardPanel;
     private GameObject debugPanel;
     private TMP_Text interviewerText;
     private TMP_Text questionText;
     private TMP_Text reactionText;
+    private TMP_Text transitionText;
     private TMP_Text outcomeFromText;
     private TMP_Text outcomeTitleText;
     private TMP_Text outcomeOpeningText;
@@ -96,6 +99,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         roomController?.ClearJudgementReaction();
         panelRoot.SetActive(true);
         questionPanel.SetActive(true);
+        transitionPanel.SetActive(false);
         outcomePanel.SetActive(false);
         scorecardPanel.SetActive(false);
         ClearOutcomeText();
@@ -133,7 +137,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
         if (currentQuestionIndex >= questions.Length)
         {
-            ShowOutcomeEmail();
+            StartCoroutine(ShowOutcomeAfterTransition());
             return;
         }
 
@@ -203,6 +207,11 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
     private void ShowOutcomeEmail()
     {
+        if (transitionPanel != null)
+        {
+            transitionPanel.SetActive(false);
+        }
+
         questionPanel.SetActive(false);
         outcomePanel.SetActive(true);
         scorecardPanel.SetActive(false);
@@ -241,6 +250,27 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         StopAllCoroutines();
         panelRoot.SetActive(true);
         roomController?.ClearJudgementReaction();
+        ShowOutcomeEmail();
+    }
+
+    private IEnumerator ShowOutcomeAfterTransition()
+    {
+        questionPanel.SetActive(false);
+        ClearQuestionText();
+        if (outcomePanel != null)
+        {
+            outcomePanel.SetActive(false);
+        }
+        if (scorecardPanel != null)
+        {
+            scorecardPanel.SetActive(false);
+        }
+
+        transitionPanel.SetActive(true);
+        transitionText.text = "Inbox: 1 new message";
+        yield return new WaitForSeconds(outcomeTransitionDelay);
+        transitionText.text = "Later that afternoon...";
+        yield return new WaitForSeconds(0.55f);
         ShowOutcomeEmail();
     }
 
@@ -463,8 +493,25 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         reactionText.color = new Color32(184, 194, 206, 255);
         ConfigureLayout(reactionText.gameObject, -1f, 36f);
 
+        BuildTransitionPanel(panelRoot.transform);
         BuildOutcomePanel(panelRoot.transform);
         BuildDebugPanel(panelRoot.transform);
+    }
+
+    private void BuildTransitionPanel(Transform parent)
+    {
+        transitionPanel = CreatePanel("Outcome Transition Panel", parent, new Color32(5, 7, 10, 205));
+        RectTransform transitionRect = transitionPanel.GetComponent<RectTransform>();
+        transitionRect.anchorMin = new Vector2(0.25f, 0.38f);
+        transitionRect.anchorMax = new Vector2(0.75f, 0.58f);
+        transitionRect.offsetMin = Vector2.zero;
+        transitionRect.offsetMax = Vector2.zero;
+        AddVerticalLayout(transitionPanel, new RectOffset(28, 28, 24, 24), 8f);
+
+        transitionText = CreateText("Transition Text", transitionPanel.transform, string.Empty, 30, FontStyles.Bold, TextAlignmentOptions.Center);
+        transitionText.color = new Color32(222, 232, 238, 255);
+        ConfigureLayout(transitionText.gameObject, -1f, 92f);
+        transitionPanel.SetActive(false);
     }
 
     private void BuildDebugPanel(Transform parent)
@@ -500,36 +547,44 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
     private void BuildOutcomePanel(Transform parent)
     {
-        outcomePanel = CreatePanel("Post Interview Email Panel", parent, new Color32(238, 241, 236, 248));
+        outcomePanel = CreatePanel("Laptop Email Client Panel", parent, new Color32(15, 20, 27, 248));
         RectTransform outcomeRect = outcomePanel.GetComponent<RectTransform>();
-        outcomeRect.anchorMin = new Vector2(0.16f, 0.06f);
-        outcomeRect.anchorMax = new Vector2(0.84f, 0.9f);
+        outcomeRect.anchorMin = new Vector2(0.15f, 0.06f);
+        outcomeRect.anchorMax = new Vector2(0.85f, 0.9f);
         outcomeRect.offsetMin = Vector2.zero;
         outcomeRect.offsetMax = Vector2.zero;
-        AddVerticalLayout(outcomePanel, new RectOffset(34, 34, 28, 28), 12f);
+        AddVerticalLayout(outcomePanel, new RectOffset(30, 30, 24, 24), 10f);
 
-        outcomeFromText = CreateText("Email From", outcomePanel.transform, string.Empty, 20, FontStyles.Normal, TextAlignmentOptions.Left);
+        TMP_Text clientHeaderText = CreateText("Email Client Header", outcomePanel.transform, "Northbridge Mail - Inbox", 21, FontStyles.Bold, TextAlignmentOptions.Left);
+        clientHeaderText.color = new Color32(128, 218, 196, 255);
+        ConfigureLayout(clientHeaderText.gameObject, -1f, 30f);
+
+        GameObject laptopScreen = CreatePanel("Laptop Screen Body", outcomePanel.transform, new Color32(235, 238, 233, 250));
+        AddVerticalLayout(laptopScreen, new RectOffset(28, 28, 22, 22), 10f);
+        ConfigureLayout(laptopScreen, -1f, 570f);
+
+        outcomeFromText = CreateText("Email From", laptopScreen.transform, string.Empty, 20, FontStyles.Normal, TextAlignmentOptions.Left);
         outcomeFromText.color = new Color32(76, 84, 94, 255);
         ConfigureLayout(outcomeFromText.gameObject, -1f, 30f);
 
-        outcomeTitleText = CreateText("Email Subject", outcomePanel.transform, string.Empty, 28, FontStyles.Bold, TextAlignmentOptions.Left);
+        outcomeTitleText = CreateText("Email Subject", laptopScreen.transform, string.Empty, 28, FontStyles.Bold, TextAlignmentOptions.Left);
         outcomeTitleText.color = new Color32(35, 40, 48, 255);
         ConfigureLayout(outcomeTitleText.gameObject, -1f, 38f);
 
-        outcomeOpeningText = CreateText("Email Opening", outcomePanel.transform, string.Empty, 22, FontStyles.Normal, TextAlignmentOptions.Left);
+        outcomeOpeningText = CreateText("Email Opening", laptopScreen.transform, string.Empty, 22, FontStyles.Normal, TextAlignmentOptions.Left);
         outcomeOpeningText.color = new Color32(45, 50, 58, 255);
         ConfigureLayout(outcomeOpeningText.gameObject, -1f, 66f);
 
-        outcomeBodyText = CreateText("Email Outcome", outcomePanel.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.Left);
+        outcomeBodyText = CreateText("Email Outcome", laptopScreen.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.Left);
         outcomeBodyText.color = new Color32(45, 50, 58, 255);
         ConfigureLayout(outcomeBodyText.gameObject, -1f, 96f);
 
-        outcomeFeedbackText = CreateText("Email Feedback", outcomePanel.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.Left);
+        outcomeFeedbackText = CreateText("Email Feedback", laptopScreen.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.Left);
         outcomeFeedbackText.color = new Color32(45, 50, 58, 255);
         ConfigureLayout(outcomeFeedbackText.gameObject, -1f, 92f);
 
         GameObject actionRow = new GameObject("Email Action Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
-        actionRow.transform.SetParent(outcomePanel.transform, false);
+        actionRow.transform.SetParent(laptopScreen.transform, false);
         ConfigureLayout(actionRow, -1f, 52f);
         HorizontalLayoutGroup actionLayout = actionRow.GetComponent<HorizontalLayoutGroup>();
         actionLayout.spacing = 12f;
@@ -540,7 +595,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
         Button scorecardButton = CreateButton("Open Scorecard", actionRow.transform, new Color32(44, 58, 72, 255));
         TMP_Text buttonText = scorecardButton.GetComponentInChildren<TMP_Text>();
-        buttonText.text = "Open Scorecard";
+        buttonText.text = "View Scorecard";
         scorecardButton.onClick.AddListener(ShowScorecard);
         ConfigureLayout(scorecardButton.gameObject, -1f, 48f);
 
@@ -550,7 +605,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         restartButton.onClick.AddListener(RestartRun);
         ConfigureLayout(restartButton.gameObject, -1f, 48f);
 
-        scorecardPanel = CreatePanel("Scorecard Panel", outcomePanel.transform, new Color32(220, 225, 222, 255));
+        scorecardPanel = CreatePanel("Scorecard Panel", laptopScreen.transform, new Color32(220, 225, 222, 255));
         AddVerticalLayout(scorecardPanel, new RectOffset(22, 22, 18, 18), 8f);
         ConfigureLayout(scorecardPanel, -1f, 170f);
         scorecardText = CreateText("Scorecard Text", scorecardPanel.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.Left);
@@ -701,6 +756,11 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
     private void ClearOutcomeText()
     {
+        if (transitionPanel != null)
+        {
+            transitionPanel.SetActive(false);
+        }
+
         if (outcomePanel != null)
         {
             outcomePanel.SetActive(false);
@@ -717,6 +777,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         ClearText(outcomeBodyText);
         ClearText(outcomeFeedbackText);
         ClearText(scorecardText);
+        ClearText(transitionText);
     }
 
     private static void ClearText(TMP_Text text)
