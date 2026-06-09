@@ -16,6 +16,7 @@ public sealed class SimpleFirstPersonWalkController : MonoBehaviour
     private Vector3 defaultCameraLocalPosition;
     private float pitch;
     private float verticalVelocity;
+    private bool uiFocusActive;
 
     public Camera PlayerCamera => playerCamera;
     public bool MovementEnabled => movementEnabled;
@@ -37,12 +38,12 @@ public sealed class SimpleFirstPersonWalkController : MonoBehaviour
 
     private void OnEnable()
     {
-        SetCursorLocked(movementEnabled);
+        RefreshCursorState();
     }
 
     private void Update()
     {
-        if (!movementEnabled)
+        if (!movementEnabled || uiFocusActive)
         {
             return;
         }
@@ -54,7 +55,18 @@ public sealed class SimpleFirstPersonWalkController : MonoBehaviour
     public void SetMovementEnabled(bool enabled)
     {
         movementEnabled = enabled;
-        SetCursorLocked(enabled);
+        RefreshCursorState();
+    }
+
+    public void SetUiFocusActive(bool active)
+    {
+        if (uiFocusActive == active)
+        {
+            return;
+        }
+
+        uiFocusActive = active;
+        RefreshCursorState();
     }
 
     public void ConfigureCamera(Camera camera)
@@ -141,6 +153,11 @@ public sealed class SimpleFirstPersonWalkController : MonoBehaviour
     {
         Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
         Cursor.visible = !locked;
+    }
+
+    private void RefreshCursorState()
+    {
+        SetCursorLocked(movementEnabled && !uiFocusActive);
     }
 
     private static float NormalizePitch(float angle)

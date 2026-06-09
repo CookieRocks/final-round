@@ -56,9 +56,18 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
 
     private void Update()
     {
+        SyncUiFocus();
+
         if (WasResetPressed())
         {
             ResetRun();
+            return;
+        }
+
+        if (IsUiFocusActive())
+        {
+            promptText = string.Empty;
+            UpdateChairHighlight(false);
             return;
         }
 
@@ -78,6 +87,21 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
         {
             SitForInterview();
         }
+    }
+
+    private void SyncUiFocus()
+    {
+        if (playerController == null)
+        {
+            return;
+        }
+
+        playerController.SetUiFocusActive(IsUiFocusActive());
+    }
+
+    private bool IsUiFocusActive()
+    {
+        return gameManager != null && gameManager.IsRoomUiFocusActive();
     }
 
     public void SetInterviewerReaction(int index, InterviewerReaction reaction)
@@ -100,6 +124,47 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
         for (int i = 0; i < interviewers.Length; i++)
         {
             SetInterviewerReaction(i, reaction);
+        }
+    }
+
+    public void ApplyJudgementReaction(ReactionSpeaker speaker, ReactionTone tone)
+    {
+        InterviewerReaction reaction = tone switch
+        {
+            ReactionTone.Positive => InterviewerReaction.Positive,
+            ReactionTone.Awkward => InterviewerReaction.Awkward,
+            ReactionTone.Concerned => InterviewerReaction.Concerned,
+            _ => InterviewerReaction.Listening
+        };
+
+        SetAllInterviewers(InterviewerReaction.Listening);
+
+        switch (speaker)
+        {
+            case ReactionSpeaker.HiringManager:
+                SetInterviewerReaction(0, reaction);
+                break;
+            case ReactionSpeaker.SecurityArchitect:
+                SetInterviewerReaction(1, reaction);
+                break;
+            case ReactionSpeaker.SalesDirector:
+                SetInterviewerReaction(2, reaction);
+                break;
+            default:
+                SetAllInterviewers(reaction);
+                break;
+        }
+    }
+
+    public void ClearJudgementReaction()
+    {
+        if (isSeated)
+        {
+            SetAllInterviewers(InterviewerReaction.Listening);
+        }
+        else
+        {
+            SetAllInterviewers(InterviewerReaction.Neutral);
         }
     }
 
@@ -164,7 +229,7 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
         sitCoroutine = null;
     }
 
-    private void ResetRun()
+    public void ResetRun()
     {
         if (gameManager == null)
         {

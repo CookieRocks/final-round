@@ -4,12 +4,40 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
+public enum ReactionTone
+{
+    Positive,
+    Neutral,
+    Awkward,
+    Concerned
+}
+
+public enum ReactionSpeaker
+{
+    HiringManager,
+    SecurityArchitect,
+    SalesDirector,
+    Room
+}
+
 public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 {
-    private const float ReactionDelay = 1.35f;
-
     private readonly InterviewScore score = new InterviewScore();
+    [SerializeField] private float positiveReactionDuration = 1.1f;
+    [SerializeField] private float neutralReactionDuration = 1.25f;
+    [SerializeField] private float awkwardReactionDuration = 1.45f;
+    [SerializeField] private float concernedReactionDuration = 1.65f;
+    [SerializeField] private bool debugForceOutcome;
+    [SerializeField] private InterviewOutcomeType debugForcedOutcome = InterviewOutcomeType.Pass;
+    [SerializeField] private bool useDeterministicQuestionSeed;
+    [SerializeField] private int deterministicQuestionSeed = 10603;
+
+    private InterviewQuestionData[] contextQuestionPool;
+    private InterviewQuestionData[] technicalQuestionPool;
+    private InterviewQuestionData[] commercialQuestionPool;
     private InterviewQuestionData[] questions;
+    private System.Random questionRandom;
+    private TheRoomPrototypeController roomController;
     private int currentQuestionIndex;
     private bool answerLocked;
 
@@ -21,14 +49,18 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private TMP_Text interviewerText;
     private TMP_Text questionText;
     private TMP_Text reactionText;
+    private TMP_Text outcomeFromText;
     private TMP_Text outcomeTitleText;
+    private TMP_Text outcomeOpeningText;
     private TMP_Text outcomeBodyText;
+    private TMP_Text outcomeFeedbackText;
     private TMP_Text scorecardText;
     private Button[] answerButtons;
     private TMP_Text[] answerButtonTexts;
 
     private void Awake()
     {
+        roomController = GetComponent<TheRoomPrototypeController>();
         BuildQuestions();
         BuildUi();
         ResetFlow();
@@ -40,6 +72,13 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         currentQuestionIndex = 0;
         answerLocked = false;
         score.Reset();
+        SelectQuestionsForRun();
+        if (roomController == null)
+        {
+            roomController = GetComponent<TheRoomPrototypeController>();
+        }
+
+        roomController?.ClearJudgementReaction();
         panelRoot.SetActive(true);
         questionPanel.SetActive(true);
         outcomePanel.SetActive(false);
@@ -58,6 +97,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         currentQuestionIndex = 0;
         answerLocked = false;
         score.Reset();
+        roomController?.ClearJudgementReaction();
     }
 
     private void ShowCurrentQuestion()
@@ -73,12 +113,14 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         questionText.text = question.QuestionText;
         reactionText.text = string.Empty;
         answerLocked = false;
+        roomController?.ClearJudgementReaction();
 
         for (int i = 0; i < answerButtons.Length; i++)
         {
             int answerIndex = i;
             AnswerData answer = question.Answers[i];
             answerButtonTexts[i].text = answer.Text;
+            answerButtons[i].gameObject.SetActive(true);
             answerButtons[i].interactable = true;
             answerButtons[i].onClick.RemoveAllListeners();
             answerButtons[i].onClick.AddListener(() => ChooseAnswer(answerIndex));
@@ -96,19 +138,23 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         InterviewQuestionData question = questions[currentQuestionIndex];
         AnswerData answer = question.Answers[answerIndex];
         score.Apply(answer);
+        ReactionResult reaction = DetermineReaction(answer, currentQuestionIndex == questions.Length - 1);
 
         for (int i = 0; i < answerButtons.Length; i++)
         {
             answerButtons[i].interactable = false;
+            answerButtons[i].gameObject.SetActive(false);
         }
 
-        reactionText.text = answer.ReactionText;
-        StartCoroutine(ContinueAfterReaction());
+        reactionText.text = reaction.Text;
+        roomController?.ApplyJudgementReaction(reaction.Speaker, reaction.Tone);
+        StartCoroutine(ContinueAfterReaction(reaction.Duration));
     }
 
-    private IEnumerator ContinueAfterReaction()
+    private IEnumerator ContinueAfterReaction(float duration)
     {
-        yield return new WaitForSeconds(ReactionDelay);
+        yield return new WaitForSeconds(duration);
+        roomController?.ClearJudgementReaction();
         currentQuestionIndex++;
         ShowCurrentQuestion();
     }
@@ -119,9 +165,13 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         outcomePanel.SetActive(true);
         scorecardPanel.SetActive(false);
 
-        string outcome = GetOutcomeName();
-        outcomeTitleText.text = $"Subject: Interview follow-up - {outcome}";
-        outcomeBodyText.text = BuildOutcomeEmail(outcome);
+        InterviewOutcomeType outcome = GetOutcome();
+        OutcomeEmail email = OutcomeEmailGenerator.Generate(outcome, score.ToSnapshot());
+        outcomeFromText.text = email.FromLine;
+        outcomeTitleText.text = email.SubjectLine;
+        outcomeOpeningText.text = email.OpeningLine;
+        outcomeBodyText.text = email.OutcomeParagraph;
+        outcomeFeedbackText.text = email.FeedbackParagraph;
     }
 
     private void ShowScorecard()
@@ -136,42 +186,112 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
             BuildScorecardReadout();
     }
 
-    private string GetOutcomeName()
+    private void RestartRun()
     {
+        roomController?.ResetRun();
+    }
+
+    private ReactionResult DetermineReaction(AnswerData answer, bool isFinalAnswer)
+    {
+        int totalDelta = answer.TotalDelta;
+        ReactionTone tone;
+        ReactionSpeaker speaker;
+        string text;
+
+        if (answer.Technical >= 2 && answer.Commercial <= 0)
+        {
+            tone = ReactionTone.Awkward;
+            speaker = ReactionSpeaker.SalesDirector;
+            text = "The Architect seems satisfied. The Sales Director does not write anything down.";
+        }
+        else if (answer.Commercial >= 2 && answer.Technical <= 0)
+        {
+            tone = ReactionTone.Awkward;
+            speaker = ReactionSpeaker.SecurityArchitect;
+            text = "The Sales Director makes a note. The Architect leans back slightly.";
+        }
+        else if (answer.Rapport >= 2)
+        {
+            tone = ReactionTone.Positive;
+            speaker = ReactionSpeaker.HiringManager;
+            text = "The Hiring Manager nods slowly.";
+        }
+        else if (answer.Rapport <= -1 || answer.Energy <= -1)
+        {
+            tone = ReactionTone.Concerned;
+            speaker = ReactionSpeaker.Room;
+            text = "Nobody speaks for a moment.";
+        }
+        else if (totalDelta >= 5)
+        {
+            tone = ReactionTone.Positive;
+            speaker = ReactionSpeaker.Room;
+            text = "The panel exchange a brief look.";
+        }
+        else if (totalDelta >= 2)
+        {
+            tone = ReactionTone.Neutral;
+            speaker = ReactionSpeaker.Room;
+            text = "The Sales Director makes a note.";
+        }
+        else
+        {
+            tone = ReactionTone.Concerned;
+            speaker = ReactionSpeaker.Room;
+            text = "The room goes quiet.";
+        }
+
+        if (isFinalAnswer)
+        {
+            text = tone switch
+            {
+                ReactionTone.Positive => "The panel sit with the answer for a moment.",
+                ReactionTone.Neutral => "The room goes quiet while the panel finish their notes.",
+                ReactionTone.Awkward => "The panel exchange a brief look before returning to their laptops.",
+                _ => "The Architect writes something down without looking up."
+            };
+        }
+
+        return new ReactionResult(tone, speaker, text, GetReactionDuration(tone));
+    }
+
+    private float GetReactionDuration(ReactionTone tone)
+    {
+        float duration = tone switch
+        {
+            ReactionTone.Positive => positiveReactionDuration,
+            ReactionTone.Awkward => awkwardReactionDuration,
+            ReactionTone.Concerned => concernedReactionDuration,
+            _ => neutralReactionDuration
+        };
+
+        return Mathf.Clamp(duration, 1f, 1.75f);
+    }
+
+    private InterviewOutcomeType GetOutcome()
+    {
+        if (debugForceOutcome)
+        {
+            return debugForcedOutcome;
+        }
+
         int total = score.Total;
         if (score.Technical >= 7 && score.Commercial >= 6 && score.Rapport >= 5 && total >= 27)
         {
-            return "Strong Pass";
+            return InterviewOutcomeType.StrongPass;
         }
 
         if (total >= 22 && score.Technical >= 5 && score.Commercial >= 5)
         {
-            return "Pass";
+            return InterviewOutcomeType.Pass;
         }
 
         if (total >= 17)
         {
-            return "Hold";
+            return InterviewOutcomeType.Hold;
         }
 
-        return "Reject";
-    }
-
-    private string BuildOutcomeEmail(string outcome)
-    {
-        string body = outcome switch
-        {
-            "Strong Pass" =>
-                "Hi,\n\nThank you for making the time today. The panel felt you handled the technical and commercial tension well, particularly where the buyer context was incomplete.\n\nWe are going to recommend moving forward. Recruiting will follow up with next steps.\n\nRegards,\nHiring Team",
-            "Pass" =>
-                "Hi,\n\nThanks again for the conversation. The panel saw enough signal to continue, with some notes around sharpening the discovery-to-demo thread.\n\nRecruiting will be in touch once the debrief is closed.\n\nRegards,\nHiring Team",
-            "Hold" =>
-                "Hi,\n\nThank you for speaking with us today. Feedback was mixed. There were credible moments, but the panel was not fully aligned on whether the presales judgment was consistent enough.\n\nWe need a little more time before confirming next steps.\n\nRegards,\nHiring Team",
-            _ =>
-                "Hi,\n\nThank you for taking the time to meet with the team. After debrief, we have decided not to move forward for this role.\n\nWe appreciate your interest and wish you the best with your search.\n\nRegards,\nHiring Team"
-        };
-
-        return body;
+        return InterviewOutcomeType.Reject;
     }
 
     private string BuildScorecardReadout()
@@ -259,26 +379,57 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     {
         outcomePanel = CreatePanel("Post Interview Email Panel", parent, new Color32(238, 241, 236, 248));
         RectTransform outcomeRect = outcomePanel.GetComponent<RectTransform>();
-        outcomeRect.anchorMin = new Vector2(0.18f, 0.12f);
-        outcomeRect.anchorMax = new Vector2(0.82f, 0.82f);
+        outcomeRect.anchorMin = new Vector2(0.16f, 0.06f);
+        outcomeRect.anchorMax = new Vector2(0.84f, 0.9f);
         outcomeRect.offsetMin = Vector2.zero;
         outcomeRect.offsetMax = Vector2.zero;
-        AddVerticalLayout(outcomePanel, new RectOffset(34, 34, 30, 30), 16f);
+        AddVerticalLayout(outcomePanel, new RectOffset(34, 34, 28, 28), 12f);
+
+        outcomeFromText = CreateText("Email From", outcomePanel.transform, string.Empty, 20, FontStyles.Normal, TextAlignmentOptions.Left);
+        outcomeFromText.color = new Color32(76, 84, 94, 255);
+        ConfigureLayout(outcomeFromText.gameObject, -1f, 30f);
 
         outcomeTitleText = CreateText("Email Subject", outcomePanel.transform, string.Empty, 28, FontStyles.Bold, TextAlignmentOptions.Left);
         outcomeTitleText.color = new Color32(35, 40, 48, 255);
-        outcomeBodyText = CreateText("Email Body", outcomePanel.transform, string.Empty, 24, FontStyles.Normal, TextAlignmentOptions.Left);
-        outcomeBodyText.color = new Color32(45, 50, 58, 255);
-        ConfigureLayout(outcomeBodyText.gameObject, -1f, 260f);
+        ConfigureLayout(outcomeTitleText.gameObject, -1f, 38f);
 
-        Button scorecardButton = CreateButton("Open Scorecard", outcomePanel.transform, new Color32(44, 58, 72, 255));
+        outcomeOpeningText = CreateText("Email Opening", outcomePanel.transform, string.Empty, 22, FontStyles.Normal, TextAlignmentOptions.Left);
+        outcomeOpeningText.color = new Color32(45, 50, 58, 255);
+        ConfigureLayout(outcomeOpeningText.gameObject, -1f, 66f);
+
+        outcomeBodyText = CreateText("Email Outcome", outcomePanel.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.Left);
+        outcomeBodyText.color = new Color32(45, 50, 58, 255);
+        ConfigureLayout(outcomeBodyText.gameObject, -1f, 96f);
+
+        outcomeFeedbackText = CreateText("Email Feedback", outcomePanel.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.Left);
+        outcomeFeedbackText.color = new Color32(45, 50, 58, 255);
+        ConfigureLayout(outcomeFeedbackText.gameObject, -1f, 92f);
+
+        GameObject actionRow = new GameObject("Email Action Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+        actionRow.transform.SetParent(outcomePanel.transform, false);
+        ConfigureLayout(actionRow, -1f, 52f);
+        HorizontalLayoutGroup actionLayout = actionRow.GetComponent<HorizontalLayoutGroup>();
+        actionLayout.spacing = 12f;
+        actionLayout.childControlWidth = true;
+        actionLayout.childControlHeight = true;
+        actionLayout.childForceExpandWidth = true;
+        actionLayout.childForceExpandHeight = true;
+
+        Button scorecardButton = CreateButton("Open Scorecard", actionRow.transform, new Color32(44, 58, 72, 255));
         TMP_Text buttonText = scorecardButton.GetComponentInChildren<TMP_Text>();
         buttonText.text = "Open Scorecard";
         scorecardButton.onClick.AddListener(ShowScorecard);
+        ConfigureLayout(scorecardButton.gameObject, -1f, 48f);
+
+        Button restartButton = CreateButton("Restart Run", actionRow.transform, new Color32(70, 76, 84, 255));
+        TMP_Text restartButtonText = restartButton.GetComponentInChildren<TMP_Text>();
+        restartButtonText.text = "Restart";
+        restartButton.onClick.AddListener(RestartRun);
+        ConfigureLayout(restartButton.gameObject, -1f, 48f);
 
         scorecardPanel = CreatePanel("Scorecard Panel", outcomePanel.transform, new Color32(220, 225, 222, 255));
         AddVerticalLayout(scorecardPanel, new RectOffset(22, 22, 18, 18), 8f);
-        ConfigureLayout(scorecardPanel, -1f, 210f);
+        ConfigureLayout(scorecardPanel, -1f, 170f);
         scorecardText = CreateText("Scorecard Text", scorecardPanel.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.Left);
         scorecardText.color = new Color32(35, 40, 48, 255);
     }
@@ -385,39 +536,181 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
     private void BuildQuestions()
     {
-        questions = new[]
+        contextQuestionPool = new[]
         {
             new InterviewQuestionData(
                 "Hiring Manager",
                 "A customer says their board wants measurable cyber risk reduction this quarter, but the security team only wants to discuss tooling. How do you open discovery?",
                 new[]
                 {
-                    new AnswerData("Start with the board metric, then ask what control failures or audit findings are driving urgency.", 2, 3, 2, 0, "The Hiring Manager nods, but does not smile."),
-                    new AnswerData("Ask for their current tooling list so you can map the fastest demo path.", 1, 0, 0, 1, "The Sales Director makes a note."),
-                    new AnswerData("Explain that cyber risk is hard to quantify and suggest a platform overview first.", 0, -1, -1, -1, "The Hiring Manager looks briefly at the Architect."),
-                    new AnswerData("Ask who owns the board narrative, then separate technical validation from executive proof.", 1, 2, 3, 0, "The Sales Director writes something down slowly.")
+                    new AnswerData("Start with the board metric, then ask what control failures or audit findings are driving urgency.", 2, 3, 2, 0),
+                    new AnswerData("Ask for their current tooling list so you can map the fastest demo path.", 1, 0, 0, 1),
+                    new AnswerData("Explain that cyber risk is hard to quantify and suggest a platform overview first.", 0, -1, -1, -1),
+                    new AnswerData("Ask who owns the board narrative, then separate technical validation from executive proof.", 1, 2, 3, 0)
                 }),
+            new InterviewQuestionData(
+                "Hiring Manager",
+                "The champion starts the meeting by saying, 'We have had three vendors tell us the same thing.' What do you do first?",
+                new[]
+                {
+                    new AnswerData("Ask what felt repetitive or unhelpful, then use that to narrow the conversation.", 1, 2, 3, 0),
+                    new AnswerData("Acknowledge the fatigue and give a concise overview anyway so everyone has baseline context.", 1, 0, 1, 0),
+                    new AnswerData("Move directly into a differentiated feature demo.", 1, 0, -1, 1),
+                    new AnswerData("Ask who is most skeptical in the room and what would make the meeting worth their time.", 0, 2, 3, 0)
+                }),
+            new InterviewQuestionData(
+                "Hiring Manager",
+                "A CISO joins late, apologizes, and asks for the 'thirty-second version.' The technical team looks annoyed. How do you handle it?",
+                new[]
+                {
+                    new AnswerData("Give the executive risk summary, then invite the technical team to validate the assumptions.", 1, 2, 3, 0),
+                    new AnswerData("Restart from the architecture slide so the CISO has full context.", 1, -1, 0, -1),
+                    new AnswerData("Ask the CISO which decision they are trying to make today before summarizing.", 0, 3, 2, 0),
+                    new AnswerData("Keep going with the technical workshop and offer to brief the CISO later.", 1, 0, -1, 0)
+                }),
+            new InterviewQuestionData(
+                "Hiring Manager",
+                "The customer says their security team does not trust salespeople. The room goes quiet. What is your response?",
+                new[]
+                {
+                    new AnswerData("Say that is fair, then define what evidence they should expect before trusting any claim.", 2, 1, 3, 0),
+                    new AnswerData("Make a light comment and move to the customer logo slide.", 0, 1, 1, 1),
+                    new AnswerData("Push back that your role is technical enough for the discussion.", 1, 0, -2, -1),
+                    new AnswerData("Ask what previous vendors overclaimed, then set boundaries for what you can prove today.", 2, 2, 2, 0)
+                })
+        };
+
+        technicalQuestionPool = new[]
+        {
             new InterviewQuestionData(
                 "Principal Security Architect",
                 "During a technical workshop, the customer challenges your detection claims and asks how you reduce false positives without hiding real incidents. What do you do?",
                 new[]
                 {
-                    new AnswerData("Describe the tuning model, then ask for sample alert categories so you can test the claim against their environment.", 3, 1, 1, 0, "The Architect leans back slightly."),
-                    new AnswerData("Say the product uses AI and shift quickly into the roadmap.", -1, 1, -1, 0, "The Architect stops taking notes."),
-                    new AnswerData("Acknowledge the risk, explain the validation path, and define what evidence would make them comfortable.", 3, 2, 2, 0, "The Architect gives a small, reluctant nod."),
-                    new AnswerData("Offer to bring in engineering later and move back to the slide deck.", 0, 0, 0, -1, "The Hiring Manager glances at the clock.")
+                    new AnswerData("Describe the tuning model, then ask for sample alert categories so you can test the claim against their environment.", 3, 1, 1, 0),
+                    new AnswerData("Say the product uses AI and shift quickly into the roadmap.", -1, 1, -1, 0),
+                    new AnswerData("Acknowledge the risk, explain the validation path, and define what evidence would make them comfortable.", 3, 2, 2, 0),
+                    new AnswerData("Offer to bring in engineering later and move back to the slide deck.", 0, 0, 0, -1)
                 }),
+            new InterviewQuestionData(
+                "Principal Security Architect",
+                "The customer asks how your platform handles encrypted traffic visibility without creating privacy or compliance issues. What is your answer?",
+                new[]
+                {
+                    new AnswerData("Explain metadata, policy controls, and inspection boundaries, then ask about their regulated data constraints.", 3, 2, 1, 0),
+                    new AnswerData("Say decryption is always recommended if they want real security.", 2, 0, -2, -1),
+                    new AnswerData("Focus on executive risk reporting and avoid the privacy detail.", -1, 2, 0, 0),
+                    new AnswerData("Separate what the product observes by default from what requires explicit customer policy decisions.", 3, 1, 2, 0)
+                }),
+            new InterviewQuestionData(
+                "Principal Security Architect",
+                "An architect says their SIEM already correlates identity, endpoint, and cloud telemetry. Where does your solution fit?",
+                new[]
+                {
+                    new AnswerData("Ask where correlation still fails operationally, then position around coverage gaps and response workflow.", 3, 2, 2, 0),
+                    new AnswerData("Argue that SIEMs are legacy and should be displaced.", 1, 1, -2, -1),
+                    new AnswerData("Describe every integration available and let them decide what matters.", 2, -1, 0, -1),
+                    new AnswerData("Position it as a board-level dashboard rather than a technical control.", -1, 2, 0, 0)
+                }),
+            new InterviewQuestionData(
+                "Principal Security Architect",
+                "A customer asks for proof that your attack path analysis is not just a prettier vulnerability scanner. What do you show?",
+                new[]
+                {
+                    new AnswerData("Show how exploitability, identity privilege, exposure, and compensating controls change prioritization.", 3, 2, 1, 0),
+                    new AnswerData("Show the UI and emphasize that executives understand it quickly.", 0, 2, 1, 1),
+                    new AnswerData("Compare scanner feature matrices line by line.", 2, 0, 0, -1),
+                    new AnswerData("Ask for a recent remediation debate and map how the model would have changed the decision.", 3, 2, 2, 0)
+                })
+        };
+
+        commercialQuestionPool = new[]
+        {
             new InterviewQuestionData(
                 "Sales Director",
                 "Procurement says the incumbent is cheaper and good enough. The champion is nervous. What is your next move?",
                 new[]
                 {
-                    new AnswerData("Discount early to protect momentum, then ask legal to accelerate paper.", -1, 0, -1, -1, "The Sales Director's expression does not change."),
-                    new AnswerData("Rebuild the cost of inaction with the champion and arm them with a concise internal business case.", 1, 3, 2, 0, "The Sales Director makes a note."),
-                    new AnswerData("Challenge procurement directly and explain that cheaper security usually means hidden risk.", 1, 1, -2, -1, "The Hiring Manager nods, but not in a good way."),
-                    new AnswerData("Ask what 'good enough' means operationally, then tie gaps to renewal risk, audit pressure, and incident response cost.", 2, 3, 2, 0, "The Architect looks down, then writes one line.")
+                    new AnswerData("Discount early to protect momentum, then ask legal to accelerate paper.", -1, 0, -1, -1),
+                    new AnswerData("Rebuild the cost of inaction with the champion and arm them with a concise internal business case.", 1, 3, 2, 0),
+                    new AnswerData("Challenge procurement directly and explain that cheaper security usually means hidden risk.", 1, 1, -2, -1),
+                    new AnswerData("Ask what 'good enough' means operationally, then tie gaps to renewal risk, audit pressure, and incident response cost.", 2, 3, 2, 0)
                 })
         };
+
+        commercialQuestionPool = AppendCommercialQuestions(commercialQuestionPool);
+        SelectQuestionsForRun();
+    }
+
+    private InterviewQuestionData[] AppendCommercialQuestions(InterviewQuestionData[] existing)
+    {
+        InterviewQuestionData[] expanded = new InterviewQuestionData[4];
+        existing.CopyTo(expanded, 0);
+        expanded[1] = new InterviewQuestionData(
+            "Sales Director",
+            "The CRO wants a close plan, but the security team says they need another month of testing. How do you avoid losing the deal or the trust?",
+            new[]
+            {
+                new AnswerData("Split technical validation from commercial approval and agree what evidence must be produced by each date.", 2, 3, 2, 0),
+                new AnswerData("Push for executive alignment and let the technical team continue testing in parallel.", 0, 3, 0, 1),
+                new AnswerData("Tell the CRO the team is dragging their feet and needs pressure.", -1, 2, -2, -1),
+                new AnswerData("Ask the technical team what unresolved risk blocks a recommendation, then convert that into the close plan.", 2, 2, 3, 0)
+            });
+        expanded[2] = new InterviewQuestionData(
+            "Sales Director",
+            "The CFO asks why this should be funded now instead of next fiscal year. The champion looks at you. What do you say?",
+            new[]
+            {
+                new AnswerData("Tie delay to quantified exposure, audit deadlines, and the operational cost of current gaps.", 2, 3, 1, 0),
+                new AnswerData("Explain that threat actors are moving quickly and waiting is dangerous.", 1, 1, 0, 0),
+                new AnswerData("Offer phased scope that protects the highest-risk use case first.", 1, 3, 2, 0),
+                new AnswerData("Say budget timing is a business decision and return to technical value.", 1, -1, -1, -1)
+            });
+        expanded[3] = new InterviewQuestionData(
+            "Sales Director",
+            "Legal flags data residency concerns late in the cycle. Sales wants you to say it is standard. What do you do?",
+            new[]
+            {
+                new AnswerData("Clarify the actual residency requirement, state what is standard, and flag what needs formal review.", 2, 2, 3, 0),
+                new AnswerData("Say legal reviews like this are common and should not block signature.", 0, 2, -1, 0),
+                new AnswerData("Bring in security and legal owners, then protect the timeline with a specific decision path.", 1, 3, 2, 0),
+                new AnswerData("Avoid answering until counsel joins the call.", 0, 0, 1, -1)
+            });
+        return expanded;
+    }
+
+    private void SelectQuestionsForRun()
+    {
+        questionRandom = useDeterministicQuestionSeed
+            ? new System.Random(deterministicQuestionSeed)
+            : new System.Random(System.Environment.TickCount);
+
+        questions = new[]
+        {
+            PickQuestion(contextQuestionPool),
+            PickQuestion(technicalQuestionPool),
+            PickQuestion(commercialQuestionPool)
+        };
+    }
+
+    private InterviewQuestionData PickQuestion(InterviewQuestionData[] pool)
+    {
+        if (pool == null || pool.Length == 0)
+        {
+            Debug.LogError("Final Round RC6 question pool is empty.");
+            return new InterviewQuestionData(
+                "Hiring Manager",
+                "The panel waits for a question that was not configured.",
+                new[]
+                {
+                    new AnswerData("Acknowledge the setup issue and ask to proceed.", 0, 0, 1, 0),
+                    new AnswerData("Try to improvise a product pitch.", 0, 0, -1, -1),
+                    new AnswerData("Ask what signal they still need from the interview.", 0, 1, 1, 0),
+                    new AnswerData("Say nothing for a moment.", -1, -1, -1, -1)
+                });
+        }
+
+        return pool[questionRandom.Next(pool.Length)];
     }
 
     private sealed class InterviewQuestionData
@@ -441,16 +734,31 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         public int Commercial { get; }
         public int Rapport { get; }
         public int Energy { get; }
-        public string ReactionText { get; }
+        public int TotalDelta => Technical + Commercial + Rapport + Energy;
 
-        public AnswerData(string text, int technical, int commercial, int rapport, int energy, string reactionText)
+        public AnswerData(string text, int technical, int commercial, int rapport, int energy)
         {
             Text = text;
             Technical = technical;
             Commercial = commercial;
             Rapport = rapport;
             Energy = energy;
-            ReactionText = reactionText;
+        }
+    }
+
+    private readonly struct ReactionResult
+    {
+        public ReactionTone Tone { get; }
+        public ReactionSpeaker Speaker { get; }
+        public string Text { get; }
+        public float Duration { get; }
+
+        public ReactionResult(ReactionTone tone, ReactionSpeaker speaker, string text, float duration)
+        {
+            Tone = tone;
+            Speaker = speaker;
+            Text = text;
+            Duration = duration;
         }
     }
 
@@ -476,6 +784,11 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
             Commercial = Mathf.Clamp(Commercial + answer.Commercial, 0, 10);
             Rapport = Mathf.Clamp(Rapport + answer.Rapport, 0, 10);
             Energy = Mathf.Clamp(Energy + answer.Energy, 0, 10);
+        }
+
+        public OutcomeScoreSnapshot ToSnapshot()
+        {
+            return new OutcomeScoreSnapshot(Technical, Commercial, Rapport, Energy);
         }
     }
 }

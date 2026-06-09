@@ -3074,6 +3074,14 @@ public class InterviewGameManager : MonoBehaviour
         ShowRoomStandby();
     }
 
+    public bool IsRoomUiFocusActive()
+    {
+        return (pauseOverlay != null && pauseOverlay.activeSelf)
+            || (settingsOverlay != null && settingsOverlay.activeSelf)
+            || (menuScreen != null && menuScreen.activeSelf)
+            || (processBriefingScreen != null && processBriefingScreen.activeSelf);
+    }
+
     private bool IsRoomPrototypeScene()
     {
         return FindAnyObjectByType<TheRoomPrototypeController>() != null;
