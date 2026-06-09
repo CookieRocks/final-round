@@ -22,10 +22,10 @@ MonoBehaviour:
   m_Name: Q_COMM_02_A1
   answerText: >-
     Split technical validation from commercial approval and agree what evidence must be produced by each date.
-  technicalDelta: 2
+  technicalDelta: 1
   commercialDelta: 3
-  rapportDelta: 2
-  energyDelta: 0
+  rapportDelta: 1
+  energyDelta: 1
 --- !u!114 &11400002
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -34,8 +34,8 @@ MonoBehaviour:
   answerText: >-
     Push for executive alignment and let the technical team continue testing in parallel.
   technicalDelta: 0
-  commercialDelta: 3
-  rapportDelta: 0
+  commercialDelta: 2
+  rapportDelta: -1
   energyDelta: 1
 --- !u!114 &11400003
 MonoBehaviour:
@@ -55,7 +55,7 @@ MonoBehaviour:
   m_Name: Q_COMM_02_A4
   answerText: >-
     Ask the technical team what unresolved risk blocks a recommendation, then convert that into the close plan.
-  technicalDelta: 2
+  technicalDelta: 1
   commercialDelta: 2
-  rapportDelta: 3
-  energyDelta: 0
+  rapportDelta: 2
+  energyDelta: 1

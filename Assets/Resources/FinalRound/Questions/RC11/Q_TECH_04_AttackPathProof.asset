@@ -23,9 +23,9 @@ MonoBehaviour:
   answerText: >-
     Show how exploitability, identity privilege, exposure, and compensating controls change prioritization.
   technicalDelta: 3
-  commercialDelta: 2
-  rapportDelta: 1
-  energyDelta: 0
+  commercialDelta: 1
+  rapportDelta: 0
+  energyDelta: -1
 --- !u!114 &11400002
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -33,7 +33,7 @@ MonoBehaviour:
   m_Name: Q_TECH_04_A2
   answerText: >-
     Show the UI and emphasize that executives understand it quickly.
-  technicalDelta: 0
+  technicalDelta: -1
   commercialDelta: 2
   rapportDelta: 1
   energyDelta: 1
@@ -45,8 +45,8 @@ MonoBehaviour:
   answerText: >-
     Compare scanner feature matrices line by line.
   technicalDelta: 2
-  commercialDelta: 0
-  rapportDelta: 0
+  commercialDelta: -1
+  rapportDelta: -1
   energyDelta: -1
 --- !u!114 &11400004
 MonoBehaviour:
@@ -56,6 +56,6 @@ MonoBehaviour:
   answerText: >-
     Ask for a recent remediation debate and map how the model would have changed the decision.
   technicalDelta: 3
-  commercialDelta: 2
+  commercialDelta: 1
   rapportDelta: 2
-  energyDelta: 0
+  energyDelta: 1

@@ -24,8 +24,8 @@ MonoBehaviour:
     Describe the tuning model, then ask for sample alert categories so you can test the claim against their environment.
   technicalDelta: 3
   commercialDelta: 1
-  rapportDelta: 1
-  energyDelta: 0
+  rapportDelta: 0
+  energyDelta: 1
 --- !u!114 &11400002
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -45,9 +45,9 @@ MonoBehaviour:
   answerText: >-
     Acknowledge the risk, explain the validation path, and define what evidence would make them comfortable.
   technicalDelta: 3
-  commercialDelta: 2
-  rapportDelta: 2
-  energyDelta: 0
+  commercialDelta: 0
+  rapportDelta: 1
+  energyDelta: -1
 --- !u!114 &11400004
 MonoBehaviour:
   m_ObjectHideFlags: 0

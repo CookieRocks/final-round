@@ -24,7 +24,7 @@ MonoBehaviour:
     Say that is fair, then define what evidence they should expect before trusting any claim.
   technicalDelta: 2
   commercialDelta: 1
-  rapportDelta: 3
+  rapportDelta: 2
   energyDelta: 0
 --- !u!114 &11400002
 MonoBehaviour:
@@ -56,6 +56,6 @@ MonoBehaviour:
   answerText: >-
     Ask what previous vendors overclaimed, then set boundaries for what you can prove today.
   technicalDelta: 2
-  commercialDelta: 2
-  rapportDelta: 2
-  energyDelta: 0
+  commercialDelta: 1
+  rapportDelta: 1
+  energyDelta: 1

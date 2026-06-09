@@ -23,7 +23,7 @@ MonoBehaviour:
   answerText: >-
     Explain metadata, policy controls, and inspection boundaries, then ask about their regulated data constraints.
   technicalDelta: 3
-  commercialDelta: 2
+  commercialDelta: 1
   rapportDelta: 1
   energyDelta: 0
 --- !u!114 &11400002
@@ -45,9 +45,9 @@ MonoBehaviour:
   answerText: >-
     Focus on executive risk reporting and avoid the privacy detail.
   technicalDelta: -1
-  commercialDelta: 2
+  commercialDelta: 1
   rapportDelta: 0
-  energyDelta: 0
+  energyDelta: -1
 --- !u!114 &11400004
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -56,6 +56,6 @@ MonoBehaviour:
   answerText: >-
     Separate what the product observes by default from what requires explicit customer policy decisions.
   technicalDelta: 3
-  commercialDelta: 1
+  commercialDelta: 0
   rapportDelta: 2
-  energyDelta: 0
+  energyDelta: 1

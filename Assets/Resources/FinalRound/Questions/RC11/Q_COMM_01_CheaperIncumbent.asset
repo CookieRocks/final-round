@@ -25,7 +25,7 @@ MonoBehaviour:
   technicalDelta: -1
   commercialDelta: 0
   rapportDelta: -1
-  energyDelta: -1
+  energyDelta: -2
 --- !u!114 &11400002
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -33,7 +33,7 @@ MonoBehaviour:
   m_Name: Q_COMM_01_A2
   answerText: >-
     Rebuild the cost of inaction with the champion and arm them with a concise internal business case.
-  technicalDelta: 1
+  technicalDelta: 0
   commercialDelta: 3
   rapportDelta: 2
   energyDelta: 0
@@ -55,7 +55,7 @@ MonoBehaviour:
   m_Name: Q_COMM_01_A4
   answerText: >-
     Ask what 'good enough' means operationally, then tie gaps to renewal risk, audit pressure, and incident response cost.
-  technicalDelta: 2
+  technicalDelta: 1
   commercialDelta: 3
-  rapportDelta: 2
-  energyDelta: 0
+  rapportDelta: 1
+  energyDelta: -1

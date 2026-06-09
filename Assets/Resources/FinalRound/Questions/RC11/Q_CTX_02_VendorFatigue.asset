@@ -29,10 +29,10 @@ MonoBehaviour:
   m_Name: Q_CTX_02_A1
   answerText: >-
     Ask what felt repetitive or unhelpful, then use that to narrow the conversation.
-  technicalDelta: 1
-  commercialDelta: 2
-  rapportDelta: 3
-  energyDelta: 0
+  technicalDelta: 0
+  commercialDelta: 1
+  rapportDelta: 2
+  energyDelta: 1
 --- !u!114 &11400002
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -40,10 +40,10 @@ MonoBehaviour:
   m_Name: Q_CTX_02_A2
   answerText: >-
     Acknowledge the fatigue and give a concise overview anyway so everyone has baseline context.
-  technicalDelta: 1
+  technicalDelta: 0
   commercialDelta: 0
   rapportDelta: 1
-  energyDelta: 0
+  energyDelta: -1
 --- !u!114 &11400003
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -52,8 +52,8 @@ MonoBehaviour:
   answerText: >-
     Move directly into a differentiated feature demo.
   technicalDelta: 1
-  commercialDelta: 0
-  rapportDelta: -1
+  commercialDelta: -1
+  rapportDelta: -2
   energyDelta: 1
 --- !u!114 &11400004
 MonoBehaviour:
@@ -62,7 +62,7 @@ MonoBehaviour:
   m_Name: Q_CTX_02_A4
   answerText: >-
     Ask who is most skeptical in the room and what would make the meeting worth their time.
-  technicalDelta: 0
+  technicalDelta: -1
   commercialDelta: 2
-  rapportDelta: 3
-  energyDelta: 0
+  rapportDelta: 2
+  energyDelta: 1

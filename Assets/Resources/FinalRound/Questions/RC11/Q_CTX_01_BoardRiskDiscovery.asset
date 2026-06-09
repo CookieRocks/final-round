@@ -37,9 +37,9 @@ MonoBehaviour:
   answerText: >-
     Start with the board metric, then ask what control failures or audit findings are driving urgency.
   technicalDelta: 2
-  commercialDelta: 3
-  rapportDelta: 2
-  energyDelta: 0
+  commercialDelta: 2
+  rapportDelta: 1
+  energyDelta: 1
 --- !u!114 &11400002
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -90,7 +90,7 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   answerText: >-
     Ask who owns the board narrative, then separate technical validation from executive proof.
-  technicalDelta: 1
+  technicalDelta: 0
   commercialDelta: 2
-  rapportDelta: 3
-  energyDelta: 0
+  rapportDelta: 2
+  energyDelta: 1

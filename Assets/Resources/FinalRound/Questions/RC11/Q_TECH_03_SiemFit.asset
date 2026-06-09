@@ -23,9 +23,9 @@ MonoBehaviour:
   answerText: >-
     Ask where correlation still fails operationally, then position around coverage gaps and response workflow.
   technicalDelta: 3
-  commercialDelta: 2
-  rapportDelta: 2
-  energyDelta: 0
+  commercialDelta: 1
+  rapportDelta: 1
+  energyDelta: -1
 --- !u!114 &11400002
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -57,5 +57,5 @@ MonoBehaviour:
     Position it as a board-level dashboard rather than a technical control.
   technicalDelta: -1
   commercialDelta: 2
-  rapportDelta: 0
-  energyDelta: 0
+  rapportDelta: 1
+  energyDelta: 1

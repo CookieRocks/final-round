@@ -452,17 +452,17 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         }
 
         int total = score.Total;
-        if (score.Technical >= 7 && score.Commercial >= 6 && score.Rapport >= 5 && total >= 27)
+        if (score.Technical >= 8 && score.Commercial >= 7 && score.Rapport >= 6 && total >= 29)
         {
             return InterviewOutcomeType.StrongPass;
         }
 
-        if (total >= 22 && score.Technical >= 5 && score.Commercial >= 5)
+        if (total >= 22 && score.Technical >= 5 && score.Commercial >= 5 && score.Energy >= 5)
         {
             return InterviewOutcomeType.Pass;
         }
 
-        if (total >= 17)
+        if (total >= 19)
         {
             return InterviewOutcomeType.Hold;
         }
