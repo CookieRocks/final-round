@@ -93,7 +93,7 @@ LightmapSettings:
     m_ExportTrainingData: 0
     m_TrainingDataDestination: TrainingData
     m_LightProbeSampleCountMultiplier: 4
-  m_LightingDataAsset: {fileID: 112000000, guid: 211e7d65fa406fb42b339d34e8278bac, type: 2}
+  m_LightingDataAsset: {fileID: 0}
   m_LightingSettings: {fileID: 0}
 --- !u!196 &4
 NavMeshSettings:
@@ -2009,6 +2009,83 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &901600000001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 901600000002}
+  - component: {fileID: 901600000003}
+  m_Layer: 0
+  m_Name: TheRoomPrototypeController
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &901600000002
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 901600000001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &901600000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 901600000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a2e78cda96afd474bb3c2ff35031c310, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerController: {fileID: 0}
+  interviewSeat: {fileID: 0}
+  standingStartPoint: {fileID: 0}
+  seatedCameraPoint: {fileID: 0}
+  sitSnapDuration: 0.5
+  meetingTablePrefab: {fileID: 1110057093760616, guid: 6add41cc49078c748b84c11eb8655858, type: 3}
+  candidateChairPrefab: {fileID: 100000, guid: 461fcd2f7caad1f44a3cce6e529749e7, type: 3}
+  interviewerPanelPrefab: {fileID: 0}
+  laptopPrefab: {fileID: 919132149155446097, guid: 178c7d3b10c1fcc43ba148ffc6ca66b4, type: 3}
+  notepadPrefab: {fileID: 0}
+  waterGlassPrefab: {fileID: 0}
+  wallScreenPrefab: {fileID: 0}
+  whiteboardPrefab: {fileID: 0}
+  roomSignPrefab: {fileID: 0}
+  doorDoorframePrefab: {fileID: 0}
+  plantOrCornerPropPrefab: {fileID: 0}
+  ceilingLightPrefab: {fileID: 0}
+  candidateChairPrefabPositionOffset: {x: 0, y: -0.62, z: 0}
+  candidateChairPrefabRotationOffset: {x: 0, y: 0, z: 0}
+  candidateChairPrefabScale: {x: 1, y: 1, z: 1}
+  snapCandidateChairPrefabToFloor: 1
+  candidateChairPrefabFloorY: 0.03
+  chairMarkerIdleColor: {r: 0.24313726, g: 0.50980395, b: 0.4627451, a: 0.5882353}
+  chairMarkerActiveColor: {r: 0.4392157, g: 0.93333334, b: 0.80784315, a: 1}
+  chairKeyLightIntensity: 2.6
+  tableKeyLightIntensity: 2.1
+  interviewerKeyLightIntensity: 3
+  roomLifeEnabled: 1
+  chairMarkerPulseAmount: 0.22
+  laptopGlowPulseAmount: 0.18
+  wallScreenFlickerAmount: 0.12
+  roomHumClip: {fileID: 0}
+  roomHumVolume: 0.08
 --- !u!1 &119734848978804391
 GameObject:
   m_ObjectHideFlags: 0
@@ -5634,3 +5711,4 @@ SceneRoots:
   - {fileID: 706557011}
   - {fileID: 2110144680}
   - {fileID: 1766941679}
+  - {fileID: 901600000002}

@@ -14,6 +14,9 @@ public sealed class InterviewerPlaceholder : MonoBehaviour
     [SerializeField] private Renderer panelRenderer;
     [SerializeField] private Renderer avatarRenderer;
     [SerializeField] private Renderer reactionRenderer;
+    [SerializeField] private Transform emphasisRoot;
+    [SerializeField] private Renderer nameplateRenderer;
+    [SerializeField] private Light emphasisLight;
 
     private Color neutralColor = new Color32(44, 50, 62, 255);
     private Color listeningColor = new Color32(54, 75, 86, 255);
@@ -24,6 +27,9 @@ public sealed class InterviewerPlaceholder : MonoBehaviour
     private Quaternion baseAvatarRotation = Quaternion.identity;
     private Vector3 targetAvatarScale = Vector3.one;
     private Quaternion targetAvatarRotation = Quaternion.identity;
+    private Color baseNameplateColor = new Color32(28, 34, 42, 255);
+    private float baseEmphasisLightIntensity;
+    private float targetEmphasisLightIntensity;
     private InterviewerReaction currentReaction = InterviewerReaction.Neutral;
     private float idleSeed;
 
@@ -35,7 +41,8 @@ public sealed class InterviewerPlaceholder : MonoBehaviour
 
     private void Update()
     {
-        if (avatarRenderer == null)
+        Transform animatedTransform = GetAnimatedTransform();
+        if (animatedTransform == null)
         {
             return;
         }
@@ -52,16 +59,38 @@ public sealed class InterviewerPlaceholder : MonoBehaviour
             targetAvatarRotation = baseAvatarRotation * Quaternion.Euler(nod, 0f, sideTilt);
         }
 
-        avatarRenderer.transform.localScale = Vector3.Lerp(avatarRenderer.transform.localScale, targetAvatarScale, Time.deltaTime * 8f);
-        avatarRenderer.transform.localRotation = Quaternion.Slerp(avatarRenderer.transform.localRotation, targetAvatarRotation, Time.deltaTime * 8f);
+        animatedTransform.localScale = Vector3.Lerp(animatedTransform.localScale, targetAvatarScale, Time.deltaTime * 8f);
+        animatedTransform.localRotation = Quaternion.Slerp(animatedTransform.localRotation, targetAvatarRotation, Time.deltaTime * 8f);
+
+        if (emphasisLight != null)
+        {
+            emphasisLight.intensity = Mathf.Lerp(emphasisLight.intensity, targetEmphasisLightIntensity, Time.deltaTime * 8f);
+        }
     }
 
     public void Configure(Renderer panel, Renderer avatar, Renderer reaction)
     {
+        Configure(panel, avatar, reaction, null, null, null);
+    }
+
+    public void Configure(Renderer panel, Renderer avatar, Renderer reaction, Transform characterRoot, Renderer nameplate, Light light)
+    {
         panelRenderer = panel;
         avatarRenderer = avatar;
         reactionRenderer = reaction;
+        emphasisRoot = characterRoot;
+        nameplateRenderer = nameplate;
+        emphasisLight = light;
         CaptureBaseAvatarTransform();
+        if (nameplateRenderer != null)
+        {
+            baseNameplateColor = nameplateRenderer.material.color;
+        }
+        if (emphasisLight != null)
+        {
+            baseEmphasisLightIntensity = emphasisLight.intensity;
+            targetEmphasisLightIntensity = emphasisLight.intensity;
+        }
         SetReaction(InterviewerReaction.Neutral);
     }
 
@@ -92,19 +121,36 @@ public sealed class InterviewerPlaceholder : MonoBehaviour
 
         ApplyColor(panelRenderer, color);
         ApplyColor(reactionRenderer, Color.Lerp(color, Color.white, 0.35f));
+        ApplyColor(nameplateRenderer, Color.Lerp(baseNameplateColor, color, reaction == InterviewerReaction.Neutral ? 0.12f : 0.45f));
+        targetEmphasisLightIntensity = reaction == InterviewerReaction.Neutral
+            ? baseEmphasisLightIntensity
+            : reaction == InterviewerReaction.Listening
+                ? baseEmphasisLightIntensity + 0.12f
+                : baseEmphasisLightIntensity + 0.35f;
     }
 
     private void CaptureBaseAvatarTransform()
     {
-        if (avatarRenderer == null)
+        Transform animatedTransform = GetAnimatedTransform();
+        if (animatedTransform == null)
         {
             return;
         }
 
-        baseAvatarScale = avatarRenderer.transform.localScale;
-        baseAvatarRotation = avatarRenderer.transform.localRotation;
+        baseAvatarScale = animatedTransform.localScale;
+        baseAvatarRotation = animatedTransform.localRotation;
         targetAvatarScale = baseAvatarScale;
         targetAvatarRotation = baseAvatarRotation;
+    }
+
+    private Transform GetAnimatedTransform()
+    {
+        if (emphasisRoot != null)
+        {
+            return emphasisRoot;
+        }
+
+        return avatarRenderer == null ? null : avatarRenderer.transform;
     }
 
     private static void ApplyColor(Renderer renderer, Color color)

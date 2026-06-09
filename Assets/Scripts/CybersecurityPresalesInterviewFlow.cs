@@ -29,6 +29,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private const string DefaultQuestionResourcePath = "FinalRound/Questions/RC11";
 
     private readonly InterviewScore score = new InterviewScore();
+    private static readonly RoomUiTheme uiTheme = RoomUiTheme.Default;
     [SerializeField] private InterviewQuestionData[] questionBank;
     [SerializeField] private float stageIntroPauseDuration = 1.2f;
     [SerializeField] private float finalOutcomePauseDuration = 1.45f;
@@ -51,11 +52,13 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private InterviewStageData[] questionStages;
     private System.Random questionRandom;
     private TheRoomPrototypeController roomController;
+    private InterviewGameManager gameManager;
     private int currentQuestionIndex;
     private int currentQuestionSeed;
     private bool answerLocked;
     private bool runSummaryLogged;
     private bool preserveForcedOutcomeOnRestart;
+    private bool panelRootSuppressedByGameUi;
     private readonly List<int> selectedAnswerIndexes = new List<int>();
     private readonly HashSet<int> shownStageIntroIndexes = new HashSet<int>();
 
@@ -67,6 +70,9 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private GameObject scorecardPanel;
     private GameObject debugPanel;
     private TMP_Text interviewerText;
+    private TMP_Text stageMetaText;
+    private TMP_Text interviewerNameText;
+    private TMP_Text interviewerTitleText;
     private TMP_Text questionText;
     private TMP_Text reactionText;
     private TMP_Text transitionText;
@@ -85,6 +91,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private void Awake()
     {
         roomController = GetComponent<TheRoomPrototypeController>();
+        gameManager = FindAnyObjectByType<InterviewGameManager>();
         if (playtestModeEnabled)
         {
             debugForceOutcome = false;
@@ -103,6 +110,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         {
             ToggleDebugPanel();
         }
+
+        SyncMainGameUiOverride();
     }
 
     public void BeginInterview()
@@ -200,9 +209,11 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
         InterviewStageData stage = GetStageForQuestion(currentQuestionIndex);
         string stageName = stage == null ? "Final Round" : stage.StageName;
-        interviewerText.text =
-            $"<size=18><color=#8DA0B8>{stageName} | Question {currentQuestionIndex + 1} of {questions.Length}</color></size>\n" +
-            question.InterviewerName;
+        string interviewerTitle = GetInterviewerTitle(question.InterviewerName);
+        SetText(interviewerText, $"{stageName} | Question {currentQuestionIndex + 1} of {questions.Length}\n{question.InterviewerName}");
+        SetText(stageMetaText, $"{stageName.ToUpperInvariant()}    QUESTION {currentQuestionIndex + 1} OF {questions.Length}");
+        SetText(interviewerNameText, question.InterviewerName);
+        SetText(interviewerTitleText, interviewerTitle);
         questionText.text = question.QuestionText;
         reactionText.text = string.Empty;
         answerLocked = false;
@@ -212,7 +223,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         {
             int answerIndex = i;
             AnswerData answer = question.Answers[i];
-            answerButtonTexts[i].text = answer.Text;
+            answerButtonTexts[i].text = $"<color=#{ColorUtility.ToHtmlStringRGB(uiTheme.MutedText)}>OPTION {i + 1}</color>\n{answer.Text}";
             answerButtons[i].gameObject.SetActive(true);
             answerButtons[i].interactable = true;
             answerButtons[i].onClick.RemoveAllListeners();
@@ -282,7 +293,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
             answerButtons[i].gameObject.SetActive(false);
         }
 
-        reactionText.text = reaction.Text;
+        reactionText.text = $"<color=#{ColorUtility.ToHtmlStringRGB(uiTheme.MutedText)}>Observation</color>  <i>{reaction.Text}</i>";
         roomController?.ApplyJudgementReaction(reaction.Speaker, reaction.Tone);
         StartCoroutine(ContinueAfterReaction(reaction.Duration));
     }
@@ -317,11 +328,13 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
         InterviewOutcomeType outcome = GetOutcome();
         OutcomeEmail email = OutcomeEmailGenerator.Generate(outcome, score.ToSnapshot());
-        outcomeFromText.text = email.FromLine;
+        outcomeFromText.text =
+            "<color=#647080>From</color>  " + email.FromLine + "\n" +
+            "<color=#647080>Timestamp</color>  Today, 16:42";
         outcomeTitleText.text = email.SubjectLine;
         outcomeOpeningText.text = email.OpeningLine;
         outcomeBodyText.text = email.OutcomeParagraph;
-        outcomeFeedbackText.text = email.FeedbackParagraph;
+        outcomeFeedbackText.text = $"<b>Feedback summary</b>\n{email.FeedbackParagraph}";
         LogRoomRunSummaryOnce(outcome);
         RefreshDebugStatus();
     }
@@ -337,11 +350,11 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         scorecardPanel.SetActive(true);
         scorecardText.text =
             "<b>Scorecard</b>\n" +
-            $"Technical: {score.Technical}\n" +
-            $"Commercial: {score.Commercial}\n" +
-            $"Rapport: {score.Rapport}\n" +
-            $"Energy: {score.Energy}\n\n" +
-            BuildScorecardReadout();
+            BuildScorecardRow("Technical", score.Technical) + "\n" +
+            BuildScorecardRow("Commercial", score.Commercial) + "\n" +
+            BuildScorecardRow("Rapport", score.Rapport) + "\n" +
+            BuildScorecardRow("Energy", score.Energy) + "\n\n" +
+            $"<color=#{ColorUtility.ToHtmlStringRGB(uiTheme.MutedText)}>{BuildScorecardReadout()}</color>";
     }
 
     private void RestartRun()
@@ -567,12 +580,83 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         return "Panel note: balanced signal. Nobody sounded delighted, which may be the closest thing to consensus.";
     }
 
+    private static string BuildScorecardRow(string label, int value)
+    {
+        string bar = BuildScoreBar(value);
+        string valueColor = value >= 7
+            ? ColorUtility.ToHtmlStringRGB(uiTheme.Positive)
+            : value <= 3
+                ? ColorUtility.ToHtmlStringRGB(uiTheme.Warning)
+                : ColorUtility.ToHtmlStringRGB(uiTheme.EmailMutedText);
+
+        return $"<b>{label,-11}</b> <color=#{valueColor}>{value}/10</color>  <color=#{ColorUtility.ToHtmlStringRGB(uiTheme.Accent)}>{bar}</color>";
+    }
+
+    private static string BuildScoreBar(int value)
+    {
+        int filled = Mathf.Clamp(value, 0, 10);
+        return new string('#', filled) + $"<color=#{ColorUtility.ToHtmlStringRGB(uiTheme.EmailLine)}>{new string('-', 10 - filled)}</color>";
+    }
+
+    private static string GetInterviewerTitle(string interviewerName)
+    {
+        if (interviewerName == "Principal Security Architect")
+        {
+            return "Security architecture and technical validation";
+        }
+
+        if (interviewerName == "Sales Director")
+        {
+            return "Commercial alignment and deal discipline";
+        }
+
+        return "Hiring signal and customer empathy";
+    }
+
+    private static void SetText(TMP_Text text, string value)
+    {
+        if (text != null)
+        {
+            text.text = value;
+        }
+    }
+
     private void EnsureUiReady()
     {
         if (panelRoot == null)
         {
             BuildUi();
         }
+    }
+
+    private void SyncMainGameUiOverride()
+    {
+        if (panelRoot == null)
+        {
+            return;
+        }
+
+        if (gameManager == null)
+        {
+            gameManager = FindAnyObjectByType<InterviewGameManager>();
+        }
+
+        bool shouldSuppress = gameManager != null && gameManager.IsRoomUiFocusActive();
+        if (shouldSuppress == panelRootSuppressedByGameUi)
+        {
+            return;
+        }
+
+        CanvasGroup canvasGroup = panelRoot.GetComponent<CanvasGroup>();
+        if (canvasGroup == null)
+        {
+            canvasGroup = panelRoot.AddComponent<CanvasGroup>();
+        }
+
+        panelRootSuppressedByGameUi = shouldSuppress;
+        canvasGroup.alpha = shouldSuppress ? 0f : 1f;
+        canvasGroup.blocksRaycasts = !shouldSuppress;
+        canvasGroup.interactable = !shouldSuppress;
     }
 
     private void BuildUi()
@@ -594,20 +678,33 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         panelRoot.transform.SetParent(canvasObject.transform, false);
         Stretch(panelRoot.GetComponent<RectTransform>());
 
-        questionPanel = CreatePanel("Question Panel", panelRoot.transform, new Color32(13, 16, 22, 236));
+        questionPanel = CreatePanel("Question Panel", panelRoot.transform, uiTheme.Surface);
         RectTransform questionRect = questionPanel.GetComponent<RectTransform>();
-        questionRect.anchorMin = new Vector2(0.08f, 0.07f);
-        questionRect.anchorMax = new Vector2(0.92f, 0.46f);
+        questionRect.anchorMin = new Vector2(0.07f, 0.06f);
+        questionRect.anchorMax = new Vector2(0.93f, 0.49f);
         questionRect.offsetMin = Vector2.zero;
         questionRect.offsetMax = Vector2.zero;
-        AddVerticalLayout(questionPanel, new RectOffset(30, 30, 24, 24), 12f);
+        AddVerticalLayout(questionPanel, new RectOffset(uiTheme.PanelPadding, uiTheme.PanelPadding, 24, 24), 10f);
 
-        interviewerText = CreateText("Interviewer", questionPanel.transform, string.Empty, 22, FontStyles.Bold, TextAlignmentOptions.Left);
-        interviewerText.color = new Color32(128, 218, 196, 255);
-        ConfigureLayout(interviewerText.gameObject, -1f, 48f);
-        questionText = CreateText("Question", questionPanel.transform, string.Empty, 28, FontStyles.Normal, TextAlignmentOptions.Left);
-        questionText.color = new Color32(232, 238, 246, 255);
-        ConfigureLayout(questionText.gameObject, -1f, 92f);
+        interviewerText = CreateText("Legacy Interviewer", questionPanel.transform, string.Empty, 1, FontStyles.Normal, TextAlignmentOptions.Left);
+        interviewerText.gameObject.SetActive(false);
+
+        stageMetaText = CreateText("Stage Progress", questionPanel.transform, string.Empty, 16, FontStyles.Bold, TextAlignmentOptions.Left);
+        stageMetaText.color = uiTheme.MutedText;
+        ConfigureLayout(stageMetaText.gameObject, -1f, 24f);
+
+        interviewerNameText = CreateText("Interviewer Name", questionPanel.transform, string.Empty, 24, FontStyles.Bold, TextAlignmentOptions.Left);
+        interviewerNameText.color = uiTheme.Accent;
+        ConfigureLayout(interviewerNameText.gameObject, -1f, 30f);
+
+        interviewerTitleText = CreateText("Interviewer Title", questionPanel.transform, string.Empty, 17, FontStyles.Normal, TextAlignmentOptions.Left);
+        interviewerTitleText.color = uiTheme.MutedText;
+        ConfigureLayout(interviewerTitleText.gameObject, -1f, 26f);
+
+        questionText = CreateText("Question", questionPanel.transform, string.Empty, 27, FontStyles.Normal, TextAlignmentOptions.Left);
+        questionText.color = uiTheme.PrimaryText;
+        questionText.lineSpacing = 5f;
+        ConfigureLayout(questionText.gameObject, -1f, 98f);
 
         answerButtons = new Button[4];
         answerButtonTexts = new TMP_Text[4];
@@ -617,9 +714,9 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
             answerButtonTexts[i] = answerButtons[i].GetComponentInChildren<TMP_Text>();
         }
 
-        reactionText = CreateText("Reaction", questionPanel.transform, string.Empty, 22, FontStyles.Italic, TextAlignmentOptions.Left);
-        reactionText.color = new Color32(184, 194, 206, 255);
-        ConfigureLayout(reactionText.gameObject, -1f, 36f);
+        reactionText = CreateText("Reaction", questionPanel.transform, string.Empty, 18, FontStyles.Italic, TextAlignmentOptions.Left);
+        reactionText.color = uiTheme.SubtleText;
+        ConfigureLayout(reactionText.gameObject, -1f, 34f);
 
         BuildTransitionPanel(panelRoot.transform);
         BuildOutcomePanel(panelRoot.transform);
@@ -628,7 +725,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
     private void BuildTransitionPanel(Transform parent)
     {
-        transitionPanel = CreatePanel("Outcome Transition Panel", parent, new Color32(5, 7, 10, 205));
+        transitionPanel = CreatePanel("Outcome Transition Panel", parent, uiTheme.ModalOverlay);
         RectTransform transitionRect = transitionPanel.GetComponent<RectTransform>();
         transitionRect.anchorMin = new Vector2(0.25f, 0.38f);
         transitionRect.anchorMax = new Vector2(0.75f, 0.58f);
@@ -637,14 +734,14 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         AddVerticalLayout(transitionPanel, new RectOffset(28, 28, 24, 24), 8f);
 
         transitionText = CreateText("Transition Text", transitionPanel.transform, string.Empty, 30, FontStyles.Bold, TextAlignmentOptions.Center);
-        transitionText.color = new Color32(222, 232, 238, 255);
+        transitionText.color = uiTheme.PrimaryText;
         ConfigureLayout(transitionText.gameObject, -1f, 92f);
         transitionPanel.SetActive(false);
     }
 
     private void BuildDebugPanel(Transform parent)
     {
-        debugPanel = CreatePanel("RC15 Debug Panel", parent, new Color32(8, 11, 16, 238));
+        debugPanel = CreatePanel("RC17 Debug Panel", parent, new Color32(8, 11, 16, 238));
         RectTransform debugRect = debugPanel.GetComponent<RectTransform>();
         debugRect.anchorMin = new Vector2(0.72f, 0.24f);
         debugRect.anchorMax = new Vector2(0.98f, 0.94f);
@@ -652,8 +749,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         debugRect.offsetMax = Vector2.zero;
         AddVerticalLayout(debugPanel, new RectOffset(18, 18, 16, 16), 8f);
 
-        TMP_Text titleText = CreateText("Debug Title", debugPanel.transform, "RC15 Debug Tools", 22, FontStyles.Bold, TextAlignmentOptions.Left);
-        titleText.color = new Color32(130, 220, 198, 255);
+        TMP_Text titleText = CreateText("Debug Title", debugPanel.transform, "RC17 Debug Tools", 22, FontStyles.Bold, TextAlignmentOptions.Left);
+        titleText.color = uiTheme.Accent;
         ConfigureLayout(titleText.gameObject, -1f, 28f);
 
         debugStatusText = CreateText("Debug Status", debugPanel.transform, string.Empty, 17, FontStyles.Normal, TextAlignmentOptions.Left);
@@ -679,41 +776,44 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
     private void BuildOutcomePanel(Transform parent)
     {
-        outcomePanel = CreatePanel("Laptop Email Client Panel", parent, new Color32(15, 20, 27, 248));
+        outcomePanel = CreatePanel("Laptop Email Client Panel", parent, uiTheme.Surface);
         RectTransform outcomeRect = outcomePanel.GetComponent<RectTransform>();
         outcomeRect.anchorMin = new Vector2(0.15f, 0.06f);
         outcomeRect.anchorMax = new Vector2(0.85f, 0.9f);
         outcomeRect.offsetMin = Vector2.zero;
         outcomeRect.offsetMax = Vector2.zero;
-        AddVerticalLayout(outcomePanel, new RectOffset(30, 30, 24, 24), 10f);
+        AddVerticalLayout(outcomePanel, new RectOffset(uiTheme.PanelPadding, uiTheme.PanelPadding, 24, 24), 10f);
 
-        TMP_Text clientHeaderText = CreateText("Email Client Header", outcomePanel.transform, "Northbridge Mail - Inbox", 21, FontStyles.Bold, TextAlignmentOptions.Left);
-        clientHeaderText.color = new Color32(128, 218, 196, 255);
-        ConfigureLayout(clientHeaderText.gameObject, -1f, 30f);
+        TMP_Text clientHeaderText = CreateText("Email Client Header", outcomePanel.transform, "NORTHBRIDGE MAIL   /   INBOX", 17, FontStyles.Bold, TextAlignmentOptions.Left);
+        clientHeaderText.color = uiTheme.MutedText;
+        ConfigureLayout(clientHeaderText.gameObject, -1f, 28f);
 
-        GameObject laptopScreen = CreatePanel("Laptop Screen Body", outcomePanel.transform, new Color32(235, 238, 233, 250));
-        AddVerticalLayout(laptopScreen, new RectOffset(28, 28, 22, 22), 10f);
+        GameObject laptopScreen = CreatePanel("Email Message Body", outcomePanel.transform, uiTheme.EmailBody);
+        AddVerticalLayout(laptopScreen, new RectOffset(34, 34, 26, 26), 12f);
         ConfigureLayout(laptopScreen, -1f, 570f);
 
-        outcomeFromText = CreateText("Email From", laptopScreen.transform, string.Empty, 20, FontStyles.Normal, TextAlignmentOptions.Left);
-        outcomeFromText.color = new Color32(76, 84, 94, 255);
-        ConfigureLayout(outcomeFromText.gameObject, -1f, 30f);
+        outcomeFromText = CreateText("Email From", laptopScreen.transform, string.Empty, 18, FontStyles.Normal, TextAlignmentOptions.Left);
+        outcomeFromText.color = uiTheme.EmailMutedText;
+        outcomeFromText.lineSpacing = 4f;
+        ConfigureLayout(outcomeFromText.gameObject, -1f, 48f);
 
-        outcomeTitleText = CreateText("Email Subject", laptopScreen.transform, string.Empty, 28, FontStyles.Bold, TextAlignmentOptions.Left);
-        outcomeTitleText.color = new Color32(35, 40, 48, 255);
-        ConfigureLayout(outcomeTitleText.gameObject, -1f, 38f);
+        outcomeTitleText = CreateText("Email Subject", laptopScreen.transform, string.Empty, 30, FontStyles.Bold, TextAlignmentOptions.Left);
+        outcomeTitleText.color = uiTheme.EmailText;
+        ConfigureLayout(outcomeTitleText.gameObject, -1f, 44f);
 
-        outcomeOpeningText = CreateText("Email Opening", laptopScreen.transform, string.Empty, 22, FontStyles.Normal, TextAlignmentOptions.Left);
-        outcomeOpeningText.color = new Color32(45, 50, 58, 255);
+        outcomeOpeningText = CreateText("Email Opening", laptopScreen.transform, string.Empty, 21, FontStyles.Normal, TextAlignmentOptions.Left);
+        outcomeOpeningText.color = uiTheme.EmailText;
         ConfigureLayout(outcomeOpeningText.gameObject, -1f, 66f);
 
-        outcomeBodyText = CreateText("Email Outcome", laptopScreen.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.Left);
-        outcomeBodyText.color = new Color32(45, 50, 58, 255);
-        ConfigureLayout(outcomeBodyText.gameObject, -1f, 96f);
+        outcomeBodyText = CreateText("Email Outcome", laptopScreen.transform, string.Empty, 22, FontStyles.Normal, TextAlignmentOptions.Left);
+        outcomeBodyText.color = uiTheme.EmailText;
+        outcomeBodyText.lineSpacing = 4f;
+        ConfigureLayout(outcomeBodyText.gameObject, -1f, 102f);
 
-        outcomeFeedbackText = CreateText("Email Feedback", laptopScreen.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.Left);
-        outcomeFeedbackText.color = new Color32(45, 50, 58, 255);
-        ConfigureLayout(outcomeFeedbackText.gameObject, -1f, 92f);
+        outcomeFeedbackText = CreateText("Email Feedback", laptopScreen.transform, string.Empty, 21, FontStyles.Normal, TextAlignmentOptions.Left);
+        outcomeFeedbackText.color = uiTheme.EmailText;
+        outcomeFeedbackText.lineSpacing = 4f;
+        ConfigureLayout(outcomeFeedbackText.gameObject, -1f, 98f);
 
         GameObject actionRow = new GameObject("Email Action Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
         actionRow.transform.SetParent(laptopScreen.transform, false);
@@ -725,29 +825,33 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         actionLayout.childForceExpandWidth = true;
         actionLayout.childForceExpandHeight = true;
 
-        Button scorecardButton = CreateButton("Open Scorecard", actionRow.transform, new Color32(44, 58, 72, 255));
+        Button scorecardButton = CreateButton("Open Scorecard", actionRow.transform, uiTheme.ActionButton);
         TMP_Text buttonText = scorecardButton.GetComponentInChildren<TMP_Text>();
         buttonText.text = "View Scorecard";
         scorecardButton.onClick.AddListener(ShowScorecard);
         ConfigureLayout(scorecardButton.gameObject, -1f, 48f);
 
-        Button restartButton = CreateButton("Restart Run", actionRow.transform, new Color32(70, 76, 84, 255));
+        Button restartButton = CreateButton("Restart Run", actionRow.transform, uiTheme.SecondaryButton);
         TMP_Text restartButtonText = restartButton.GetComponentInChildren<TMP_Text>();
         restartButtonText.text = "Restart";
         restartButton.onClick.AddListener(RestartRun);
         ConfigureLayout(restartButton.gameObject, -1f, 48f);
 
-        scorecardPanel = CreatePanel("Scorecard Panel", laptopScreen.transform, new Color32(220, 225, 222, 255));
-        AddVerticalLayout(scorecardPanel, new RectOffset(22, 22, 18, 18), 8f);
-        ConfigureLayout(scorecardPanel, -1f, 170f);
-        scorecardText = CreateText("Scorecard Text", scorecardPanel.transform, string.Empty, 23, FontStyles.Normal, TextAlignmentOptions.Left);
-        scorecardText.color = new Color32(35, 40, 48, 255);
+        scorecardPanel = CreatePanel("Scorecard Panel", laptopScreen.transform, uiTheme.EmailInset);
+        AddVerticalLayout(scorecardPanel, new RectOffset(24, 24, 18, 18), 8f);
+        ConfigureLayout(scorecardPanel, -1f, 190f);
+        scorecardText = CreateText("Scorecard Text", scorecardPanel.transform, string.Empty, 21, FontStyles.Normal, TextAlignmentOptions.Left);
+        scorecardText.color = uiTheme.EmailText;
     }
 
     private static Button CreateAnswerButton(Transform parent, int index)
     {
-        Button button = CreateButton($"Answer {index + 1}", parent, new Color32(33, 43, 56, 252));
-        ConfigureLayout(button.gameObject, -1f, 56f);
+        Button button = CreateButton($"Answer {index + 1}", parent, uiTheme.AnswerCard);
+        ConfigureLayout(button.gameObject, -1f, 70f);
+        TMP_Text text = button.GetComponentInChildren<TMP_Text>();
+        text.fontSize = 19;
+        text.lineSpacing = 3f;
+        text.alignment = TextAlignmentOptions.MidlineLeft;
         return button;
     }
 
@@ -767,21 +871,24 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         buttonObject.transform.SetParent(parent, false);
         Image image = buttonObject.GetComponent<Image>();
         image.color = color;
+        buttonObject.AddComponent<ButtonJuice>();
 
         Button button = buttonObject.GetComponent<Button>();
         ColorBlock colors = button.colors;
         colors.normalColor = color;
-        colors.highlightedColor = Color.Lerp(color, Color.white, 0.08f);
+        colors.highlightedColor = Color.Lerp(color, uiTheme.Accent, 0.18f);
         colors.pressedColor = Color.Lerp(color, Color.black, 0.18f);
         colors.selectedColor = colors.highlightedColor;
+        colors.disabledColor = uiTheme.Disabled;
+        colors.fadeDuration = 0.09f;
         button.colors = colors;
 
         TMP_Text text = CreateText("Label", buttonObject.transform, string.Empty, 21, FontStyles.Normal, TextAlignmentOptions.Left);
-        text.color = new Color32(232, 238, 246, 255);
+        text.color = uiTheme.PrimaryText;
         RectTransform textRect = text.GetComponent<RectTransform>();
         Stretch(textRect);
-        textRect.offsetMin = new Vector2(18f, 6f);
-        textRect.offsetMax = new Vector2(-18f, -6f);
+        textRect.offsetMin = new Vector2(uiTheme.CardPadding, 8f);
+        textRect.offsetMax = new Vector2(-uiTheme.CardPadding, -8f);
         return button;
     }
 
@@ -861,6 +968,10 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
             interviewerText.text = string.Empty;
         }
 
+        ClearText(stageMetaText);
+        ClearText(interviewerNameText);
+        ClearText(interviewerTitleText);
+
         if (questionText != null)
         {
             questionText.text = string.Empty;
@@ -930,8 +1041,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         string selectedQuestions = GetSelectedQuestionIdSummary();
 
         debugStatusText.text =
-            "Prototype v1.0 RC15\n" +
-            "Branch: prototype-v1.0-rc6-working\n" +
+            "Prototype v1.0 RC18\n" +
+            "Branch: interviewer-human-presence-pass\n" +
             $"Playtest mode: {(playtestModeEnabled ? "on" : "off")}\n" +
             $"Seed mode: {(useDeterministicQuestionSeed ? "deterministic" : "random")}\n" +
             $"Current seed: {currentQuestionSeed}\n" +
@@ -981,6 +1092,92 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 #else
         return Input.GetKeyDown(KeyCode.F1);
 #endif
+    }
+
+    private readonly struct RoomUiTheme
+    {
+        public Color Surface { get; }
+        public Color ModalOverlay { get; }
+        public Color AnswerCard { get; }
+        public Color ActionButton { get; }
+        public Color SecondaryButton { get; }
+        public Color Disabled { get; }
+        public Color Accent { get; }
+        public Color PrimaryText { get; }
+        public Color MutedText { get; }
+        public Color SubtleText { get; }
+        public Color Positive { get; }
+        public Color Warning { get; }
+        public Color EmailBody { get; }
+        public Color EmailInset { get; }
+        public Color EmailText { get; }
+        public Color EmailMutedText { get; }
+        public Color EmailLine { get; }
+        public int PanelPadding { get; }
+        public int CardPadding { get; }
+
+        private RoomUiTheme(
+            Color surface,
+            Color modalOverlay,
+            Color answerCard,
+            Color actionButton,
+            Color secondaryButton,
+            Color disabled,
+            Color accent,
+            Color primaryText,
+            Color mutedText,
+            Color subtleText,
+            Color positive,
+            Color warning,
+            Color emailBody,
+            Color emailInset,
+            Color emailText,
+            Color emailMutedText,
+            Color emailLine,
+            int panelPadding,
+            int cardPadding)
+        {
+            Surface = surface;
+            ModalOverlay = modalOverlay;
+            AnswerCard = answerCard;
+            ActionButton = actionButton;
+            SecondaryButton = secondaryButton;
+            Disabled = disabled;
+            Accent = accent;
+            PrimaryText = primaryText;
+            MutedText = mutedText;
+            SubtleText = subtleText;
+            Positive = positive;
+            Warning = warning;
+            EmailBody = emailBody;
+            EmailInset = emailInset;
+            EmailText = emailText;
+            EmailMutedText = emailMutedText;
+            EmailLine = emailLine;
+            PanelPadding = panelPadding;
+            CardPadding = cardPadding;
+        }
+
+        public static RoomUiTheme Default => new RoomUiTheme(
+            new Color32(12, 16, 22, 238),
+            new Color32(5, 7, 10, 214),
+            new Color32(27, 36, 48, 252),
+            new Color32(38, 76, 82, 255),
+            new Color32(58, 65, 76, 255),
+            new Color32(28, 33, 42, 210),
+            new Color32(106, 206, 184, 255),
+            new Color32(235, 241, 247, 255),
+            new Color32(151, 164, 181, 255),
+            new Color32(184, 195, 207, 255),
+            new Color32(112, 201, 145, 255),
+            new Color32(202, 147, 91, 255),
+            new Color32(238, 241, 238, 252),
+            new Color32(224, 229, 228, 255),
+            new Color32(35, 42, 50, 255),
+            new Color32(100, 112, 128, 255),
+            new Color32(190, 198, 204, 255),
+            34,
+            22);
     }
 
     private void BuildQuestions()
