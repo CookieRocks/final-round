@@ -25,9 +25,11 @@ public sealed class InterviewerPlaceholder : MonoBehaviour
     private Vector3 targetAvatarScale = Vector3.one;
     private Quaternion targetAvatarRotation = Quaternion.identity;
     private InterviewerReaction currentReaction = InterviewerReaction.Neutral;
+    private float idleSeed;
 
     private void Awake()
     {
+        idleSeed = Random.Range(0f, 100f);
         CaptureBaseAvatarTransform();
     }
 
@@ -38,10 +40,16 @@ public sealed class InterviewerPlaceholder : MonoBehaviour
             return;
         }
 
-        if (currentReaction == InterviewerReaction.Listening)
+        if (currentReaction == InterviewerReaction.Neutral)
         {
-            float nod = Mathf.Sin(Time.time * 2.1f + transform.GetSiblingIndex()) * 1.4f;
-            targetAvatarRotation = Quaternion.Euler(nod, 0f, 0f);
+            float idleTilt = Mathf.Sin(Time.time * 0.72f + idleSeed) * 0.45f;
+            targetAvatarRotation = baseAvatarRotation * Quaternion.Euler(idleTilt, 0f, idleTilt * 0.2f);
+        }
+        else if (currentReaction == InterviewerReaction.Listening)
+        {
+            float nod = Mathf.Sin(Time.time * 2.1f + idleSeed) * 1.4f;
+            float sideTilt = Mathf.Sin(Time.time * 0.9f + idleSeed) * 0.35f;
+            targetAvatarRotation = baseAvatarRotation * Quaternion.Euler(nod, 0f, sideTilt);
         }
 
         avatarRenderer.transform.localScale = Vector3.Lerp(avatarRenderer.transform.localScale, targetAvatarScale, Time.deltaTime * 8f);
@@ -70,15 +78,15 @@ public sealed class InterviewerPlaceholder : MonoBehaviour
         };
 
         targetAvatarScale = reaction == InterviewerReaction.Positive
-            ? baseAvatarScale * 1.04f
+            ? baseAvatarScale * 1.06f
             : reaction == InterviewerReaction.Concerned
-                ? new Vector3(baseAvatarScale.x * 0.98f, baseAvatarScale.y * 0.96f, baseAvatarScale.z * 0.98f)
+                ? new Vector3(baseAvatarScale.x * 0.97f, baseAvatarScale.y * 0.95f, baseAvatarScale.z * 0.97f)
                 : baseAvatarScale;
         targetAvatarRotation = reaction switch
         {
-            InterviewerReaction.Positive => Quaternion.Euler(2.5f, 0f, 0f),
-            InterviewerReaction.Awkward => Quaternion.Euler(0f, 0f, 2.5f),
-            InterviewerReaction.Concerned => Quaternion.Euler(-4f, 0f, 0f),
+            InterviewerReaction.Positive => baseAvatarRotation * Quaternion.Euler(3.25f, 0f, 0f),
+            InterviewerReaction.Awkward => baseAvatarRotation * Quaternion.Euler(0f, 0f, 3.5f),
+            InterviewerReaction.Concerned => baseAvatarRotation * Quaternion.Euler(-5f, 0f, 0f),
             _ => baseAvatarRotation
         };
 

@@ -33,6 +33,47 @@ public static class FinalRoundQuestionBankBalanceAudit
         Debug.Log($"Final Round RC12 question bank balance audit written to {ReportPath}");
     }
 
+    [MenuItem("Final Round/Find RC15 Seed Presets")]
+    public static void FindSeedPresets()
+    {
+        InterviewQuestionData[] questions = Resources.LoadAll<InterviewQuestionData>(ResourcePath)
+            .Where(question => question != null)
+            .OrderBy(question => question.QuestionId, StringComparer.Ordinal)
+            .ToArray();
+
+        List<QuestionRecord> validQuestions = new List<QuestionRecord>();
+        foreach (InterviewQuestionData question in questions)
+        {
+            if (TryConvert(question, out QuestionRecord record, out _))
+            {
+                validQuestions.Add(record);
+            }
+        }
+
+        Dictionary<QuestionCategory, List<QuestionRecord>> pools = new Dictionary<QuestionCategory, List<QuestionRecord>>
+        {
+            { QuestionCategory.ContextCustomerScenario, validQuestions.Where(question => question.Category == QuestionCategory.ContextCustomerScenario).ToList() },
+            { QuestionCategory.TechnicalSecurityJudgement, validQuestions.Where(question => question.Category == QuestionCategory.TechnicalSecurityJudgement).ToList() },
+            { QuestionCategory.CommercialExecutivePressure, validQuestions.Where(question => question.Category == QuestionCategory.CommercialExecutivePressure).ToList() }
+        };
+
+        Dictionary<InterviewOutcomeType, SeedPreset> presets = FindSeedPresets(pools, 50000);
+        StringBuilder message = new StringBuilder("Final Round RC15 seed presets\n");
+        foreach (InterviewOutcomeType outcomeType in Enum.GetValues(typeof(InterviewOutcomeType)))
+        {
+            if (presets.TryGetValue(outcomeType, out SeedPreset preset))
+            {
+                message.AppendLine($"{outcomeType}: seed {preset.Seed}, questions {preset.QuestionIds}, answer indexes {preset.AnswerIndexes}, scores T{preset.Technical}/C{preset.Commercial}/R{preset.Rapport}/E{preset.Energy}");
+            }
+            else
+            {
+                message.AppendLine($"{outcomeType}: no preset found in search range.");
+            }
+        }
+
+        Debug.Log(message.ToString());
+    }
+
     private static string BuildReport(IReadOnlyList<InterviewQuestionData> sourceQuestions)
     {
         List<QuestionRecord> validQuestions = new List<QuestionRecord>();
@@ -138,6 +179,100 @@ public static class FinalRoundQuestionBankBalanceAudit
         }
 
         return outcomes;
+    }
+
+    private static Dictionary<InterviewOutcomeType, SeedPreset> FindSeedPresets(Dictionary<QuestionCategory, List<QuestionRecord>> pools, int maxSeed)
+    {
+        Dictionary<InterviewOutcomeType, SeedPreset> presets = new Dictionary<InterviewOutcomeType, SeedPreset>();
+        HashSet<int> usedSeeds = new HashSet<int>();
+        for (int seed = 1; seed <= maxSeed && presets.Count < 4; seed++)
+        {
+            if (usedSeeds.Contains(seed))
+            {
+                continue;
+            }
+
+            System.Random random = new System.Random(seed);
+            List<QuestionRecord> selectedQuestions = new List<QuestionRecord>();
+            selectedQuestions.AddRange(PickQuestions(pools[QuestionCategory.ContextCustomerScenario], random, 2));
+            selectedQuestions.AddRange(PickQuestions(pools[QuestionCategory.TechnicalSecurityJudgement], random, 2));
+            selectedQuestions.AddRange(PickQuestions(pools[QuestionCategory.CommercialExecutivePressure], random, 2));
+            if (selectedQuestions.Count == 0)
+            {
+                continue;
+            }
+
+            foreach (SeedPreset candidate in SimulateAnswerPathsForSeed(seed, selectedQuestions))
+            {
+                if (!presets.ContainsKey(candidate.Outcome))
+                {
+                    presets.Add(candidate.Outcome, candidate);
+                    usedSeeds.Add(seed);
+                    break;
+                }
+            }
+        }
+
+        return presets;
+    }
+
+    private static IEnumerable<QuestionRecord> PickQuestions(IReadOnlyList<QuestionRecord> pool, System.Random random, int requestedCount)
+    {
+        if (pool == null || pool.Count == 0)
+        {
+            yield break;
+        }
+
+        List<QuestionRecord> availableQuestions = new List<QuestionRecord>(pool);
+        int count = Math.Min(requestedCount, availableQuestions.Count);
+        for (int i = 0; i < count; i++)
+        {
+            int index = random.Next(availableQuestions.Count);
+            QuestionRecord question = availableQuestions[index];
+            availableQuestions.RemoveAt(index);
+            yield return question;
+        }
+    }
+
+    private static IEnumerable<SeedPreset> SimulateAnswerPathsForSeed(int seed, IReadOnlyList<QuestionRecord> questions)
+    {
+        List<AnswerRecord> selectedAnswers = new List<AnswerRecord>();
+        foreach (SeedPreset preset in SimulateAnswerPathsForSeed(seed, questions, 0, selectedAnswers))
+        {
+            yield return preset;
+        }
+    }
+
+    private static IEnumerable<SeedPreset> SimulateAnswerPathsForSeed(int seed, IReadOnlyList<QuestionRecord> questions, int questionIndex, List<AnswerRecord> selectedAnswers)
+    {
+        if (questionIndex >= questions.Count)
+        {
+            int technicalScore = ClampScore(StartingTechnical + selectedAnswers.Sum(answer => answer.Technical));
+            int commercialScore = ClampScore(StartingCommercial + selectedAnswers.Sum(answer => answer.Commercial));
+            int rapportScore = ClampScore(StartingRapport + selectedAnswers.Sum(answer => answer.Rapport));
+            int energyScore = ClampScore(StartingEnergy + selectedAnswers.Sum(answer => answer.Energy));
+            InterviewOutcomeType outcome = DetermineOutcome(technicalScore, commercialScore, rapportScore, energyScore);
+            yield return new SeedPreset(
+                seed,
+                outcome,
+                string.Join(", ", questions.Select(question => question.QuestionId)),
+                string.Join(", ", selectedAnswers.Select(answer => answer.Index.ToString())),
+                technicalScore,
+                commercialScore,
+                rapportScore,
+                energyScore);
+            yield break;
+        }
+
+        foreach (AnswerRecord answer in questions[questionIndex].Answers)
+        {
+            selectedAnswers.Add(answer);
+            foreach (SeedPreset preset in SimulateAnswerPathsForSeed(seed, questions, questionIndex + 1, selectedAnswers))
+            {
+                yield return preset;
+            }
+            selectedAnswers.RemoveAt(selectedAnswers.Count - 1);
+        }
     }
 
     private static InterviewOutcomeType DetermineOutcome(int technical, int commercial, int rapport, int energy)
@@ -405,6 +540,30 @@ public static class FinalRoundQuestionBankBalanceAudit
             Rapport = rapport;
             Energy = energy;
             Outcome = outcome;
+        }
+    }
+
+    private readonly struct SeedPreset
+    {
+        public int Seed { get; }
+        public InterviewOutcomeType Outcome { get; }
+        public string QuestionIds { get; }
+        public string AnswerIndexes { get; }
+        public int Technical { get; }
+        public int Commercial { get; }
+        public int Rapport { get; }
+        public int Energy { get; }
+
+        public SeedPreset(int seed, InterviewOutcomeType outcome, string questionIds, string answerIndexes, int technical, int commercial, int rapport, int energy)
+        {
+            Seed = seed;
+            Outcome = outcome;
+            QuestionIds = questionIds;
+            AnswerIndexes = answerIndexes;
+            Technical = technical;
+            Commercial = commercial;
+            Rapport = rapport;
+            Energy = energy;
         }
     }
 }

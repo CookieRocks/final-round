@@ -16,19 +16,47 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
     [SerializeField] private Transform standingStartPoint;
     [SerializeField] private Transform seatedCameraPoint;
     [SerializeField] private float sitSnapDuration = 0.5f;
+    [Header("RC16 Room Asset Slots")]
+    [SerializeField] private GameObject meetingTablePrefab;
+    [SerializeField] private GameObject candidateChairPrefab;
+    [SerializeField] private GameObject interviewerChairPanelPrefab;
+    [SerializeField] private GameObject laptopPrefab;
+    [SerializeField] private GameObject notepadPrefab;
+    [SerializeField] private GameObject waterGlassPrefab;
+    [SerializeField] private GameObject wallScreenPrefab;
+    [SerializeField] private GameObject whiteboardPrefab;
+    [SerializeField] private GameObject roomSignPrefab;
+    [SerializeField] private GameObject doorDoorframePrefab;
+    [SerializeField] private GameObject plantOrCornerPropPrefab;
+    [SerializeField] private GameObject ceilingLightPrefab;
     [Header("RC8 Room Readability")]
     [SerializeField] private Color chairMarkerIdleColor = new Color32(62, 130, 118, 150);
     [SerializeField] private Color chairMarkerActiveColor = new Color32(112, 238, 206, 255);
     [SerializeField] private float chairKeyLightIntensity = 2.6f;
     [SerializeField] private float tableKeyLightIntensity = 2.1f;
     [SerializeField] private float interviewerKeyLightIntensity = 3.0f;
+    [Header("RC16 Room Life")]
+    [SerializeField] private bool roomLifeEnabled = true;
+    [SerializeField] private float chairMarkerPulseAmount = 0.22f;
+    [SerializeField] private float laptopGlowPulseAmount = 0.18f;
+    [SerializeField] private float wallScreenFlickerAmount = 0.12f;
+    [SerializeField] private AudioClip roomHumClip;
+    [Range(0f, 1f)]
+    [SerializeField] private float roomHumVolume = 0.08f;
 
     private InterviewGameManager gameManager;
     private CybersecurityPresalesInterviewFlow interviewFlow;
     private InterviewerPlaceholder[] interviewers;
     private Renderer chairHighlightRenderer;
+    private Renderer chairBackHighlightRenderer;
+    private Renderer laptopScreenRenderer;
+    private Renderer wallScreenGlowRenderer;
+    private Light laptopGlowLight;
+    private Light wallScreenGlowLight;
+    private AudioSource roomHumSource;
     private Coroutine sitCoroutine;
     private bool isSeated;
+    private bool chairHighlightActive;
     private string promptText;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -62,12 +90,14 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
             interviewFlow = gameObject.AddComponent<CybersecurityPresalesInterviewFlow>();
         }
 
+        ConfigureRoomHum();
         ResetRoomState();
     }
 
     private void Update()
     {
         SyncUiFocus();
+        UpdateRoomLife();
 
         if (WasResetPressed())
         {
@@ -302,14 +332,47 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
         }
 
         Color color = active ? chairMarkerActiveColor : chairMarkerIdleColor;
-        chairHighlightRenderer.material.color = color;
-        if (chairHighlightRenderer.material.HasProperty("_BaseColor"))
+        chairHighlightActive = active;
+        SetRendererColor(chairHighlightRenderer, color);
+    }
+
+    private void UpdateRoomLife()
+    {
+        if (!roomLifeEnabled)
         {
-            chairHighlightRenderer.material.SetColor("_BaseColor", color);
+            return;
         }
-        if (chairHighlightRenderer.material.HasProperty("_Color"))
+
+        float chairPulse = 1f + Mathf.Sin(Time.time * 2.4f) * chairMarkerPulseAmount;
+        if (chairHighlightRenderer != null)
         {
-            chairHighlightRenderer.material.SetColor("_Color", color);
+            Color baseColor = chairHighlightActive ? chairMarkerActiveColor : chairMarkerIdleColor;
+            SetRendererColor(chairHighlightRenderer, Color.Lerp(baseColor, Color.white, chairHighlightActive ? chairPulse * 0.12f : chairPulse * 0.04f));
+        }
+        if (chairBackHighlightRenderer != null)
+        {
+            Color backColor = Color.Lerp(new Color32(76, 128, 122, 255), new Color32(140, 226, 210, 255), chairHighlightActive ? chairPulse * 0.26f : chairPulse * 0.08f);
+            SetRendererColor(chairBackHighlightRenderer, backColor);
+        }
+
+        float laptopPulse = 1f + Mathf.Sin(Time.time * 1.7f + 1.3f) * laptopGlowPulseAmount;
+        if (laptopScreenRenderer != null)
+        {
+            SetRendererColor(laptopScreenRenderer, Color.Lerp(new Color32(36, 74, 82, 255), new Color32(110, 210, 200, 255), laptopPulse * 0.24f));
+        }
+        if (laptopGlowLight != null)
+        {
+            laptopGlowLight.intensity = 0.45f + laptopPulse * 0.12f;
+        }
+
+        float screenPulse = 1f + Mathf.PerlinNoise(Time.time * 0.8f, 0.42f) * wallScreenFlickerAmount;
+        if (wallScreenGlowRenderer != null)
+        {
+            SetRendererColor(wallScreenGlowRenderer, Color.Lerp(new Color32(34, 70, 76, 255), new Color32(88, 150, 160, 255), screenPulse * 0.18f));
+        }
+        if (wallScreenGlowLight != null)
+        {
+            wallScreenGlowLight.intensity = 0.45f + screenPulse * 0.1f;
         }
     }
 
@@ -321,6 +384,7 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
         }
 
         ConfigureReadablePrototypeLighting();
+        ConfigureRoomHum();
 
         Transform root = new GameObject("The Room Greybox").transform;
         root.SetParent(transform, false);
@@ -401,16 +465,40 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
         CreateCube("Front Left Wall", new Vector3(-2.25f, 1.5f, -2.25f), new Vector3(2.3f, 3f, 0.12f), new Color32(65, 68, 76, 255), root);
         CreateCube("Front Right Wall", new Vector3(2.25f, 1.5f, -2.25f), new Vector3(2.3f, 3f, 0.12f), new Color32(65, 68, 76, 255), root);
         CreateCube("Door Header", new Vector3(0f, 2.45f, -2.25f), new Vector3(2.2f, 1.1f, 0.12f), new Color32(65, 68, 76, 255), root);
-        CreateCube("Door Frame Left", new Vector3(-1.12f, 1.15f, -2.36f), new Vector3(0.08f, 2.3f, 0.12f), new Color32(82, 94, 106, 255), root);
-        CreateCube("Door Frame Right", new Vector3(1.12f, 1.15f, -2.36f), new Vector3(0.08f, 2.3f, 0.12f), new Color32(82, 94, 106, 255), root);
-        CreateCube("Door Threshold Highlight", new Vector3(0f, 0.025f, -2.34f), new Vector3(2.08f, 0.035f, 0.16f), new Color32(70, 100, 104, 255), root);
-        CreateCube("Ceiling Soft Panel", new Vector3(0f, 3f, 0.6f), new Vector3(6.8f, 0.08f, 6.0f), new Color32(52, 55, 62, 255), root);
-        CreateCube("Wall Screen", new Vector3(0f, 1.82f, 3.55f), new Vector3(2.35f, 0.86f, 0.055f), new Color32(24, 31, 40, 255), root);
-        CreateCube("Wall Screen Glow", new Vector3(0f, 1.82f, 3.51f), new Vector3(2.05f, 0.62f, 0.025f), new Color32(34, 70, 76, 255), root);
+        if (!InstantiatePrefab(doorDoorframePrefab, "Door/Doorframe Prefab", new Vector3(0f, 1.15f, -2.36f), Quaternion.identity, Vector3.one, root))
+        {
+            CreateCube("Door Frame Left", new Vector3(-1.12f, 1.15f, -2.36f), new Vector3(0.08f, 2.3f, 0.12f), new Color32(82, 94, 106, 255), root);
+            CreateCube("Door Frame Right", new Vector3(1.12f, 1.15f, -2.36f), new Vector3(0.08f, 2.3f, 0.12f), new Color32(82, 94, 106, 255), root);
+            CreateCube("Door Threshold Highlight", new Vector3(0f, 0.025f, -2.34f), new Vector3(2.08f, 0.035f, 0.16f), new Color32(70, 100, 104, 255), root);
+        }
+        if (!InstantiatePrefab(ceilingLightPrefab, "Ceiling Light Prefab", new Vector3(0f, 2.92f, 0.55f), Quaternion.identity, Vector3.one, root))
+        {
+            CreateCube("Ceiling Soft Panel", new Vector3(0f, 3f, 0.6f), new Vector3(6.8f, 0.08f, 6.0f), new Color32(52, 55, 62, 255), root);
+        }
+        GameObject wallScreenInstance = InstantiatePrefab(wallScreenPrefab, "Wall Screen Prefab", new Vector3(0f, 1.82f, 3.55f), Quaternion.identity, Vector3.one, root);
+        if (wallScreenInstance == null)
+        {
+            CreateCube("Wall Screen", new Vector3(0f, 1.82f, 3.55f), new Vector3(2.35f, 0.86f, 0.055f), new Color32(24, 31, 40, 255), root);
+        }
+        wallScreenGlowRenderer = CreateCube("Wall Screen Glow", new Vector3(0f, 1.82f, 3.51f), new Vector3(2.05f, 0.62f, 0.025f), new Color32(34, 70, 76, 255), root).GetComponent<Renderer>();
+        wallScreenGlowLight = CreatePointLight("Wall Screen Idle Glow", new Vector3(0f, 1.85f, 3.05f), 2.1f, 0.55f, new Color32(80, 170, 180, 255), root);
         CreateCube("Interviewer Backlight Strip", new Vector3(0f, 1.18f, 3.49f), new Vector3(4.72f, 0.075f, 0.035f), new Color32(78, 126, 132, 255), root);
-        CreateCube("Whiteboard", new Vector3(-2.35f, 1.68f, 3.54f), new Vector3(1.15f, 0.76f, 0.05f), new Color32(150, 156, 160, 255), root);
-        CreateCube("Meeting Room Sign", new Vector3(1.72f, 1.58f, -2.42f), new Vector3(0.86f, 0.36f, 0.035f), new Color32(78, 90, 102, 255), root);
-        CreateWorldLabel("FINAL ROUND", new Vector3(1.72f, 1.585f, -2.47f), Quaternion.Euler(0f, 0f, 0f), 0.075f, 2.8f, new Color32(226, 234, 238, 255), root);
+        if (!InstantiatePrefab(whiteboardPrefab, "Whiteboard Prefab", new Vector3(-2.35f, 1.68f, 3.54f), Quaternion.identity, Vector3.one, root))
+        {
+            CreateCube("Whiteboard", new Vector3(-2.35f, 1.68f, 3.54f), new Vector3(1.15f, 0.76f, 0.05f), new Color32(150, 156, 160, 255), root);
+            CreateCube("Whiteboard Architecture Line", new Vector3(-2.35f, 1.72f, 3.5f), new Vector3(0.82f, 0.018f, 0.035f), new Color32(70, 88, 96, 255), root);
+            CreateCube("Whiteboard Risk Box", new Vector3(-2.62f, 1.58f, 3.5f), new Vector3(0.22f, 0.16f, 0.035f), new Color32(78, 116, 126, 255), root);
+        }
+        if (!InstantiatePrefab(roomSignPrefab, "Room Sign Prefab", new Vector3(1.72f, 1.58f, -2.42f), Quaternion.identity, Vector3.one, root))
+        {
+            CreateCube("Meeting Room Sign", new Vector3(1.72f, 1.58f, -2.42f), new Vector3(0.86f, 0.36f, 0.035f), new Color32(78, 90, 102, 255), root);
+            CreateWorldLabel("FINAL ROUND", new Vector3(1.72f, 1.585f, -2.47f), Quaternion.Euler(0f, 0f, 0f), 0.075f, 2.8f, new Color32(226, 234, 238, 255), root);
+        }
+        if (!InstantiatePrefab(plantOrCornerPropPrefab, "Plant/Corner Prop Prefab", new Vector3(2.78f, 0.42f, 2.78f), Quaternion.Euler(0f, -22f, 0f), Vector3.one, root))
+        {
+            CreateCube("Corner Plant Pot", new Vector3(2.78f, 0.22f, 2.78f), new Vector3(0.32f, 0.44f, 0.32f), new Color32(46, 50, 56, 255), root);
+            CreateCube("Corner Plant Silhouette", new Vector3(2.78f, 0.68f, 2.78f), new Vector3(0.46f, 0.58f, 0.08f), new Color32(38, 72, 60, 255), root);
+        }
 
         CreatePointLight("Hall Guide Light", new Vector3(0f, 2.25f, -5.1f), 5.5f, 3.5f, new Color32(226, 238, 255, 255), root);
         CreatePointLight("Doorway Guide Light", new Vector3(0f, 2.35f, -2.1f), 5.2f, 2.3f, new Color32(255, 242, 220, 255), root);
@@ -419,7 +507,7 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
         CreatePointLight("Panel Fill Light", new Vector3(0f, 2.15f, 2.45f), 5f, interviewerKeyLightIntensity, new Color32(176, 218, 255, 255), root);
     }
 
-    private static void CreatePointLight(string name, Vector3 position, float range, float intensity, Color color, Transform parent)
+    private static Light CreatePointLight(string name, Vector3 position, float range, float intensity, Color color, Transform parent)
     {
         Light light = new GameObject(name, typeof(Light)).GetComponent<Light>();
         light.transform.SetParent(parent, false);
@@ -428,27 +516,49 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
         light.range = range;
         light.intensity = intensity;
         light.color = color;
+        return light;
     }
 
     private void CreateFurniture(Transform root)
     {
-        CreateCube("Interview Table", new Vector3(0f, 0.72f, 0.95f), new Vector3(4.65f, 0.18f, 1.72f), new Color32(94, 76, 58, 255), root);
-        CreateCube("Table Light Edge", new Vector3(0f, 0.83f, -0.02f), new Vector3(4.7f, 0.055f, 0.055f), new Color32(154, 126, 90, 255), root);
-        CreateCube("Table Front Modesty Panel", new Vector3(0f, 0.38f, 0.25f), new Vector3(4.35f, 0.62f, 0.12f), new Color32(58, 45, 35, 255), root);
-        CreateCube("Table Left Leg", new Vector3(-1.85f, 0.34f, 1.52f), new Vector3(0.16f, 0.68f, 0.16f), new Color32(56, 43, 34, 255), root);
-        CreateCube("Table Right Leg", new Vector3(1.85f, 0.34f, 1.52f), new Vector3(0.16f, 0.68f, 0.16f), new Color32(56, 43, 34, 255), root);
-        CreateCube("Candidate Chair Seat", new Vector3(0f, 0.4f, -1.35f), new Vector3(0.74f, 0.18f, 0.7f), new Color32(58, 86, 104, 255), root);
-        CreateCube("Candidate Chair Back", new Vector3(0f, 0.91f, -1.68f), new Vector3(0.78f, 0.86f, 0.13f), new Color32(62, 92, 110, 255), root);
-        CreateCube("Candidate Chair Left Arm", new Vector3(-0.48f, 0.61f, -1.34f), new Vector3(0.08f, 0.3f, 0.62f), new Color32(44, 64, 78, 255), root);
-        CreateCube("Candidate Chair Right Arm", new Vector3(0.48f, 0.61f, -1.34f), new Vector3(0.08f, 0.3f, 0.62f), new Color32(44, 64, 78, 255), root);
-        CreateCube("Chair Back Highlight", new Vector3(0f, 1.08f, -1.765f), new Vector3(0.58f, 0.055f, 0.035f), new Color32(116, 196, 184, 255), root);
+        if (!InstantiatePrefab(meetingTablePrefab, "Meeting Table Prefab", new Vector3(0f, 0.72f, 0.95f), Quaternion.identity, Vector3.one, root))
+        {
+            CreateCube("Interview Table", new Vector3(0f, 0.72f, 0.95f), new Vector3(4.65f, 0.18f, 1.72f), new Color32(94, 76, 58, 255), root);
+            CreateCube("Table Light Edge", new Vector3(0f, 0.83f, -0.02f), new Vector3(4.7f, 0.055f, 0.055f), new Color32(154, 126, 90, 255), root);
+            CreateCube("Table Front Modesty Panel", new Vector3(0f, 0.38f, 0.25f), new Vector3(4.35f, 0.62f, 0.12f), new Color32(58, 45, 35, 255), root);
+            CreateCube("Table Left Leg", new Vector3(-1.85f, 0.34f, 1.52f), new Vector3(0.16f, 0.68f, 0.16f), new Color32(56, 43, 34, 255), root);
+            CreateCube("Table Right Leg", new Vector3(1.85f, 0.34f, 1.52f), new Vector3(0.16f, 0.68f, 0.16f), new Color32(56, 43, 34, 255), root);
+        }
+        if (!InstantiatePrefab(candidateChairPrefab, "Candidate Chair Prefab", new Vector3(0f, 0.62f, -1.42f), Quaternion.identity, Vector3.one, root))
+        {
+            CreateCube("Candidate Chair Seat", new Vector3(0f, 0.4f, -1.35f), new Vector3(0.74f, 0.18f, 0.7f), new Color32(58, 86, 104, 255), root);
+            CreateCube("Candidate Chair Back", new Vector3(0f, 0.91f, -1.68f), new Vector3(0.78f, 0.86f, 0.13f), new Color32(62, 92, 110, 255), root);
+            CreateCube("Candidate Chair Left Arm", new Vector3(-0.48f, 0.61f, -1.34f), new Vector3(0.08f, 0.3f, 0.62f), new Color32(44, 64, 78, 255), root);
+            CreateCube("Candidate Chair Right Arm", new Vector3(0.48f, 0.61f, -1.34f), new Vector3(0.08f, 0.3f, 0.62f), new Color32(44, 64, 78, 255), root);
+            chairBackHighlightRenderer = CreateCube("Chair Back Highlight", new Vector3(0f, 1.08f, -1.765f), new Vector3(0.58f, 0.055f, 0.035f), new Color32(116, 196, 184, 255), root).GetComponent<Renderer>();
+        }
         chairHighlightRenderer = CreateCube("Interview Chair Floor Marker", new Vector3(0f, 0.012f, -1.35f), new Vector3(1.22f, 0.025f, 1.02f), chairMarkerIdleColor, root).GetComponent<Renderer>();
         CreateCube("Chair Direction Arrow", new Vector3(0f, 0.03f, -0.74f), new Vector3(0.46f, 0.025f, 0.1f), new Color32(94, 176, 160, 190), root);
-        CreateCube("Laptop Base", new Vector3(-1.25f, 0.86f, 0.68f), new Vector3(0.66f, 0.045f, 0.42f), new Color32(26, 30, 36, 255), root);
-        CreateCube("Laptop Screen", new Vector3(-1.25f, 1.08f, 0.87f), new Vector3(0.66f, 0.42f, 0.045f), new Color32(36, 74, 82, 255), root);
-        CreateCube("Candidate Notepad", new Vector3(0.82f, 0.855f, 0.2f), new Vector3(0.46f, 0.03f, 0.32f), new Color32(190, 184, 154, 255), root);
-        CreateCube("Notepad Line 1", new Vector3(0.82f, 0.88f, 0.14f), new Vector3(0.36f, 0.012f, 0.018f), new Color32(82, 88, 92, 255), root);
-        CreateCube("Water Glass", new Vector3(1.34f, 0.93f, 0.28f), new Vector3(0.16f, 0.22f, 0.16f), new Color32(130, 170, 184, 180), root);
+        GameObject laptopInstance = InstantiatePrefab(laptopPrefab, "Laptop Prefab", new Vector3(-1.25f, 0.93f, 0.68f), Quaternion.Euler(0f, 180f, 0f), Vector3.one, root);
+        if (laptopInstance == null)
+        {
+            CreateCube("Laptop Base", new Vector3(-1.25f, 0.86f, 0.68f), new Vector3(0.66f, 0.045f, 0.42f), new Color32(26, 30, 36, 255), root);
+            laptopScreenRenderer = CreateCube("Laptop Screen", new Vector3(-1.25f, 1.08f, 0.87f), new Vector3(0.66f, 0.42f, 0.045f), new Color32(36, 74, 82, 255), root).GetComponent<Renderer>();
+        }
+        else
+        {
+            laptopScreenRenderer = GetFirstRenderer(laptopInstance);
+        }
+        laptopGlowLight = CreatePointLight("Laptop Screen Glow", new Vector3(-1.25f, 1.1f, 0.3f), 1.4f, 0.52f, new Color32(90, 210, 200, 255), root);
+        if (!InstantiatePrefab(notepadPrefab, "Notepad Prefab", new Vector3(0.82f, 0.87f, 0.2f), Quaternion.identity, Vector3.one, root))
+        {
+            CreateCube("Candidate Notepad", new Vector3(0.82f, 0.855f, 0.2f), new Vector3(0.46f, 0.03f, 0.32f), new Color32(190, 184, 154, 255), root);
+            CreateCube("Notepad Line 1", new Vector3(0.82f, 0.88f, 0.14f), new Vector3(0.36f, 0.012f, 0.018f), new Color32(82, 88, 92, 255), root);
+        }
+        if (!InstantiatePrefab(waterGlassPrefab, "Water Glass Prefab", new Vector3(1.34f, 0.93f, 0.28f), Quaternion.identity, Vector3.one, root))
+        {
+            CreateCube("Water Glass", new Vector3(1.34f, 0.93f, 0.28f), new Vector3(0.16f, 0.22f, 0.16f), new Color32(130, 170, 184, 180), root);
+        }
 
         GameObject seatObject = new GameObject("InterviewChair");
         seatObject.transform.SetParent(root, false);
@@ -475,10 +585,22 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
             placeholder.transform.localPosition = positions[i];
             placeholder.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
 
-            Renderer panel = CreateCube("Panel", Vector3.zero, new Vector3(0.98f, 1.28f, 0.08f), new Color32(44, 50, 62, 255), placeholder.transform).GetComponent<Renderer>();
-            CreateCube("Panel Top Edge", new Vector3(0f, 0.66f, -0.055f), new Vector3(1.02f, 0.045f, 0.035f), new Color32(86, 102, 116, 255), placeholder.transform);
-            Renderer head = CreateSphere("Avatar Head", new Vector3(0f, 0.16f, -0.18f), new Vector3(0.3f, 0.34f, 0.3f), new Color32(178, 184, 194, 255), placeholder.transform).GetComponent<Renderer>();
-            CreateCapsule("Avatar Body", new Vector3(0f, -0.29f, -0.18f), new Vector3(0.4f, 0.36f, 0.2f), new Color32(94, 103, 118, 255), placeholder.transform);
+            Renderer panel;
+            Renderer head;
+            if (interviewerChairPanelPrefab != null)
+            {
+                GameObject panelInstance = InstantiatePrefab(interviewerChairPanelPrefab, "Interviewer Panel Prefab", Vector3.zero, Quaternion.identity, Vector3.one, placeholder.transform);
+                Renderer[] renderers = panelInstance.GetComponentsInChildren<Renderer>();
+                panel = renderers.Length > 0 ? renderers[0] : null;
+                head = renderers.Length > 1 ? renderers[1] : panel;
+            }
+            else
+            {
+                panel = CreateCube("Panel", Vector3.zero, new Vector3(0.98f, 1.28f, 0.08f), new Color32(44, 50, 62, 255), placeholder.transform).GetComponent<Renderer>();
+                CreateCube("Panel Top Edge", new Vector3(0f, 0.66f, -0.055f), new Vector3(1.02f, 0.045f, 0.035f), new Color32(86, 102, 116, 255), placeholder.transform);
+                head = CreateSphere("Avatar Head", new Vector3(0f, 0.16f, -0.18f), new Vector3(0.3f, 0.34f, 0.3f), new Color32(178, 184, 194, 255), placeholder.transform).GetComponent<Renderer>();
+                CreateCapsule("Avatar Body", new Vector3(0f, -0.29f, -0.18f), new Vector3(0.4f, 0.36f, 0.2f), new Color32(94, 103, 118, 255), placeholder.transform);
+            }
             Renderer reaction = CreateCube("Reaction Hook Strip", new Vector3(0f, -0.58f, -0.22f), new Vector3(0.78f, 0.065f, 0.04f), new Color32(72, 82, 96, 255), placeholder.transform).GetComponent<Renderer>();
             CreateCube("Nameplate Backing", new Vector3(0f, 0.78f, -0.225f), new Vector3(1.26f, 0.24f, 0.035f), new Color32(28, 34, 42, 255), placeholder.transform);
             CreateInterviewerLabel(GetInterviewerLabel(i), new Vector3(0f, 0.775f, -0.268f), placeholder.transform);
@@ -558,6 +680,32 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
         return cube;
     }
 
+    private static GameObject InstantiatePrefab(GameObject prefab, string name, Vector3 position, Quaternion rotation, Vector3 scale, Transform parent)
+    {
+        if (prefab == null)
+        {
+            return null;
+        }
+
+        GameObject instance = Instantiate(prefab, parent);
+        instance.name = name;
+        instance.transform.localPosition = position;
+        instance.transform.localRotation = rotation;
+        instance.transform.localScale = scale;
+        return instance;
+    }
+
+    private static Renderer GetFirstRenderer(GameObject instance)
+    {
+        if (instance == null)
+        {
+            return null;
+        }
+
+        Renderer[] renderers = instance.GetComponentsInChildren<Renderer>();
+        return renderers.Length > 0 ? renderers[0] : null;
+    }
+
     private static GameObject CreateSphere(string name, Vector3 position, Vector3 scale, Color color, Transform parent)
     {
         GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -606,6 +754,40 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
         }
 
         return material;
+    }
+
+    private static void SetRendererColor(Renderer renderer, Color color)
+    {
+        if (renderer == null)
+        {
+            return;
+        }
+
+        renderer.material.color = color;
+        if (renderer.material.HasProperty("_BaseColor"))
+        {
+            renderer.material.SetColor("_BaseColor", color);
+        }
+        if (renderer.material.HasProperty("_Color"))
+        {
+            renderer.material.SetColor("_Color", color);
+        }
+    }
+
+    private void ConfigureRoomHum()
+    {
+        if (roomHumClip == null || roomHumSource != null)
+        {
+            return;
+        }
+
+        roomHumSource = gameObject.AddComponent<AudioSource>();
+        roomHumSource.clip = roomHumClip;
+        roomHumSource.loop = true;
+        roomHumSource.playOnAwake = false;
+        roomHumSource.volume = roomHumVolume;
+        roomHumSource.spatialBlend = 0f;
+        roomHumSource.Play();
     }
 
     private static bool WasInteractPressed()

@@ -30,6 +30,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
     private readonly InterviewScore score = new InterviewScore();
     [SerializeField] private InterviewQuestionData[] questionBank;
+    [SerializeField] private float stageIntroPauseDuration = 1.2f;
+    [SerializeField] private float finalOutcomePauseDuration = 1.45f;
     [SerializeField] private float positiveReactionDuration = 1.1f;
     [SerializeField] private float neutralReactionDuration = 1.25f;
     [SerializeField] private float awkwardReactionDuration = 1.45f;
@@ -39,12 +41,14 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     [SerializeField] private bool useDeterministicQuestionSeed;
     [SerializeField] private int deterministicQuestionSeed = 10603;
     [SerializeField] private float outcomeTransitionDelay = 1.15f;
-    [SerializeField] private bool demoModeEnabled = true;
+    [SerializeField] private bool playtestModeEnabled = true;
 
     private RuntimeInterviewQuestion[] contextQuestionPool;
     private RuntimeInterviewQuestion[] technicalQuestionPool;
     private RuntimeInterviewQuestion[] commercialQuestionPool;
+    private InterviewStageData[] interviewStages;
     private RuntimeInterviewQuestion[] questions;
+    private InterviewStageData[] questionStages;
     private System.Random questionRandom;
     private TheRoomPrototypeController roomController;
     private int currentQuestionIndex;
@@ -52,6 +56,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private bool answerLocked;
     private bool runSummaryLogged;
     private bool preserveForcedOutcomeOnRestart;
+    private readonly List<int> selectedAnswerIndexes = new List<int>();
+    private readonly HashSet<int> shownStageIntroIndexes = new HashSet<int>();
 
     private Canvas canvas;
     private GameObject panelRoot;
@@ -79,12 +85,13 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private void Awake()
     {
         roomController = GetComponent<TheRoomPrototypeController>();
-        if (demoModeEnabled)
+        if (playtestModeEnabled)
         {
             debugForceOutcome = false;
             preserveForcedOutcomeOnRestart = false;
         }
 
+        BuildInterviewStages();
         BuildQuestions();
         BuildUi();
         ResetFlow();
@@ -104,6 +111,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         currentQuestionIndex = 0;
         answerLocked = false;
         runSummaryLogged = false;
+        selectedAnswerIndexes.Clear();
+        shownStageIntroIndexes.Clear();
         score.Reset();
         SelectQuestionsForRun();
         if (roomController == null)
@@ -113,7 +122,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
         if (panelRoot == null || questionPanel == null || transitionPanel == null || outcomePanel == null || scorecardPanel == null)
         {
-            Debug.LogWarning("Final Round RC10: interview UI could not be prepared. Check generated UI references.");
+            Debug.LogWarning("Final Round RC15: interview UI could not be prepared. Check generated UI references.");
             return;
         }
 
@@ -139,6 +148,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         currentQuestionIndex = 0;
         answerLocked = false;
         runSummaryLogged = false;
+        selectedAnswerIndexes.Clear();
+        shownStageIntroIndexes.Clear();
         if (!preserveForcedOutcomeOnRestart)
         {
             debugForceOutcome = false;
@@ -158,7 +169,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     {
         if (questions == null || questions.Length == 0)
         {
-            Debug.LogWarning("Final Round RC10: no selected questions were available. Re-selecting question bank.");
+            Debug.LogWarning("Final Round RC15: no selected questions were available. Re-selecting question bank.");
             SelectQuestionsForRun();
         }
 
@@ -168,15 +179,30 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
             return;
         }
 
+        if (ShouldShowStageIntro(currentQuestionIndex))
+        {
+            StartCoroutine(ShowStageIntroThenQuestion(currentQuestionIndex));
+            return;
+        }
+
+        RenderCurrentQuestion();
+    }
+
+    private void RenderCurrentQuestion()
+    {
         RuntimeInterviewQuestion question = questions[currentQuestionIndex];
         if (question == null || question.Answers == null || question.Answers.Length != 4)
         {
-            Debug.LogWarning($"Final Round RC10: question {currentQuestionIndex + 1} is missing or malformed. Skipping to outcome.");
+            Debug.LogWarning($"Final Round RC15: question {currentQuestionIndex + 1} is missing or malformed. Skipping to outcome.");
             ShowOutcomeEmail();
             return;
         }
 
-        interviewerText.text = question.InterviewerName;
+        InterviewStageData stage = GetStageForQuestion(currentQuestionIndex);
+        string stageName = stage == null ? "Final Round" : stage.StageName;
+        interviewerText.text =
+            $"<size=18><color=#8DA0B8>{stageName} | Question {currentQuestionIndex + 1} of {questions.Length}</color></size>\n" +
+            question.InterviewerName;
         questionText.text = question.QuestionText;
         reactionText.text = string.Empty;
         answerLocked = false;
@@ -194,6 +220,42 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         }
     }
 
+    private bool ShouldShowStageIntro(int questionIndex)
+    {
+        InterviewStageData stage = GetStageForQuestion(questionIndex);
+        return stage != null && !shownStageIntroIndexes.Contains(stage.StageIndex);
+    }
+
+    private IEnumerator ShowStageIntroThenQuestion(int questionIndex)
+    {
+        InterviewStageData stage = GetStageForQuestion(questionIndex);
+        if (stage == null)
+        {
+            RenderCurrentQuestion();
+            yield break;
+        }
+
+        answerLocked = true;
+        questionPanel.SetActive(false);
+        ClearQuestionText();
+        if (outcomePanel != null)
+        {
+            outcomePanel.SetActive(false);
+        }
+
+        if (transitionPanel != null && transitionText != null)
+        {
+            transitionPanel.SetActive(true);
+            transitionText.text = stage.IntroText;
+            yield return new WaitForSeconds(stageIntroPauseDuration);
+            transitionPanel.SetActive(false);
+        }
+
+        shownStageIntroIndexes.Add(stage.StageIndex);
+        questionPanel.SetActive(true);
+        RenderCurrentQuestion();
+    }
+
     private void ChooseAnswer(int answerIndex)
     {
         if (answerLocked || currentQuestionIndex >= questions.Length)
@@ -205,11 +267,12 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         RuntimeInterviewQuestion question = questions[currentQuestionIndex];
         if (question == null || question.Answers == null || answerIndex < 0 || answerIndex >= question.Answers.Length)
         {
-            Debug.LogWarning("Final Round RC10: answer selection was invalid.");
+            Debug.LogWarning("Final Round RC15: answer selection was invalid.");
             return;
         }
 
         AnswerData answer = question.Answers[answerIndex];
+        selectedAnswerIndexes.Add(answerIndex + 1);
         score.Apply(answer);
         ReactionResult reaction = DetermineReaction(answer, currentQuestionIndex == questions.Length - 1);
 
@@ -237,7 +300,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         EnsureUiReady();
         if (questionPanel == null || outcomePanel == null || scorecardPanel == null)
         {
-            Debug.LogWarning("Final Round RC10: outcome UI is missing required references.");
+            Debug.LogWarning("Final Round RC15: outcome UI is missing required references.");
             return;
         }
 
@@ -267,7 +330,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     {
         if (scorecardPanel == null || scorecardText == null)
         {
-            Debug.LogWarning("Final Round RC10: scorecard UI is missing required references.");
+            Debug.LogWarning("Final Round RC15: scorecard UI is missing required references.");
             return;
         }
 
@@ -292,7 +355,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         StopAllCoroutines();
         if (panelRoot == null)
         {
-            Debug.LogWarning("Final Round RC10: cannot skip to outcome because the interview UI root is missing.");
+            Debug.LogWarning("Final Round RC15: cannot skip to outcome because the interview UI root is missing.");
             return;
         }
 
@@ -317,6 +380,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
         if (transitionPanel != null && transitionText != null)
         {
+            yield return new WaitForSeconds(finalOutcomePauseDuration);
             transitionPanel.SetActive(true);
             transitionText.text = "Inbox: 1 new message";
             yield return new WaitForSeconds(outcomeTransitionDelay);
@@ -344,6 +408,14 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private void CycleSeed()
     {
         deterministicQuestionSeed = Mathf.Abs(deterministicQuestionSeed + 101);
+        SelectQuestionsForRun();
+        RefreshDebugStatus();
+    }
+
+    private void UseSeedPreset(int seed)
+    {
+        deterministicQuestionSeed = Mathf.Abs(seed);
+        useDeterministicQuestionSeed = true;
         SelectQuestionsForRun();
         RefreshDebugStatus();
     }
@@ -532,6 +604,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
         interviewerText = CreateText("Interviewer", questionPanel.transform, string.Empty, 22, FontStyles.Bold, TextAlignmentOptions.Left);
         interviewerText.color = new Color32(128, 218, 196, 255);
+        ConfigureLayout(interviewerText.gameObject, -1f, 48f);
         questionText = CreateText("Question", questionPanel.transform, string.Empty, 28, FontStyles.Normal, TextAlignmentOptions.Left);
         questionText.color = new Color32(232, 238, 246, 255);
         ConfigureLayout(questionText.gameObject, -1f, 92f);
@@ -571,15 +644,15 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
     private void BuildDebugPanel(Transform parent)
     {
-        debugPanel = CreatePanel("RC10 Debug Panel", parent, new Color32(8, 11, 16, 238));
+        debugPanel = CreatePanel("RC15 Debug Panel", parent, new Color32(8, 11, 16, 238));
         RectTransform debugRect = debugPanel.GetComponent<RectTransform>();
-        debugRect.anchorMin = new Vector2(0.72f, 0.46f);
+        debugRect.anchorMin = new Vector2(0.72f, 0.24f);
         debugRect.anchorMax = new Vector2(0.98f, 0.94f);
         debugRect.offsetMin = Vector2.zero;
         debugRect.offsetMax = Vector2.zero;
         AddVerticalLayout(debugPanel, new RectOffset(18, 18, 16, 16), 8f);
 
-        TMP_Text titleText = CreateText("Debug Title", debugPanel.transform, "RC10 Debug Tools", 22, FontStyles.Bold, TextAlignmentOptions.Left);
+        TMP_Text titleText = CreateText("Debug Title", debugPanel.transform, "RC15 Debug Tools", 22, FontStyles.Bold, TextAlignmentOptions.Left);
         titleText.color = new Color32(130, 220, 198, 255);
         ConfigureLayout(titleText.gameObject, -1f, 28f);
 
@@ -589,6 +662,10 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
         CreateDebugButton("Toggle Deterministic Seed", debugPanel.transform, () => SetDeterministicSeedEnabled(!useDeterministicQuestionSeed));
         CreateDebugButton("Cycle Seed", debugPanel.transform, CycleSeed);
+        CreateDebugButton("Preset Seed 1", debugPanel.transform, () => UseSeedPreset(1));
+        CreateDebugButton("Preset Seed 2", debugPanel.transform, () => UseSeedPreset(2));
+        CreateDebugButton("Preset Seed 3", debugPanel.transform, () => UseSeedPreset(3));
+        CreateDebugButton("Preset Seed 4", debugPanel.transform, () => UseSeedPreset(4));
         CreateDebugButton("Force Strong Pass", debugPanel.transform, () => ForceOutcome(InterviewOutcomeType.StrongPass));
         CreateDebugButton("Force Pass", debugPanel.transform, () => ForceOutcome(InterviewOutcomeType.Pass));
         CreateDebugButton("Force Hold", debugPanel.transform, () => ForceOutcome(InterviewOutcomeType.Hold));
@@ -853,9 +930,9 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         string selectedQuestions = GetSelectedQuestionIdSummary();
 
         debugStatusText.text =
-            "Prototype v1.0 RC10\n" +
+            "Prototype v1.0 RC15\n" +
             "Branch: prototype-v1.0-rc6-working\n" +
-            $"Demo mode: {(demoModeEnabled ? "on" : "off")}\n" +
+            $"Playtest mode: {(playtestModeEnabled ? "on" : "off")}\n" +
             $"Seed mode: {(useDeterministicQuestionSeed ? "deterministic" : "random")}\n" +
             $"Current seed: {currentQuestionSeed}\n" +
             $"Question IDs: {selectedQuestions}\n" +
@@ -870,10 +947,13 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
             return "none";
         }
 
-        string contextId = questions[0] == null ? "CTX-00" : questions[0].QuestionId;
-        string technicalId = questions.Length > 1 && questions[1] != null ? questions[1].QuestionId : "TECH-00";
-        string commercialId = questions.Length > 2 && questions[2] != null ? questions[2].QuestionId : "COMM-00";
-        return $"{contextId}, {technicalId}, {commercialId}";
+        List<string> questionIds = new List<string>();
+        for (int i = 0; i < questions.Length; i++)
+        {
+            questionIds.Add(questions[i] == null ? $"Q{i + 1:00}-MISSING" : questions[i].QuestionId);
+        }
+
+        return string.Join(", ", questionIds);
     }
 
     private static int GetQuestionIndex(RuntimeInterviewQuestion[] pool, RuntimeInterviewQuestion question)
@@ -1027,6 +1107,34 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         SelectQuestionsForRun();
     }
 
+    private void BuildInterviewStages()
+    {
+        interviewStages = new[]
+        {
+            new InterviewStageData(
+                0,
+                "Stage 1: Customer Context",
+                "Hiring Manager",
+                "The Hiring Manager folds their hands. \"Let's start with the customer situation.\"",
+                QuestionCategory.ContextCustomerScenario,
+                2),
+            new InterviewStageData(
+                1,
+                "Stage 2: Technical Judgement",
+                "Principal Security Architect",
+                "The Principal Security Architect leans forward. \"I want to go a level deeper technically.\"",
+                QuestionCategory.TechnicalSecurityJudgement,
+                2),
+            new InterviewStageData(
+                2,
+                "Stage 3: Commercial Pressure",
+                "Sales Director",
+                "The Sales Director checks their notes. \"Let's talk about the commercial reality.\"",
+                QuestionCategory.CommercialExecutivePressure,
+                2)
+        };
+    }
+
     private RuntimeInterviewQuestion[] AppendCommercialQuestions(RuntimeInterviewQuestion[] existing)
     {
         RuntimeInterviewQuestion[] expanded = new RuntimeInterviewQuestion[4];
@@ -1075,13 +1183,75 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
         questionRandom = new System.Random(currentQuestionSeed);
 
-        questions = new[]
+        List<RuntimeInterviewQuestion> selectedQuestions = new List<RuntimeInterviewQuestion>();
+        List<InterviewStageData> selectedStages = new List<InterviewStageData>();
+        for (int i = 0; i < interviewStages.Length; i++)
         {
-            PickQuestion(contextQuestionPool),
-            PickQuestion(technicalQuestionPool),
-            PickQuestion(commercialQuestionPool)
-        };
+            InterviewStageData stage = interviewStages[i];
+            RuntimeInterviewQuestion[] stageQuestions = PickQuestionsForStage(stage);
+            for (int questionIndex = 0; questionIndex < stageQuestions.Length; questionIndex++)
+            {
+                selectedQuestions.Add(stageQuestions[questionIndex]);
+                selectedStages.Add(stage);
+            }
+        }
+
+        questions = selectedQuestions.ToArray();
+        questionStages = selectedStages.ToArray();
         RefreshDebugStatus();
+    }
+
+    private RuntimeInterviewQuestion[] PickQuestionsForStage(InterviewStageData stage)
+    {
+        RuntimeInterviewQuestion[] pool = GetPoolForCategory(stage.Category);
+        if (pool == null || pool.Length == 0)
+        {
+            Debug.LogWarning($"Final Round RC15: no valid questions available for {stage.StageName}.");
+            return new[] { CreateFallbackQuestion() };
+        }
+
+        int count = Mathf.Min(stage.QuestionCount, pool.Length);
+        if (count < stage.QuestionCount)
+        {
+            Debug.LogWarning($"Final Round RC15: {stage.StageName} requested {stage.QuestionCount} questions, but only {pool.Length} are available.");
+        }
+
+        List<RuntimeInterviewQuestion> availableQuestions = new List<RuntimeInterviewQuestion>(pool);
+        RuntimeInterviewQuestion[] selected = new RuntimeInterviewQuestion[count];
+        for (int i = 0; i < count; i++)
+        {
+            int selectedIndex = questionRandom.Next(availableQuestions.Count);
+            selected[i] = availableQuestions[selectedIndex];
+            availableQuestions.RemoveAt(selectedIndex);
+        }
+
+        return selected;
+    }
+
+    private RuntimeInterviewQuestion[] GetPoolForCategory(QuestionCategory category)
+    {
+        return category switch
+        {
+            QuestionCategory.ContextCustomerScenario => contextQuestionPool,
+            QuestionCategory.TechnicalSecurityJudgement => technicalQuestionPool,
+            QuestionCategory.CommercialExecutivePressure => commercialQuestionPool,
+            _ => null
+        };
+    }
+
+    private RuntimeInterviewQuestion CreateFallbackQuestion()
+    {
+        return new RuntimeInterviewQuestion(
+            "FALLBACK-01",
+            "Hiring Manager",
+            "The panel waits for a question that was not configured.",
+            new[]
+            {
+                new AnswerData("Acknowledge the setup issue and ask to proceed.", 0, 0, 1, 0),
+                new AnswerData("Try to improvise a product pitch.", 0, 0, -1, -1),
+                new AnswerData("Ask what signal they still need from the interview.", 0, 1, 1, 0),
+                new AnswerData("Say nothing for a moment.", -1, -1, -1, -1)
+            });
     }
 
     private RuntimeInterviewQuestion PickQuestion(RuntimeInterviewQuestion[] pool)
@@ -1089,20 +1259,20 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         if (pool == null || pool.Length == 0)
         {
             Debug.LogError("Final Round RC11 question pool is empty.");
-            return new RuntimeInterviewQuestion(
-                "FALLBACK-01",
-                "Hiring Manager",
-                "The panel waits for a question that was not configured.",
-                new[]
-                {
-                    new AnswerData("Acknowledge the setup issue and ask to proceed.", 0, 0, 1, 0),
-                    new AnswerData("Try to improvise a product pitch.", 0, 0, -1, -1),
-                    new AnswerData("Ask what signal they still need from the interview.", 0, 1, 1, 0),
-                    new AnswerData("Say nothing for a moment.", -1, -1, -1, -1)
-                });
+            return CreateFallbackQuestion();
         }
 
         return pool[questionRandom.Next(pool.Length)];
+    }
+
+    private InterviewStageData GetStageForQuestion(int questionIndex)
+    {
+        if (questionStages == null || questionIndex < 0 || questionIndex >= questionStages.Length)
+        {
+            return interviewStages != null && interviewStages.Length > 0 ? interviewStages[0] : null;
+        }
+
+        return questionStages[questionIndex];
     }
 
     private void LogRoomRunSummaryOnce(InterviewOutcomeType outcome)
@@ -1114,14 +1284,25 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
         runSummaryLogged = true;
         Debug.Log(
-            "Final Round RC10 Room Run Summary\n" +
-            $"Seed Mode: {(useDeterministicQuestionSeed ? "deterministic" : "random")}\n" +
+            "Final Round RC15 Room Run Summary\n" +
             $"Seed: {currentQuestionSeed}\n" +
             $"Selected Question IDs: {GetSelectedQuestionIdSummary()}\n" +
+            $"Selected Answer Indexes: {GetSelectedAnswerIndexSummary()}\n" +
             $"Final Scores: Technical {score.Technical}, Commercial {score.Commercial}, Rapport {score.Rapport}, Energy {score.Energy}\n" +
             $"Outcome: {outcome}\n" +
             $"Forced Outcome Used: {(debugForceOutcome ? debugForcedOutcome.ToString() : "off")}\n" +
-            $"Demo Mode: {(demoModeEnabled ? "on" : "off")}");
+            $"Deterministic Seed Active: {useDeterministicQuestionSeed}\n" +
+            $"Playtest Mode: {(playtestModeEnabled ? "on" : "off")}");
+    }
+
+    private string GetSelectedAnswerIndexSummary()
+    {
+        if (selectedAnswerIndexes.Count == 0)
+        {
+            return "none";
+        }
+
+        return string.Join(", ", selectedAnswerIndexes);
     }
 
     private bool TryBuildQuestionsFromAssets()
@@ -1130,6 +1311,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         if (sourceQuestions == null || sourceQuestions.Length == 0)
         {
             sourceQuestions = Resources.LoadAll<InterviewQuestionData>(DefaultQuestionResourcePath);
+            System.Array.Sort(sourceQuestions, (left, right) => string.CompareOrdinal(left == null ? string.Empty : left.QuestionId, right == null ? string.Empty : right.QuestionId));
         }
 
         if (sourceQuestions == null || sourceQuestions.Length == 0)
@@ -1198,6 +1380,26 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
             InterviewerName = interviewerName;
             QuestionText = questionText;
             Answers = answers;
+        }
+    }
+
+    private sealed class InterviewStageData
+    {
+        public int StageIndex { get; }
+        public string StageName { get; }
+        public string LeadInterviewer { get; }
+        public string IntroText { get; }
+        public QuestionCategory Category { get; }
+        public int QuestionCount { get; }
+
+        public InterviewStageData(int stageIndex, string stageName, string leadInterviewer, string introText, QuestionCategory category, int questionCount)
+        {
+            StageIndex = stageIndex;
+            StageName = stageName;
+            LeadInterviewer = leadInterviewer;
+            IntroText = introText;
+            Category = category;
+            QuestionCount = Mathf.Max(1, questionCount);
         }
     }
 
