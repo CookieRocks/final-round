@@ -45,6 +45,11 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
     private void Start()
     {
         gameManager = FindAnyObjectByType<InterviewGameManager>();
+        if (gameManager == null)
+        {
+            Debug.LogWarning("Final Round RC7: InterviewGameManager was not found. Room HUD and pause UI integration may be limited.");
+        }
+
         interviewFlow = GetComponent<CybersecurityPresalesInterviewFlow>();
         if (interviewFlow == null)
         {
@@ -101,7 +106,8 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
 
     private bool IsUiFocusActive()
     {
-        return gameManager != null && gameManager.IsRoomUiFocusActive();
+        return (gameManager != null && gameManager.IsRoomUiFocusActive())
+            || (interviewFlow != null && interviewFlow.IsDebugPanelVisible);
     }
 
     public void SetInterviewerReaction(int index, InterviewerReaction reaction)
@@ -268,6 +274,7 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
         }
 
         playerController.WarpTo(standingStartPoint.position, standingStartPoint.rotation);
+        playerController.SetUiFocusActive(false);
         playerController.SetMovementEnabled(true);
     }
 

@@ -3,6 +3,9 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 public enum ReactionTone
 {
@@ -46,6 +49,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private GameObject questionPanel;
     private GameObject outcomePanel;
     private GameObject scorecardPanel;
+    private GameObject debugPanel;
     private TMP_Text interviewerText;
     private TMP_Text questionText;
     private TMP_Text reactionText;
@@ -55,8 +59,11 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private TMP_Text outcomeBodyText;
     private TMP_Text outcomeFeedbackText;
     private TMP_Text scorecardText;
+    private TMP_Text debugStatusText;
     private Button[] answerButtons;
     private TMP_Text[] answerButtonTexts;
+
+    public bool IsDebugPanelVisible => debugPanel != null && debugPanel.activeSelf;
 
     private void Awake()
     {
@@ -64,6 +71,14 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         BuildQuestions();
         BuildUi();
         ResetFlow();
+    }
+
+    private void Update()
+    {
+        if (WasDebugTogglePressed())
+        {
+            ToggleDebugPanel();
+        }
     }
 
     public void BeginInterview()
@@ -83,7 +98,9 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         questionPanel.SetActive(true);
         outcomePanel.SetActive(false);
         scorecardPanel.SetActive(false);
+        ClearOutcomeText();
         ShowCurrentQuestion();
+        RefreshDebugStatus();
     }
 
     public void ResetFlow()
@@ -98,10 +115,22 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         answerLocked = false;
         score.Reset();
         roomController?.ClearJudgementReaction();
+        ClearQuestionText();
+        ClearOutcomeText();
+        if (debugPanel != null)
+        {
+            debugPanel.SetActive(false);
+        }
     }
 
     private void ShowCurrentQuestion()
     {
+        if (questions == null || questions.Length == 0)
+        {
+            Debug.LogWarning("Final Round RC7: no selected questions were available. Re-selecting question bank.");
+            SelectQuestionsForRun();
+        }
+
         if (currentQuestionIndex >= questions.Length)
         {
             ShowOutcomeEmail();
@@ -109,6 +138,13 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         }
 
         InterviewQuestionData question = questions[currentQuestionIndex];
+        if (question == null || question.Answers == null || question.Answers.Length != 4)
+        {
+            Debug.LogWarning($"Final Round RC7: question {currentQuestionIndex + 1} is missing or malformed. Skipping to outcome.");
+            ShowOutcomeEmail();
+            return;
+        }
+
         interviewerText.text = question.InterviewerName;
         questionText.text = question.QuestionText;
         reactionText.text = string.Empty;
@@ -136,6 +172,12 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
         answerLocked = true;
         InterviewQuestionData question = questions[currentQuestionIndex];
+        if (question == null || question.Answers == null || answerIndex < 0 || answerIndex >= question.Answers.Length)
+        {
+            Debug.LogWarning("Final Round RC7: answer selection was invalid.");
+            return;
+        }
+
         AnswerData answer = question.Answers[answerIndex];
         score.Apply(answer);
         ReactionResult reaction = DetermineReaction(answer, currentQuestionIndex == questions.Length - 1);
@@ -164,6 +206,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         questionPanel.SetActive(false);
         outcomePanel.SetActive(true);
         scorecardPanel.SetActive(false);
+        ClearQuestionText();
 
         InterviewOutcomeType outcome = GetOutcome();
         OutcomeEmail email = OutcomeEmailGenerator.Generate(outcome, score.ToSnapshot());
@@ -172,6 +215,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         outcomeOpeningText.text = email.OpeningLine;
         outcomeBodyText.text = email.OutcomeParagraph;
         outcomeFeedbackText.text = email.FeedbackParagraph;
+        RefreshDebugStatus();
     }
 
     private void ShowScorecard()
@@ -189,6 +233,53 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private void RestartRun()
     {
         roomController?.ResetRun();
+    }
+
+    private void SkipToOutcome()
+    {
+        EnsureUiReady();
+        StopAllCoroutines();
+        panelRoot.SetActive(true);
+        roomController?.ClearJudgementReaction();
+        ShowOutcomeEmail();
+    }
+
+    private void ToggleDebugPanel()
+    {
+        EnsureUiReady();
+        bool nextState = debugPanel == null || !debugPanel.activeSelf;
+        debugPanel.SetActive(nextState);
+        RefreshDebugStatus();
+    }
+
+    private void SetDeterministicSeedEnabled(bool enabled)
+    {
+        useDeterministicQuestionSeed = enabled;
+        RefreshDebugStatus();
+    }
+
+    private void CycleSeed()
+    {
+        deterministicQuestionSeed = Mathf.Abs(deterministicQuestionSeed + 101);
+        SelectQuestionsForRun();
+        RefreshDebugStatus();
+    }
+
+    private void ForceOutcome(InterviewOutcomeType outcome)
+    {
+        debugForceOutcome = true;
+        debugForcedOutcome = outcome;
+        RefreshDebugStatus();
+        if (outcomePanel != null && outcomePanel.activeSelf)
+        {
+            ShowOutcomeEmail();
+        }
+    }
+
+    private void ClearForcedOutcome()
+    {
+        debugForceOutcome = false;
+        RefreshDebugStatus();
     }
 
     private ReactionResult DetermineReaction(AnswerData answer, bool isFinalAnswer)
@@ -373,6 +464,38 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         ConfigureLayout(reactionText.gameObject, -1f, 36f);
 
         BuildOutcomePanel(panelRoot.transform);
+        BuildDebugPanel(panelRoot.transform);
+    }
+
+    private void BuildDebugPanel(Transform parent)
+    {
+        debugPanel = CreatePanel("RC7 Debug Panel", parent, new Color32(8, 11, 16, 238));
+        RectTransform debugRect = debugPanel.GetComponent<RectTransform>();
+        debugRect.anchorMin = new Vector2(0.72f, 0.46f);
+        debugRect.anchorMax = new Vector2(0.98f, 0.94f);
+        debugRect.offsetMin = Vector2.zero;
+        debugRect.offsetMax = Vector2.zero;
+        AddVerticalLayout(debugPanel, new RectOffset(18, 18, 16, 16), 8f);
+
+        TMP_Text titleText = CreateText("Debug Title", debugPanel.transform, "RC7 Debug Tools", 22, FontStyles.Bold, TextAlignmentOptions.Left);
+        titleText.color = new Color32(130, 220, 198, 255);
+        ConfigureLayout(titleText.gameObject, -1f, 28f);
+
+        debugStatusText = CreateText("Debug Status", debugPanel.transform, string.Empty, 17, FontStyles.Normal, TextAlignmentOptions.Left);
+        debugStatusText.color = new Color32(218, 226, 236, 255);
+        ConfigureLayout(debugStatusText.gameObject, -1f, 112f);
+
+        CreateDebugButton("Toggle Deterministic Seed", debugPanel.transform, () => SetDeterministicSeedEnabled(!useDeterministicQuestionSeed));
+        CreateDebugButton("Cycle Seed", debugPanel.transform, CycleSeed);
+        CreateDebugButton("Force Strong Pass", debugPanel.transform, () => ForceOutcome(InterviewOutcomeType.StrongPass));
+        CreateDebugButton("Force Pass", debugPanel.transform, () => ForceOutcome(InterviewOutcomeType.Pass));
+        CreateDebugButton("Force Hold", debugPanel.transform, () => ForceOutcome(InterviewOutcomeType.Hold));
+        CreateDebugButton("Force Reject", debugPanel.transform, () => ForceOutcome(InterviewOutcomeType.Reject));
+        CreateDebugButton("Clear Forced Outcome", debugPanel.transform, ClearForcedOutcome);
+        CreateDebugButton("Skip To Outcome", debugPanel.transform, SkipToOutcome);
+        CreateDebugButton("Restart Current Run", debugPanel.transform, RestartRun);
+
+        debugPanel.SetActive(false);
     }
 
     private void BuildOutcomePanel(Transform parent)
@@ -439,6 +562,16 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         Button button = CreateButton($"Answer {index + 1}", parent, new Color32(33, 43, 56, 252));
         ConfigureLayout(button.gameObject, -1f, 56f);
         return button;
+    }
+
+    private static void CreateDebugButton(string label, Transform parent, UnityEngine.Events.UnityAction action)
+    {
+        Button button = CreateButton(label, parent, new Color32(35, 47, 62, 252));
+        TMP_Text text = button.GetComponentInChildren<TMP_Text>();
+        text.text = label;
+        text.fontSize = 16;
+        button.onClick.AddListener(action);
+        ConfigureLayout(button.gameObject, -1f, 34f);
     }
 
     private static Button CreateButton(string name, Transform parent, Color color)
@@ -532,6 +665,116 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         }
 
         new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
+    }
+
+    private void ClearQuestionText()
+    {
+        if (interviewerText != null)
+        {
+            interviewerText.text = string.Empty;
+        }
+
+        if (questionText != null)
+        {
+            questionText.text = string.Empty;
+        }
+
+        if (reactionText != null)
+        {
+            reactionText.text = string.Empty;
+        }
+
+        if (answerButtons == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < answerButtons.Length; i++)
+        {
+            if (answerButtons[i] != null)
+            {
+                answerButtons[i].interactable = false;
+                answerButtons[i].gameObject.SetActive(false);
+            }
+        }
+    }
+
+    private void ClearOutcomeText()
+    {
+        if (outcomePanel != null)
+        {
+            outcomePanel.SetActive(false);
+        }
+
+        if (scorecardPanel != null)
+        {
+            scorecardPanel.SetActive(false);
+        }
+
+        ClearText(outcomeFromText);
+        ClearText(outcomeTitleText);
+        ClearText(outcomeOpeningText);
+        ClearText(outcomeBodyText);
+        ClearText(outcomeFeedbackText);
+        ClearText(scorecardText);
+    }
+
+    private static void ClearText(TMP_Text text)
+    {
+        if (text != null)
+        {
+            text.text = string.Empty;
+        }
+    }
+
+    private void RefreshDebugStatus()
+    {
+        if (debugStatusText == null)
+        {
+            return;
+        }
+
+        string selectedQuestions = questions == null || questions.Length == 0
+            ? "none"
+            : $"{GetQuestionIndex(contextQuestionPool, questions[0]) + 1}/" +
+              $"{GetQuestionIndex(technicalQuestionPool, questions.Length > 1 ? questions[1] : null) + 1}/" +
+              $"{GetQuestionIndex(commercialQuestionPool, questions.Length > 2 ? questions[2] : null) + 1}";
+
+        debugStatusText.text =
+            "Prototype v1.0 RC7\n" +
+            "Branch: prototype-v1.0-rc6-working\n" +
+            $"Seed mode: {(useDeterministicQuestionSeed ? "deterministic" : "random")}\n" +
+            $"Current seed: {deterministicQuestionSeed}\n" +
+            $"Question indexes: {selectedQuestions}\n" +
+            $"Forced outcome: {(debugForceOutcome ? debugForcedOutcome.ToString() : "off")}\n" +
+            "Toggle: F1";
+    }
+
+    private static int GetQuestionIndex(InterviewQuestionData[] pool, InterviewQuestionData question)
+    {
+        if (pool == null || question == null)
+        {
+            return -1;
+        }
+
+        for (int i = 0; i < pool.Length; i++)
+        {
+            if (ReferenceEquals(pool[i], question))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static bool WasDebugTogglePressed()
+    {
+#if ENABLE_INPUT_SYSTEM
+        return Keyboard.current != null && Keyboard.current.f1Key.wasPressedThisFrame;
+#else
+        return Input.GetKeyDown(KeyCode.F1);
+#endif
     }
 
     private void BuildQuestions()
@@ -691,6 +934,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
             PickQuestion(technicalQuestionPool),
             PickQuestion(commercialQuestionPool)
         };
+        RefreshDebugStatus();
     }
 
     private InterviewQuestionData PickQuestion(InterviewQuestionData[] pool)

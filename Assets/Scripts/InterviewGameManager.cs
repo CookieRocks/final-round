@@ -18,7 +18,7 @@ public class InterviewGameManager : MonoBehaviour
     private const int StartingInterviewPressure = 35;
     private const float BetweenStageEventChance = 0.6f;
     private const float ScreenFadeDuration = 0.16f;
-    private const string BuildVersion = "Prototype v1.0 RC1";
+    private const string BuildVersion = "Prototype v1.0 RC7 | prototype-v1.0-rc6-working";
     private const int MaxDisplayedRunBadges = 4;
     private const string PrefMasterVolume = "FinalRound.MasterVolume";
     private const string PrefSfxVolume = "FinalRound.SfxVolume";
