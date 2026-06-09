@@ -593,6 +593,7 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
         GameObject tableInstance = InstantiateFittedPrefab(meetingTablePrefab, "Meeting Table Prefab", new Vector3(0f, 0.03f, 0.48f), Quaternion.Euler(0f, 90f, 0f), new Vector3(4.45f, 0f, 1.75f), PrefabAnchor.BottomCenter, root);
         if (tableInstance != null)
         {
+            ApplyMaterialOverride(tableInstance, new Color32(92, 96, 88, 255));
             if (TryGetRendererBounds(tableInstance, out Bounds tableBounds))
             {
                 tableSurfaceY = tableBounds.max.y + 0.012f;
@@ -1150,6 +1151,23 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
 
         float deltaY = targetY - bounds.min.y;
         instance.transform.position += new Vector3(0f, deltaY, 0f);
+    }
+
+    private static void ApplyMaterialOverride(GameObject instance, Color color)
+    {
+        if (instance == null)
+        {
+            return;
+        }
+
+        Renderer[] renderers = instance.GetComponentsInChildren<Renderer>();
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] != null)
+            {
+                renderers[i].material = CreateMaterial(color);
+            }
+        }
     }
 
     private static GameObject CreateSphere(string name, Vector3 position, Vector3 scale, Color color, Transform parent)
