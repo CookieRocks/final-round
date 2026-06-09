@@ -118,6 +118,7 @@ public class InterviewGameManager : MonoBehaviour
     private GameObject recoveryChoiceButtonColumn;
     private GameObject randomEventScreen;
     private GameObject outcomeScreen;
+    private GameObject runtimeBackgroundPanel;
     private GameObject outcomeStatsPanel;
     private GameObject outcomeHighlightsPanel;
     private GameObject outcomeBadgesPanel;
@@ -272,7 +273,14 @@ public class InterviewGameManager : MonoBehaviour
             return;
         }
 
-        ShowMenu();
+        if (IsRoomPrototypeScene())
+        {
+            ShowRoomStandby();
+        }
+        else
+        {
+            ShowMenu();
+        }
     }
 
     private void Update()
@@ -354,10 +362,20 @@ public class InterviewGameManager : MonoBehaviour
         mainCamera.targetDisplay = 0;
         mainCamera.clearFlags = CameraClearFlags.SolidColor;
         mainCamera.backgroundColor = new Color32(8, 10, 15, 255);
-        mainCamera.cullingMask = 0;
-        mainCamera.depth = -10f;
-        mainCamera.transform.position = new Vector3(0f, 0f, -10f);
-        mainCamera.transform.rotation = Quaternion.identity;
+        if (IsRoomPrototypeScene())
+        {
+            mainCamera.clearFlags = CameraClearFlags.SolidColor;
+            mainCamera.backgroundColor = new Color32(18, 20, 24, 255);
+            mainCamera.cullingMask = ~0;
+            mainCamera.depth = 0f;
+        }
+        else
+        {
+            mainCamera.cullingMask = 0;
+            mainCamera.depth = -10f;
+            mainCamera.transform.position = new Vector3(0f, 0f, -10f);
+            mainCamera.transform.rotation = Quaternion.identity;
+        }
 
         for (int i = 0; i < cameras.Length; i++)
         {
@@ -508,8 +526,8 @@ public class InterviewGameManager : MonoBehaviour
         scaler.referenceResolution = new Vector2(1920, 1080);
         scaler.matchWidthOrHeight = 0.5f;
 
-        GameObject background = CreatePanel("Dark Background", canvasObject.transform, backgroundColor);
-        StretchToParent(background.GetComponent<RectTransform>());
+        runtimeBackgroundPanel = CreatePanel("Dark Background", canvasObject.transform, backgroundColor);
+        StretchToParent(runtimeBackgroundPanel.GetComponent<RectTransform>());
 
         GameObject safeArea = new GameObject("Safe Area", typeof(RectTransform), typeof(VerticalLayoutGroup));
         safeArea.transform.SetParent(canvasObject.transform, false);
@@ -3011,6 +3029,87 @@ public class InterviewGameManager : MonoBehaviour
         CaptureStageStartStats();
     }
 
+    public void StartInterviewFromRoomSeat()
+    {
+        if (!HasRequiredUi())
+        {
+            Debug.LogWarning("Final Round room prototype could not start the interview because runtime UI is not ready.");
+            return;
+        }
+
+        HidePauseOverlay();
+        if (runRandom == null || activeCompanyProfile == null)
+        {
+            InitializeRunIdentity();
+            SelectRandomCompanyProfile();
+        }
+
+        ResetGame(false);
+        SetRuntimeBackgroundVisible(true);
+        BeginProcess();
+    }
+
+    public void SetRoomObjectiveText(string objectiveText)
+    {
+        if (subtitleText != null)
+        {
+            subtitleText.text = objectiveText;
+        }
+
+        if (progressText != null)
+        {
+            progressText.text = "The Room";
+        }
+    }
+
+    public void ResetRoomPrototypeRun()
+    {
+        if (!HasRequiredUi())
+        {
+            return;
+        }
+
+        HidePauseOverlay();
+        ResetGame(true);
+        ShowRoomStandby();
+    }
+
+    private bool IsRoomPrototypeScene()
+    {
+        return FindAnyObjectByType<TheRoomPrototypeController>() != null;
+    }
+
+    private void ShowRoomStandby()
+    {
+        PrepareMenuRunPreview();
+        HidePauseOverlay();
+
+        if (settingsOverlay != null)
+        {
+            settingsOverlay.SetActive(false);
+        }
+
+        menuScreen.SetActive(false);
+        processBriefingScreen.SetActive(false);
+        questionScreen.SetActive(false);
+        stageTransitionScreen.SetActive(false);
+        recoveryChoiceScreen.SetActive(false);
+        randomEventScreen.SetActive(false);
+        outcomeScreen.SetActive(false);
+        SetRuntimeBackgroundVisible(false);
+
+        SetRoomObjectiveText("Find the interview chair.");
+        UpdateRoomBackdrop("Main Menu");
+    }
+
+    private void SetRuntimeBackgroundVisible(bool visible)
+    {
+        if (runtimeBackgroundPanel != null)
+        {
+            runtimeBackgroundPanel.SetActive(visible);
+        }
+    }
+
     private void InitializeRecoveryChoices()
     {
         recoveryChoices = new RecoveryChoice[]
@@ -3206,6 +3305,7 @@ public class InterviewGameManager : MonoBehaviour
     private void ShowProcessBriefing()
     {
         HidePauseOverlay();
+        SetRuntimeBackgroundVisible(true);
         menuScreen.SetActive(false);
         processBriefingScreen.SetActive(true);
         questionScreen.SetActive(false);
@@ -3227,6 +3327,7 @@ public class InterviewGameManager : MonoBehaviour
     {
         PrepareMenuRunPreview();
         HidePauseOverlay();
+        SetRuntimeBackgroundVisible(true);
         if (settingsOverlay != null)
         {
             settingsOverlay.SetActive(false);
@@ -3607,6 +3708,7 @@ public class InterviewGameManager : MonoBehaviour
     private void ShowQuestionScreen()
     {
         HidePauseOverlay();
+        SetRuntimeBackgroundVisible(true);
         menuScreen.SetActive(false);
         processBriefingScreen.SetActive(false);
         questionScreen.SetActive(true);
@@ -5090,6 +5192,7 @@ public class InterviewGameManager : MonoBehaviour
     private void ShowOutcome()
     {
         HidePauseOverlay();
+        SetRuntimeBackgroundVisible(true);
         questionScreen.SetActive(false);
         menuScreen.SetActive(false);
         processBriefingScreen.SetActive(false);
