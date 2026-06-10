@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-10_  
-_Current milestone context: VS1 complete; P31 return-to-desk outcome/inbox in progress_
+_Current milestone context: VS2 complete; The Desk promoted to vertical slice_
 
 ## 1. Purpose of this document
 
@@ -277,7 +277,7 @@ Future work for VS1 after feedback:
 
 ### VS2 — The Desk
 
-**Next likely vertical slice.**
+**Status:** complete vertical slice.
 
 Core question:
 
@@ -498,7 +498,9 @@ P31 — Return-to-Desk Outcome / Inbox
   -> process summary, main menu, and start-new-run paths added
 
 P32 — VS2 Readiness Review
-  -> decide whether The Desk becomes VS2
+  -> review complete Desk -> Room -> Desk loop
+  -> manual smoke test passed
+  -> The Desk promoted to VS2
 ```
 
 Avoid adding more room polish until friend/playtester feedback returns, unless something is clearly broken.

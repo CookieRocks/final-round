@@ -19,7 +19,7 @@ public class InterviewGameManager : MonoBehaviour
     private const int StartingInterviewPressure = 35;
     private const float BetweenStageEventChance = 0.6f;
     private const float ScreenFadeDuration = 0.16f;
-    private const string BuildVersion = "Final Round - Prototype P31";
+    private const string BuildVersion = "Final Round VS2: The Desk";
     private const string DeskSceneName = "DeskScene";
     private const int MaxDisplayedRunBadges = 4;
     private const string PrefMasterVolume = "FinalRound.MasterVolume";
