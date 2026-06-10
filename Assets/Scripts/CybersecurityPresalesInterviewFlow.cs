@@ -62,6 +62,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private int currentQuestionSeed;
     private bool answerLocked;
     private bool runSummaryLogged;
+    private bool candidateStateAvailabilityLogged;
     private bool preserveForcedOutcomeOnRestart;
     private bool panelRootSuppressedByGameUi;
     private readonly List<int> selectedAnswerIndexes = new List<int>();
@@ -107,6 +108,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         BuildInterviewStages();
         BuildQuestions();
         BuildUi();
+        LogCandidateStateAvailability();
         ResetFlow();
     }
 
@@ -334,6 +336,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         ClearQuestionText();
 
         InterviewOutcomeType outcome = GetOutcome();
+        RecordRoomOutcome(outcome);
         OutcomeEmail email = OutcomeEmailGenerator.Generate(outcome, score.ToSnapshot());
         outcomeFromText.text =
             "<color=#647080>From</color>  recruitment@northbridge-cyber.example\n" +
@@ -1117,14 +1120,54 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         string selectedQuestions = GetSelectedQuestionIdSummary();
 
         debugStatusText.text =
-            "Final Round VS1: The Room\n" +
+            "Final Round - Prototype P26\n" +
             "Branch: interviewer-human-presence-pass\n" +
             $"Playtest mode: {(playtestModeEnabled ? "on" : "off")}\n" +
             $"Seed mode: {(useDeterministicQuestionSeed ? "deterministic" : "random")}\n" +
             $"Current seed: {currentQuestionSeed}\n" +
             $"Question IDs: {selectedQuestions}\n" +
+            $"CandidateState: {GetCandidateStateDebugLine()}\n" +
             $"Forced outcome: {(debugForceOutcome ? debugForcedOutcome.ToString() : "off")}\n" +
             "Toggle: F1";
+    }
+
+    private void LogCandidateStateAvailability()
+    {
+        if (candidateStateAvailabilityLogged)
+        {
+            return;
+        }
+
+        candidateStateAvailabilityLogged = true;
+        if (FinalRoundRunState.TryGetActiveState(out CandidateState state))
+        {
+            Debug.Log("Final Round P26: Room detected active CandidateState.\n" + state.BuildDebugSummary());
+            return;
+        }
+
+        Debug.Log("Final Round P26: Room started without active CandidateState; using neutral VS1 direct-start behavior.");
+    }
+
+    private void RecordRoomOutcome(InterviewOutcomeType outcome)
+    {
+        if (!FinalRoundRunState.TryGetActiveState(out CandidateState state))
+        {
+            return;
+        }
+
+        state.RoomOutcome = outcome.ToString();
+    }
+
+    private static string GetCandidateStateDebugLine()
+    {
+        return FinalRoundRunState.TryGetActiveState(out CandidateState state)
+            ? $"active desk run, job {FormatDebugId(state.SelectedJobId)}"
+            : "neutral direct-start fallback";
+    }
+
+    private static string FormatDebugId(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "none" : value;
     }
 
     private string GetSelectedQuestionIdSummary()

@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-10_  
-_Current milestone context: VS1 complete; planning VS2_
+_Current milestone context: VS1 complete; P26 VS2 architecture skeleton in progress_
 
 ## 1. Purpose of this document
 
@@ -468,9 +468,9 @@ VS1 — The Room
   -> small VS1 fixes only if a blocker appears
 
 P26 — VS2 Design / Architecture
-  -> confirm Desk scene shape
-  -> define shared run-state
-  -> define Desk-to-Room modifier surface
+  -> planning complete
+  -> CandidateState / FinalRoundRunState skeleton added
+  -> Desk-to-Room bridge defined without applying Room modifiers yet
 
 P27 — Desk Scene Prototype
   -> desk/laptop scene
