@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
@@ -18,7 +19,8 @@ public class InterviewGameManager : MonoBehaviour
     private const int StartingInterviewPressure = 35;
     private const float BetweenStageEventChance = 0.6f;
     private const float ScreenFadeDuration = 0.16f;
-    private const string BuildVersion = "Final Round - Prototype P27";
+    private const string BuildVersion = "Final Round - Prototype P28";
+    private const string DeskSceneName = "DeskScene";
     private const int MaxDisplayedRunBadges = 4;
     private const string PrefMasterVolume = "FinalRound.MasterVolume";
     private const string PrefSfxVolume = "FinalRound.SfxVolume";
@@ -93,6 +95,7 @@ public class InterviewGameManager : MonoBehaviour
     private Button[] recoveryChoiceButtons;
     private Button recoveryChoiceContinueButton;
     private Button randomEventContinueButton;
+    private Button startJobSearchButton;
     private Button startInterviewButton;
     private Button howToPlayButton;
     private Button aboutButton;
@@ -789,6 +792,7 @@ public class InterviewGameManager : MonoBehaviour
         menuBodyText.textWrappingMode = TextWrappingModes.Normal;
         ConfigureFlexibleLayoutElement(menuBodyText.gameObject, 1f);
 
+        startJobSearchButton = CreateMenuButton(menuScreen.transform, "Start Job Search", StartJobSearch);
         startInterviewButton = CreateMenuButton(menuScreen.transform, "Start Interview Process", StartInterviewProcess);
         settingsButton = CreateMenuButton(menuScreen.transform, "Settings", OpenSettingsFromMenu);
         howToPlayButton = CreateMenuButton(menuScreen.transform, "How To Play", ShowHowToPlay);
@@ -3300,6 +3304,12 @@ public class InterviewGameManager : MonoBehaviour
         }
 
         ShowProcessBriefing();
+    }
+
+    private void StartJobSearch()
+    {
+        HidePauseOverlay();
+        SceneManager.LoadScene(DeskSceneName);
     }
 
     private void BeginProcess()

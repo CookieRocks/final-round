@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 01259c12efe407d48917fad56a97f98f, type: 3}
+  m_Name: APP-QUICK-APPLY
+  m_EditorClassIdentifier: Assembly-CSharp::ApplicationChoiceData
+  choiceId: APP-QUICK-APPLY
+  label: Quick Apply
+  bodyText: Send a lightly tailored version that mentions security presales, customer
+    workshops, and architecture without doing much deeper mapping.
+  feedbackText: You preserve energy, but the application feels generic. The recruiter
+    has less signal and less story to work with.
+  roleFitDelta: -2
+  recruiterTrustDelta: -1
+  candidateConfidenceDelta: 0
+  energyDelta: 2
+  overclaimRiskDelta: -1
+  technicalReadinessDelta: -1
+  rapportMomentumDelta: -1

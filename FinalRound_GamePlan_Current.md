@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-10_  
-_Current milestone context: VS1 complete; P27 Desk scene prototype in progress_
+_Current milestone context: VS1 complete; P28 job listing and application choices in progress_
 
 ## 1. Purpose of this document
 
@@ -478,9 +478,9 @@ P27 — Desk Scene Prototype
   -> transition scaffolding still avoids real Room modifiers
 
 P28 — Job Listing and Application Choices
-  -> one job listing
-  -> application strategy choices
-  -> first CandidateState changes
+  -> authored Northbridge listing added
+  -> application strategy choices added
+  -> first CandidateState deltas applied at the Desk
 
 P29 — Recruiter Screen / Message Exchange
   -> one recruiter thread or short call

@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 01259c12efe407d48917fad56a97f98f, type: 3}
+  m_Name: APP-AGGRESSIVE-POSITIONING
+  m_EditorClassIdentifier: Assembly-CSharp::ApplicationChoiceData
+  choiceId: APP-AGGRESSIVE-POSITIONING
+  label: Aggressive
+  bodyText: Position as a near-perfect match for enterprise security presales, implying
+    direct ownership of outcomes the listing only hints at.
+  feedbackText: The application has punch, but it creates a future proof problem.
+    If the panel probes details, the story may need defending.
+  roleFitDelta: 2
+  recruiterTrustDelta: -1
+  candidateConfidenceDelta: 2
+  energyDelta: -1
+  overclaimRiskDelta: 2
+  technicalReadinessDelta: 0
+  rapportMomentumDelta: -1

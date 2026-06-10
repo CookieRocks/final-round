@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 01259c12efe407d48917fad56a97f98f, type: 3}
+  m_Name: APP-TAILORED-CREDIBLE
+  m_EditorClassIdentifier: Assembly-CSharp::ApplicationChoiceData
+  choiceId: APP-TAILORED-CREDIBLE
+  label: Tailored Credible
+  bodyText: Map previous workshops, stakeholder management, and security architecture
+    work tightly to the listing without claiming perfect coverage.
+  feedbackText: The application feels considered and relevant. It costs some energy,
+    but it gives the recruiter a clean story to carry forward.
+  roleFitDelta: 2
+  recruiterTrustDelta: 2
+  candidateConfidenceDelta: 1
+  energyDelta: -1
+  overclaimRiskDelta: 1
+  technicalReadinessDelta: 1
+  rapportMomentumDelta: 1
