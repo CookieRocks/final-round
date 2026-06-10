@@ -10,7 +10,7 @@ public static class FinalRoundQuestionBankBalanceAudit
 {
     private const string ResourcePath = "FinalRound/Questions/RC11";
     private const string ReportPath = "Docs/FinalRound_RC12_BalanceAudit.md";
-    private const string StagedRunReportPath = "Docs/FinalRound_P23_StagedRunAudit.md";
+    private const string StagedRunReportPath = "Docs/FinalRound_P24_SixQuestionOutcomeTuning.md";
     private const int StartingTechnical = 4;
     private const int StartingCommercial = 4;
     private const int StartingRapport = 4;
@@ -37,7 +37,7 @@ public static class FinalRoundQuestionBankBalanceAudit
         Debug.Log($"Final Round RC12 question bank balance audit written to {ReportPath}");
     }
 
-    [MenuItem("Final Round/Audit P23 Staged Run Balance")]
+    [MenuItem("Final Round/Audit P24 Staged Run Balance")]
     public static void GenerateStagedRunReport()
     {
         InterviewQuestionData[] questions = Resources.LoadAll<InterviewQuestionData>(ResourcePath)
@@ -50,7 +50,7 @@ public static class FinalRoundQuestionBankBalanceAudit
         Directory.CreateDirectory(Path.GetDirectoryName(absolutePath));
         File.WriteAllText(absolutePath, report);
         AssetDatabase.Refresh();
-        Debug.Log($"Final Round P23 staged-run balance audit written to {StagedRunReportPath}");
+        Debug.Log($"Final Round P24 staged-run balance audit written to {StagedRunReportPath}");
     }
 
     [MenuItem("Final Round/Find RC15 Seed Presets")]
@@ -161,7 +161,7 @@ public static class FinalRoundQuestionBankBalanceAudit
         List<StagedSimulatedOutcome> outcomes = SimulateStagedRuns(contextQuestions, technicalQuestions, commercialQuestions, StagedRunSampleCount, StagedRunSampleSeed);
 
         StringBuilder report = new StringBuilder();
-        report.AppendLine("# Final Round - Room Prototype P23 Staged Run Audit");
+        report.AppendLine("# Final Round - Room Prototype P24 Six-Question Outcome Tuning");
         report.AppendLine();
         report.AppendLine("Generated from `Assets/Resources/FinalRound/Questions/RC11`.");
         report.AppendLine("No question wording, score deltas, outcome thresholds, stage structure, UI, or room setup was changed by this audit.");
@@ -179,7 +179,7 @@ public static class FinalRoundQuestionBankBalanceAudit
         report.AppendLine();
         report.AppendLine("## Audit Method");
         report.AppendLine();
-        report.AppendLine($"This P23 audit uses a deterministic sampled staged-run simulation with seed `{StagedRunSampleSeed}` and `{StagedRunSampleCount}` sampled runs.");
+        report.AppendLine($"This P24 audit uses a deterministic sampled staged-run simulation with seed `{StagedRunSampleSeed}` and `{StagedRunSampleCount}` sampled runs.");
         report.AppendLine("For each sampled run it selects 2 questions without replacement from each category, then selects one of 4 answers for each selected question with uniform probability.");
         report.AppendLine("Scores start at Technical 4, Commercial 4, Rapport 4, Energy 6. Score clamping is applied after each answer, matching runtime `InterviewScore.Apply` behavior.");
         report.AppendLine();
@@ -405,17 +405,30 @@ public static class FinalRoundQuestionBankBalanceAudit
     private static InterviewOutcomeType DetermineOutcome(int technical, int commercial, int rapport, int energy)
     {
         int total = technical + commercial + rapport + energy;
-        if (technical >= 8 && commercial >= 7 && rapport >= 6 && total >= 29)
+        if (technical >= 8
+            && commercial >= 8
+            && rapport >= 7
+            && energy >= 6
+            && technical >= 6
+            && commercial >= 6
+            && rapport >= 6
+            && energy >= 6
+            && total >= 32)
         {
             return InterviewOutcomeType.StrongPass;
         }
 
-        if (total >= 22 && technical >= 5 && commercial >= 5 && energy >= 5)
+        if (total >= 23 && technical >= 5 && commercial >= 5 && energy >= 4)
         {
             return InterviewOutcomeType.Pass;
         }
 
-        return total >= 19 ? InterviewOutcomeType.Hold : InterviewOutcomeType.Reject;
+        if (rapport <= 1 && energy <= 2)
+        {
+            return InterviewOutcomeType.Reject;
+        }
+
+        return total >= 21 ? InterviewOutcomeType.Hold : InterviewOutcomeType.Reject;
     }
 
     private static int ClampScore(int value)

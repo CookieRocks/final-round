@@ -544,17 +544,30 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         }
 
         int total = score.Total;
-        if (score.Technical >= 8 && score.Commercial >= 7 && score.Rapport >= 6 && total >= 29)
+        if (score.Technical >= 8
+            && score.Commercial >= 8
+            && score.Rapport >= 7
+            && score.Energy >= 6
+            && score.Technical >= 6
+            && score.Commercial >= 6
+            && score.Rapport >= 6
+            && score.Energy >= 6
+            && total >= 32)
         {
             return InterviewOutcomeType.StrongPass;
         }
 
-        if (total >= 22 && score.Technical >= 5 && score.Commercial >= 5 && score.Energy >= 5)
+        if (total >= 23 && score.Technical >= 5 && score.Commercial >= 5 && score.Energy >= 4)
         {
             return InterviewOutcomeType.Pass;
         }
 
-        if (total >= 19)
+        if (score.Rapport <= 1 && score.Energy <= 2)
+        {
+            return InterviewOutcomeType.Reject;
+        }
+
+        if (total >= 21)
         {
             return InterviewOutcomeType.Hold;
         }
@@ -1104,7 +1117,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         string selectedQuestions = GetSelectedQuestionIdSummary();
 
         debugStatusText.text =
-            "Room Prototype P22\n" +
+            "Room Prototype P24\n" +
             "Branch: interviewer-human-presence-pass\n" +
             $"Playtest mode: {(playtestModeEnabled ? "on" : "off")}\n" +
             $"Seed mode: {(useDeterministicQuestionSeed ? "deterministic" : "random")}\n" +
