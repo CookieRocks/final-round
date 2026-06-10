@@ -43,6 +43,11 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     [SerializeField] private int deterministicQuestionSeed = 10603;
     [SerializeField] private float outcomeTransitionDelay = 1.15f;
     [SerializeField] private bool playtestModeEnabled = true;
+    [Header("RC21 Overlay Composition")]
+    [SerializeField] private float stageIntroOverlayVerticalOffset = 120f;
+    [SerializeField] private float stageIntroOverlayMaxWidth = 880f;
+    [Range(0f, 1f)]
+    [SerializeField] private float stageIntroOverlayOpacity = 0.62f;
 
     private RuntimeInterviewQuestion[] contextQuestionPool;
     private RuntimeInterviewQuestion[] technicalQuestionPool;
@@ -774,17 +779,20 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
     private void BuildTransitionPanel(Transform parent)
     {
-        transitionPanel = CreatePanel("Outcome Transition Panel", parent, uiTheme.ModalOverlay);
+        Color transitionColor = uiTheme.ModalOverlay;
+        transitionColor.a = Mathf.Clamp01(stageIntroOverlayOpacity);
+        transitionPanel = CreatePanel("Outcome Transition Panel", parent, transitionColor);
         RectTransform transitionRect = transitionPanel.GetComponent<RectTransform>();
-        transitionRect.anchorMin = new Vector2(0.25f, 0.38f);
-        transitionRect.anchorMax = new Vector2(0.75f, 0.58f);
-        transitionRect.offsetMin = Vector2.zero;
-        transitionRect.offsetMax = Vector2.zero;
-        AddVerticalLayout(transitionPanel, new RectOffset(28, 28, 24, 24), 8f);
+        transitionRect.anchorMin = new Vector2(0.5f, 0f);
+        transitionRect.anchorMax = new Vector2(0.5f, 0f);
+        transitionRect.pivot = new Vector2(0.5f, 0f);
+        transitionRect.anchoredPosition = new Vector2(0f, stageIntroOverlayVerticalOffset);
+        transitionRect.sizeDelta = new Vector2(Mathf.Max(420f, stageIntroOverlayMaxWidth), 96f);
+        AddVerticalLayout(transitionPanel, new RectOffset(24, 24, 16, 16), 6f);
 
-        transitionText = CreateText("Transition Text", transitionPanel.transform, string.Empty, 30, FontStyles.Bold, TextAlignmentOptions.Center);
+        transitionText = CreateText("Transition Text", transitionPanel.transform, string.Empty, 24, FontStyles.Bold, TextAlignmentOptions.Center);
         transitionText.color = uiTheme.PrimaryText;
-        ConfigureLayout(transitionText.gameObject, -1f, 92f);
+        ConfigureLayout(transitionText.gameObject, -1f, 64f);
         transitionPanel.SetActive(false);
     }
 

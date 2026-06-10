@@ -80,6 +80,14 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
     [SerializeField] private bool disableAssignedInterviewerAnimators = true;
     [Tooltip("Adds a simple chair backing behind assigned interviewer prefabs to sell a seated interview composition without requiring a seated rig pose.")]
     [SerializeField] private bool addChairBackForAssignedInterviewerPrefabs = true;
+    [Header("RC21 Character Material And Light")]
+    [SerializeField] private Color hiringManagerCharacterTint = new Color32(86, 78, 66, 255);
+    [SerializeField] private Color principalSecurityArchitectCharacterTint = new Color32(60, 78, 96, 255);
+    [SerializeField] private Color salesDirectorCharacterTint = new Color32(88, 68, 82, 255);
+    [Range(0f, 1f)]
+    [SerializeField] private float assignedInterviewerCharacterTintStrength = 0.72f;
+    [SerializeField] private float interviewerCharacterLightIntensity = 0.04f;
+    [SerializeField] private bool replaceAssignedInterviewerTexturesWithTint;
     [Header("RC16 Prefab Placement Tuning")]
     [Tooltip("Adjusts only the imported candidate chair prefab. Use this when a chair prefab pivot makes the chair float or sink. Generated fallback is unaffected.")]
     [SerializeField] private Vector3 candidateChairPrefabPositionOffset = Vector3.zero;
@@ -96,7 +104,7 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
     [SerializeField] private Color chairMarkerActiveColor = new Color32(112, 238, 206, 255);
     [SerializeField] private float chairKeyLightIntensity = 2.6f;
     [SerializeField] private float tableKeyLightIntensity = 2.1f;
-    [SerializeField] private float interviewerKeyLightIntensity = 3.0f;
+    [SerializeField] private float interviewerKeyLightIntensity = 2.05f;
     [Header("RC16 Room Life")]
     [SerializeField] private bool roomLifeEnabled = true;
     [SerializeField] private float chairMarkerPulseAmount = 0.22f;
@@ -693,6 +701,12 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
             principalSecurityArchitectScaleMultiplier,
             salesDirectorScaleMultiplier
         };
+        Color[] characterTints =
+        {
+            hiringManagerCharacterTint,
+            principalSecurityArchitectCharacterTint,
+            salesDirectorCharacterTint
+        };
         CreateCube("Interviewer Side Dais", new Vector3(0f, 0.08f, 2.18f), new Vector3(4.8f, 0.16f, 0.68f), new Color32(32, 36, 44, 255), root);
 
         for (int i = 0; i < placeholders.Length; i++)
@@ -718,6 +732,8 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
 
             if (characterInstance != null)
             {
+                ApplyAssignedInterviewerCharacterTint(characterInstance, characterTints[i]);
+
                 if (addChairBackForAssignedInterviewerPrefabs)
                 {
                     CreateInterviewerChairBack(placeholder.transform);
@@ -739,7 +755,7 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
                 panel = CreateProceduralInterviewerBust(i, placeholder.transform, out head);
             }
             Renderer reaction = CreateCube("Reaction Hook Strip", new Vector3(0f, 0.42f, 0.4f), new Vector3(0.68f, 0.05f, 0.04f), new Color32(72, 82, 96, 255), placeholder.transform).GetComponent<Renderer>();
-            Light emphasisLight = CreatePointLight("Interviewer Subtle Emphasis Light", new Vector3(0f, 1.24f, 0.5f), 1.2f, 0.08f, new Color32(118, 206, 190, 255), placeholder.transform);
+            Light emphasisLight = CreatePointLight("Interviewer Subtle Emphasis Light", new Vector3(0f, 1.24f, 0.5f), 1.2f, interviewerCharacterLightIntensity, new Color32(118, 206, 190, 255), placeholder.transform);
 
             placeholders[i] = placeholder.AddComponent<InterviewerPlaceholder>();
             placeholders[i].Configure(panel, head, reaction, characterInstance == null ? null : characterInstance.transform, nameplate, emphasisLight);
@@ -804,6 +820,113 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
             1 => new Color32(30, 38, 54, 255),
             _ => new Color32(44, 38, 48, 255)
         };
+    }
+
+    private void ApplyAssignedInterviewerCharacterTint(GameObject instance, Color roleTint)
+    {
+        if (instance == null || assignedInterviewerCharacterTintStrength <= 0f)
+        {
+            return;
+        }
+
+        float strength = Mathf.Clamp01(assignedInterviewerCharacterTintStrength);
+        Renderer[] renderers = instance.GetComponentsInChildren<Renderer>();
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer renderer = renderers[i];
+            if (renderer == null)
+            {
+                continue;
+            }
+
+            Material[] materials = renderer.materials;
+            for (int materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+            {
+                Material material = materials[materialIndex];
+                if (material == null)
+                {
+                    continue;
+                }
+
+                Color baseColor = GetMaterialColor(material);
+                Color tintedColor = Color.Lerp(baseColor, roleTint, strength);
+                if (replaceAssignedInterviewerTexturesWithTint)
+                {
+                    ClearImportedMaterialTextures(material);
+                    tintedColor = Color.Lerp(tintedColor, roleTint, strength);
+                }
+                SetMaterialColor(material, tintedColor);
+                SuppressMannequinMaterialShine(material);
+            }
+        }
+    }
+
+    private static Color GetMaterialColor(Material material)
+    {
+        if (material.HasProperty("_BaseColor"))
+        {
+            return material.GetColor("_BaseColor");
+        }
+
+        if (material.HasProperty("_Color"))
+        {
+            return material.GetColor("_Color");
+        }
+
+        return material.color;
+    }
+
+    private static void SetMaterialColor(Material material, Color color)
+    {
+        material.color = color;
+        if (material.HasProperty("_BaseColor"))
+        {
+            material.SetColor("_BaseColor", color);
+        }
+        if (material.HasProperty("_Color"))
+        {
+            material.SetColor("_Color", color);
+        }
+    }
+
+    private static void SuppressMannequinMaterialShine(Material material)
+    {
+        if (material.HasProperty("_EmissionColor"))
+        {
+            material.SetColor("_EmissionColor", Color.black);
+        }
+        if (material.HasProperty("_Metallic"))
+        {
+            material.SetFloat("_Metallic", 0f);
+        }
+        if (material.HasProperty("_Smoothness"))
+        {
+            material.SetFloat("_Smoothness", 0.18f);
+        }
+        if (material.HasProperty("_Glossiness"))
+        {
+            material.SetFloat("_Glossiness", 0.18f);
+        }
+    }
+
+    private static void ClearImportedMaterialTextures(Material material)
+    {
+        if (material.HasProperty("_BaseMap"))
+        {
+            material.SetTexture("_BaseMap", null);
+        }
+        if (material.HasProperty("_MainTex"))
+        {
+            material.SetTexture("_MainTex", null);
+        }
+        if (material.HasProperty("_BumpMap"))
+        {
+            material.SetTexture("_BumpMap", null);
+        }
+        if (material.HasProperty("_MetallicGlossMap"))
+        {
+            material.SetTexture("_MetallicGlossMap", null);
+        }
     }
 
     private static void CreateInterviewerDeskProp(int index, Transform parent)
