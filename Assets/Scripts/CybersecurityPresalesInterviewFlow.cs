@@ -43,7 +43,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     [SerializeField] private int deterministicQuestionSeed = 10603;
     [SerializeField] private float outcomeTransitionDelay = 1.15f;
     [SerializeField] private bool playtestModeEnabled = true;
-    [Header("RC21 Overlay Composition")]
+    [Header("P21 Overlay Composition")]
     [SerializeField] private float stageIntroOverlayVerticalOffset = 120f;
     [SerializeField] private float stageIntroOverlayMaxWidth = 880f;
     [Range(0f, 1f)]
@@ -1104,7 +1104,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         string selectedQuestions = GetSelectedQuestionIdSummary();
 
         debugStatusText.text =
-            "Prototype v1.0 RC18\n" +
+            "Room Prototype P21\n" +
             "Branch: interviewer-human-presence-pass\n" +
             $"Playtest mode: {(playtestModeEnabled ? "on" : "off")}\n" +
             $"Seed mode: {(useDeterministicQuestionSeed ? "deterministic" : "random")}\n" +

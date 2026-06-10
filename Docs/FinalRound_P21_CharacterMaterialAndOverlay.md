@@ -1,8 +1,8 @@
-# Final Round RC21 - Character Material And Overlay Composition
+# Final Round - Room Prototype P21: Character Material And Overlay Composition
 
 ## What changed
 
-RC21 is a visual/material/composition pass for the room prototype. It keeps the RC20 interviewer placement and seated-table illusion, but reduces the glowing mannequin read and moves stage intro text away from interviewer faces.
+P21 is a visual/material/composition pass for the room prototype. It keeps the legacy RC20 interviewer placement and seated-table illusion, but reduces the glowing mannequin read and moves stage intro text away from interviewer faces.
 
 - Assigned interviewer prefab instances now receive a restrained per-role material tint at runtime.
 - The tint is intentionally strong enough to beat the pale imported texture, while still staying in muted corporate tones.
@@ -24,7 +24,7 @@ On `TheRoomPrototypeController`:
 - `Interviewer Key Light Intensity`
 - `Replace Assigned Interviewer Textures With Tint`
 
-Existing RC20 placement fields remain available:
+Existing legacy RC20 placement fields remain available:
 
 - per-role position offset
 - per-role rotation offset
@@ -42,7 +42,7 @@ In the current room scene, `CybersecurityPresalesInterviewFlow` is added at runt
 
 ## Material and tint approach
 
-The imported low-poly man asset may expose only a single material slot. RC21 therefore avoids submesh editing or asset surgery. It applies a muted role tint to instantiated renderer materials at runtime:
+The imported low-poly man asset may expose only a single material slot. P21 therefore avoids submesh editing or asset surgery. It applies a muted role tint to instantiated renderer materials at runtime:
 
 - Hiring Manager: warmer neutral tint
 - Principal Security Architect: cooler technical tint
@@ -52,7 +52,7 @@ If a future character prefab has multiple renderers/materials, the same role tin
 
 ## Overlay composition
 
-The stage intro/interviewer line overlay previously sat near the center of the screen and could cover the interviewer panel and faces. RC21 changes it to a lower-third strip with reduced opacity and smaller text. This preserves the seated camera view and keeps the panel readable during stage introductions.
+The stage intro/interviewer line overlay previously sat near the center of the screen and could cover the interviewer panel and faces. P21 changes it to a lower-third strip with reduced opacity and smaller text. This preserves the seated camera view and keeps the panel readable during stage introductions.
 
 ## Known limitations
 
@@ -64,4 +64,4 @@ The stage intro/interviewer line overlay previously sat near the center of the s
 
 ## Why this avoids rigging and animation
 
-RC21 only changes renderer material color, light intensity, generated prop accents, and UI panel placement. It does not alter skeletons, animation clips, controllers, gameplay state, scoring, question selection, reactions, or outcome logic.
+P21 only changes renderer material color, light intensity, generated prop accents, and UI panel placement. It does not alter skeletons, animation clips, controllers, gameplay state, scoring, question selection, reactions, or outcome logic.

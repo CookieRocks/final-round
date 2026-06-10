@@ -80,7 +80,7 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
     [SerializeField] private bool disableAssignedInterviewerAnimators = true;
     [Tooltip("Adds a simple chair backing behind assigned interviewer prefabs to sell a seated interview composition without requiring a seated rig pose.")]
     [SerializeField] private bool addChairBackForAssignedInterviewerPrefabs = true;
-    [Header("RC21 Character Material And Light")]
+    [Header("P21 Character Material And Light")]
     [SerializeField] private Color hiringManagerCharacterTint = new Color32(86, 78, 66, 255);
     [SerializeField] private Color principalSecurityArchitectCharacterTint = new Color32(60, 78, 96, 255);
     [SerializeField] private Color salesDirectorCharacterTint = new Color32(88, 68, 82, 255);
