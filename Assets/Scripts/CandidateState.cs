@@ -12,6 +12,7 @@ public sealed class CandidateState
     [SerializeField] private string recruiterPathId;
     [SerializeField] private string recruiterResponseIds;
     [SerializeField] private string roomOutcome;
+    [SerializeField] private string roomModifierSummary;
     [SerializeField] private bool hasActiveDeskRun;
     [SerializeField] private int roleFit;
     [SerializeField] private int recruiterTrust;
@@ -49,6 +50,12 @@ public sealed class CandidateState
     {
         get => roomOutcome;
         set => roomOutcome = value;
+    }
+
+    public string RoomModifierSummary
+    {
+        get => roomModifierSummary;
+        set => roomModifierSummary = value;
     }
 
     public bool HasActiveDeskRun
@@ -108,7 +115,8 @@ public sealed class CandidateState
             applicationChoiceId = string.Empty,
             recruiterPathId = string.Empty,
             recruiterResponseIds = string.Empty,
-            roomOutcome = string.Empty
+            roomOutcome = string.Empty,
+            roomModifierSummary = string.Empty
         };
     }
 
@@ -139,6 +147,7 @@ public sealed class CandidateState
             $"Recruiter Path: {FormatId(recruiterPathId)}\n" +
             $"Recruiter Responses: {FormatId(recruiterResponseIds)}\n" +
             $"Room Outcome: {FormatId(roomOutcome)}\n" +
+            $"Room Modifiers: {FormatId(roomModifierSummary)}\n" +
             $"Role Fit: {roleFit}, Recruiter Trust: {recruiterTrust}, Candidate Confidence: {candidateConfidence}, Energy: {energy}\n" +
             $"Overclaim Risk: {overclaimRisk}, Technical Readiness: {technicalReadiness}, Rapport Momentum: {rapportMomentum}";
     }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
@@ -26,6 +27,8 @@ public enum ReactionSpeaker
 
 public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 {
+    private const string DeskSceneName = "DeskScene";
+
     private const string DefaultQuestionResourcePath = "FinalRound/Questions/RC11";
 
     private readonly InterviewScore score = new InterviewScore();
@@ -77,6 +80,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private GameObject outcomePanel;
     private GameObject scorecardPanel;
     private GameObject debugPanel;
+    private Button returnToDeskButton;
     private TMP_Text interviewerText;
     private TMP_Text stageMetaText;
     private TMP_Text interviewerNameText;
@@ -292,6 +296,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
         activeRoomModifiers = RoomModifierResolver.Resolve(state);
         hasActiveRoomModifiers = true;
+        state.RoomModifierSummary = activeRoomModifiers.DebugSummary;
         score.ApplyStartingModifiers(
             activeRoomModifiers.TechnicalStartModifier,
             activeRoomModifiers.CommercialStartModifier,
@@ -396,6 +401,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         outcomeOpeningText.text = email.OpeningLine;
         outcomeBodyText.text = AddOutcomeContextLine(email.OutcomeParagraph);
         outcomeFeedbackText.text = $"<b>Feedback summary</b>\n{email.FeedbackParagraph}";
+        RefreshReturnToDeskButton();
         LogRoomRunSummaryOnce(outcome);
         RefreshDebugStatus();
     }
@@ -420,10 +426,10 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
         scorecardPanel.SetActive(true);
         scorecardText.text =
-            "<b>Scorecard</b>  " +
-            BuildScorecardCompactRow("Technical", score.Technical) + "   " +
-            BuildScorecardCompactRow("Commercial", score.Commercial) + "   " +
-            BuildScorecardCompactRow("Rapport", score.Rapport) + "   " +
+            "<b>Scorecard</b>\n" +
+            BuildScorecardCompactRow("Technical", score.Technical) + "    " +
+            BuildScorecardCompactRow("Commercial", score.Commercial) + "\n" +
+            BuildScorecardCompactRow("Rapport", score.Rapport) + "    " +
             BuildScorecardCompactRow("Energy", score.Energy) + "\n" +
             $"<color=#{ColorUtility.ToHtmlStringRGB(uiTheme.MutedText)}>{BuildScorecardReadout()}</color>";
     }
@@ -431,6 +437,19 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private void RestartRun()
     {
         roomController?.ResetRun();
+    }
+
+    private void ReturnToDesk()
+    {
+        if (!FinalRoundRunState.TryGetActiveState(out CandidateState state))
+        {
+            Debug.LogWarning("Final Round P31: Return to Desk requested without active CandidateState.");
+            RefreshReturnToDeskButton();
+            return;
+        }
+
+        Debug.Log("Final Round P31: returning to Desk with completed CandidateState.\n" + state.BuildDebugSummary());
+        SceneManager.LoadScene(DeskSceneName);
     }
 
     private void SkipToOutcome()
@@ -955,31 +974,35 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         ConfigureLayout(clientHeaderText.gameObject, -1f, 22f);
 
         GameObject laptopScreen = CreatePanel("Email Message Body", outcomePanel.transform, uiTheme.EmailBody);
-        AddVerticalLayout(laptopScreen, new RectOffset(32, 32, 22, 22), 8f);
+        AddVerticalLayout(laptopScreen, new RectOffset(32, 32, 22, 22), 7f);
         ConfigureLayout(laptopScreen, -1f, 492f);
 
-        outcomeFromText = CreateText("Email From", laptopScreen.transform, string.Empty, 15, FontStyles.Normal, TextAlignmentOptions.Left);
+        outcomeFromText = CreateText("Email From", laptopScreen.transform, string.Empty, 14, FontStyles.Normal, TextAlignmentOptions.Left);
         outcomeFromText.color = uiTheme.EmailMutedText;
         outcomeFromText.lineSpacing = 2f;
-        ConfigureLayout(outcomeFromText.gameObject, -1f, 34f);
+        ConfigureLayout(outcomeFromText.gameObject, -1f, 32f);
 
-        outcomeTitleText = CreateText("Email Subject", laptopScreen.transform, string.Empty, 25, FontStyles.Bold, TextAlignmentOptions.Left);
+        outcomeTitleText = CreateText("Email Subject", laptopScreen.transform, string.Empty, 23, FontStyles.Bold, TextAlignmentOptions.Left);
         outcomeTitleText.color = uiTheme.EmailText;
-        ConfigureLayout(outcomeTitleText.gameObject, -1f, 32f);
+        ConfigureLayout(outcomeTitleText.gameObject, -1f, 30f);
 
-        outcomeOpeningText = CreateText("Email Opening", laptopScreen.transform, string.Empty, 18, FontStyles.Normal, TextAlignmentOptions.Left);
+        outcomeOpeningText = CreateText("Email Opening", laptopScreen.transform, string.Empty, 16, FontStyles.Normal, TextAlignmentOptions.Left);
         outcomeOpeningText.color = uiTheme.EmailText;
-        ConfigureLayout(outcomeOpeningText.gameObject, -1f, 46f);
+        ConfigureLayout(outcomeOpeningText.gameObject, -1f, 40f);
 
-        outcomeBodyText = CreateText("Email Outcome", laptopScreen.transform, string.Empty, 19, FontStyles.Normal, TextAlignmentOptions.Left);
+        outcomeBodyText = CreateText("Email Outcome", laptopScreen.transform, string.Empty, 16, FontStyles.Normal, TextAlignmentOptions.Left);
         outcomeBodyText.color = uiTheme.EmailText;
-        outcomeBodyText.lineSpacing = 3f;
-        ConfigureLayout(outcomeBodyText.gameObject, -1f, 76f);
+        outcomeBodyText.lineSpacing = 2f;
+        ConfigureLayout(outcomeBodyText.gameObject, -1f, 96f);
 
-        outcomeFeedbackText = CreateText("Email Feedback", laptopScreen.transform, string.Empty, 18, FontStyles.Normal, TextAlignmentOptions.Left);
+        outcomeFeedbackText = CreateText("Email Feedback", laptopScreen.transform, string.Empty, 16, FontStyles.Normal, TextAlignmentOptions.Left);
         outcomeFeedbackText.color = uiTheme.EmailText;
-        outcomeFeedbackText.lineSpacing = 3f;
-        ConfigureLayout(outcomeFeedbackText.gameObject, -1f, 66f);
+        outcomeFeedbackText.lineSpacing = 2f;
+        ConfigureLayout(outcomeFeedbackText.gameObject, -1f, 82f);
+
+        GameObject actionSpacer = new GameObject("Email Action Spacer", typeof(RectTransform), typeof(LayoutElement));
+        actionSpacer.transform.SetParent(laptopScreen.transform, false);
+        ConfigureLayout(actionSpacer, -1f, 12f);
 
         GameObject actionRow = new GameObject("Email Action Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
         actionRow.transform.SetParent(laptopScreen.transform, false);
@@ -1005,11 +1028,20 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         restartButton.onClick.AddListener(RestartRun);
         ConfigureLayout(restartButton.gameObject, 124f, 34f);
 
+        returnToDeskButton = CreateButton("Return To Desk", actionRow.transform, uiTheme.ActionButton);
+        TMP_Text returnButtonText = returnToDeskButton.GetComponentInChildren<TMP_Text>();
+        returnButtonText.text = "Return to Desk";
+        returnButtonText.fontSize = 15;
+        returnToDeskButton.onClick.AddListener(ReturnToDesk);
+        ConfigureLayout(returnToDeskButton.gameObject, 158f, 34f);
+        RefreshReturnToDeskButton();
+
         scorecardPanel = CreatePanel("Scorecard Panel", laptopScreen.transform, uiTheme.EmailInset);
         AddVerticalLayout(scorecardPanel, new RectOffset(18, 18, 12, 12), 4f);
-        ConfigureLayout(scorecardPanel, -1f, 108f);
-        scorecardText = CreateText("Scorecard Text", scorecardPanel.transform, string.Empty, 15, FontStyles.Normal, TextAlignmentOptions.Left);
+        ConfigureLayout(scorecardPanel, -1f, 130f);
+        scorecardText = CreateText("Scorecard Text", scorecardPanel.transform, string.Empty, 14, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         scorecardText.color = uiTheme.EmailText;
+        scorecardText.lineSpacing = 2f;
     }
 
     private static Button CreateAnswerButton(Transform parent, int index)
@@ -1213,8 +1245,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         string selectedQuestions = GetSelectedQuestionIdSummary();
 
         debugStatusText.text =
-            "Final Round - Prototype P30\n" +
-            "Branch: interviewer-human-presence-pass\n" +
+            "Final Round - Prototype P31\n" +
+            "Branch: main\n" +
             $"Playtest mode: {(playtestModeEnabled ? "on" : "off")}\n" +
             $"Seed mode: {(useDeterministicQuestionSeed ? "deterministic" : "random")}\n" +
             $"Current seed: {currentQuestionSeed}\n" +
@@ -1257,6 +1289,20 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         return FinalRoundRunState.TryGetActiveState(out CandidateState state)
             ? $"active desk run, job {FormatDebugId(state.SelectedJobId)}"
             : "neutral direct-start fallback";
+    }
+
+    private void RefreshReturnToDeskButton()
+    {
+        if (returnToDeskButton == null)
+        {
+            return;
+        }
+
+        bool hasCompletedDeskRun = FinalRoundRunState.TryGetActiveState(out CandidateState state)
+            && state.HasActiveDeskRun
+            && !string.IsNullOrWhiteSpace(state.RoomOutcome);
+        returnToDeskButton.gameObject.SetActive(hasCompletedDeskRun);
+        returnToDeskButton.interactable = hasCompletedDeskRun;
     }
 
     private string GetRoomModifierDebugLine()

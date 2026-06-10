@@ -86,6 +86,8 @@ public sealed class DeskPrototypeController : MonoBehaviour
         ApplicationChoice,
         Recruiter,
         Prep,
+        OutcomeInbox,
+        ProcessSummary,
         TransitioningToRoom
     }
 
@@ -128,9 +130,14 @@ public sealed class DeskPrototypeController : MonoBehaviour
     private TMP_Text modeText;
     private TMP_Text listingSummaryText;
     private TMP_Text feedbackText;
+    private Button viewListingButton;
+    private Button applicationStrategyButton;
     private Button confirmApplicationButton;
     private Button recruiterButton;
     private Button interviewButton;
+    private Button processSummaryButton;
+    private Button mainMenuButton;
+    private Button resetButton;
     private GameObject confirmApplicationButtonObject;
     private Button[] listingSectionButtons;
     private Button[] strategyButtons;
@@ -154,8 +161,9 @@ public sealed class DeskPrototypeController : MonoBehaviour
         }
 
         BuildPrototypeUi();
+        ShowCompletedRunInboxIfAvailable();
         RefreshDebugDisplay();
-        Debug.Log("Final Round P29: Desk prototype ready. Press E/Space or click the laptop to open the job listing UI.");
+        Debug.Log("Final Round P31: Desk prototype ready. Press E/Space or click the laptop to open the job listing UI.");
     }
 
     private void Update()
@@ -176,7 +184,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         recruiterResponseIds = string.Empty;
         currentRecruiterPromptIndex = 0;
         selectedApplicationChoice = null;
-        Debug.Log("Final Round P29: Desk run started.\n" + state.BuildDebugSummary());
+        Debug.Log("Final Round P31: Desk run started.\n" + state.BuildDebugSummary());
         RefreshDebugDisplay();
     }
 
@@ -194,6 +202,11 @@ public sealed class DeskPrototypeController : MonoBehaviour
         if (!FinalRoundRunState.HasActiveRun())
         {
             BeginDeskRun();
+        }
+
+        if (ShowCompletedRunInboxIfAvailable())
+        {
+            return;
         }
 
         currentState = DeskPrototypeState.JobListing;
@@ -215,6 +228,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
         currentState = DeskPrototypeState.JobListing;
         selectedApplicationChoice = null;
+        SetLaptopTextAreaLayout(250f, 96f, 18, 16);
 
         SetText(modeText, "View Listing");
         SetText(feedbackText, "Review the opportunity, then choose how to position the application.");
@@ -225,6 +239,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         SetConfirmInteractable(false);
         SetConfirmVisible(true);
         SetRecruiterInteractable(applicationConfirmed);
+        SetPostOutcomeButtonsVisible(IsCompletedRoomRunActive());
         RefreshDebugDisplay();
     }
 
@@ -237,11 +252,12 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
         currentState = DeskPrototypeState.ApplicationChoice;
         selectedApplicationChoice = null;
+        SetLaptopTextAreaLayout(250f, 96f, 18, 16);
         if (listingSummaryText != null)
         {
             listingSummaryText.text =
                 "Choose an application strategy.\n\n" +
-                "This is a VS2 step that changes CandidateState. The Room will receive the state, but P29 still does not apply Room modifiers.";
+                "This VS2 step changes CandidateState. The Room receives the state and applies small prototype modifiers.";
         }
 
         SetText(modeText, "Choose Application Strategy");
@@ -251,6 +267,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         SetRecruiterChoiceButtonsVisible(false);
         SetConfirmInteractable(false);
         SetConfirmVisible(true);
+        SetPostOutcomeButtonsVisible(false);
         RefreshDebugDisplay();
     }
 
@@ -280,6 +297,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         applicationConfirmed = true;
         recruiterCompleted = false;
         currentState = DeskPrototypeState.Prep;
+        SetLaptopTextAreaLayout(250f, 96f, 18, 16);
         SetText(modeText, "Application Submitted");
         SetText(
             listingSummaryText,
@@ -293,8 +311,9 @@ public sealed class DeskPrototypeController : MonoBehaviour
         SetConfirmInteractable(false);
         SetConfirmVisible(false);
         SetRecruiterInteractable(true);
+        SetPostOutcomeButtonsVisible(false);
 
-        Debug.Log("Final Round P29: application strategy confirmed.\n" + state.BuildDebugSummary());
+        Debug.Log("Final Round P31: application strategy confirmed.\n" + state.BuildDebugSummary());
         RefreshDebugDisplay();
     }
 
@@ -317,6 +336,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         }
 
         currentState = DeskPrototypeState.Recruiter;
+        SetLaptopTextAreaLayout(250f, 96f, 18, 16);
         SetText(modeText, recruiterCompleted ? "Recruiter Screen Complete" : $"Recruiter Screen {currentRecruiterPromptIndex + 1} of {GetRecruiterPrompts().Length}");
         SetListingSectionButtonsVisible(false);
         SetStrategyButtonsVisible(false);
@@ -324,6 +344,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         SetConfirmVisible(false);
         SetRecruiterChoiceButtonsVisible(!recruiterCompleted);
         SetText(feedbackText, recruiterCompleted ? "Recruiter screen complete." : "Choose one reply below.");
+        SetPostOutcomeButtonsVisible(false);
         RenderRecruiterPrompt();
         RefreshDebugDisplay();
     }
@@ -371,14 +392,14 @@ public sealed class DeskPrototypeController : MonoBehaviour
             SetRecruiterChoiceButtonsVisible(false);
             SetInterviewButtonLabel("Continue to Interview");
             SetRecruiterInteractable(false);
-            Debug.Log("Final Round P29: recruiter screen complete.\n" + state.BuildDebugSummary());
+            Debug.Log("Final Round P31: recruiter screen complete.\n" + state.BuildDebugSummary());
         }
         else
         {
             SetText(modeText, $"Recruiter Screen {currentRecruiterPromptIndex + 1} of {prompts.Length}");
             SetText(feedbackText, "Choose one reply below.");
             RenderRecruiterPrompt();
-            Debug.Log("Final Round P29: recruiter response recorded.\n" + state.BuildDebugSummary());
+            Debug.Log("Final Round P31: recruiter response recorded.\n" + state.BuildDebugSummary());
         }
 
         RefreshDebugDisplay();
@@ -406,7 +427,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
         currentState = DeskPrototypeState.TransitioningToRoom;
         Debug.Log(
-            $"Final Round P29: Desk-to-Room transition requested. Scene: {interviewRoomSceneName}\n" +
+            $"Final Round P31: Desk-to-Room transition requested. Scene: {interviewRoomSceneName}\n" +
             state.BuildDebugSummary());
 
         RefreshDebugDisplay();
@@ -421,6 +442,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         }
 
         currentState = DeskPrototypeState.Standby;
+        SetLaptopTextAreaLayout(250f, 96f, 18, 16);
         if (laptopPanel != null)
         {
             SetLaptopPanelVisible(false);
@@ -446,9 +468,200 @@ public sealed class DeskPrototypeController : MonoBehaviour
         SetConfirmVisible(true);
         SetRecruiterInteractable(false);
         SetInterviewButtonLabel("Debug: Go To Interview");
+        SetResetButtonLabel("Reset Desk Run");
+        SetPostOutcomeButtonsVisible(false);
 
-        Debug.Log("Final Round P29: Desk run reset.");
+        Debug.Log("Final Round P31: Desk run reset.");
         RefreshDebugDisplay();
+    }
+
+    public bool ShowCompletedRunInboxIfAvailable()
+    {
+        if (!FinalRoundRunState.TryGetActiveState(out CandidateState state) || string.IsNullOrWhiteSpace(state.RoomOutcome))
+        {
+            return false;
+        }
+
+        ShowOutcomeInbox(state);
+        return true;
+    }
+
+    public void ShowOutcomeInbox()
+    {
+        if (!FinalRoundRunState.TryGetActiveState(out CandidateState state) || string.IsNullOrWhiteSpace(state.RoomOutcome))
+        {
+            SetText(feedbackText, "No completed interview result is available yet.");
+            return;
+        }
+
+        ShowOutcomeInbox(state);
+    }
+
+    private void ShowOutcomeInbox(CandidateState state)
+    {
+        currentState = DeskPrototypeState.OutcomeInbox;
+        if (laptopPanel != null)
+        {
+            SetLaptopPanelVisible(true);
+        }
+
+        SetText(modeText, "Northbridge Mail / Inbox");
+        SetLaptopTextAreaLayout(330f, 54f, 17, 15);
+        SetText(listingSummaryText, BuildOutcomeInboxMessage(state));
+        SetText(feedbackText, BuildOutcomeFeedbackLine(state));
+        SetListingSectionButtonsVisible(false);
+        SetStrategyButtonsVisible(false);
+        SetRecruiterChoiceButtonsVisible(false);
+        SetConfirmVisible(false);
+        SetRecruiterInteractable(false);
+        SetResetButtonLabel("Start New Run");
+        SetPostOutcomeButtonsVisible(true);
+
+        Debug.Log("Final Round P31: Desk inbox opened for completed Room run.\n" + state.BuildDebugSummary());
+        RefreshDebugDisplay();
+    }
+
+    public void ShowProcessSummary()
+    {
+        if (!FinalRoundRunState.TryGetActiveState(out CandidateState state))
+        {
+            SetText(feedbackText, "No active Desk run is available.");
+            return;
+        }
+
+        currentState = DeskPrototypeState.ProcessSummary;
+        SetText(modeText, "Process Summary");
+        SetLaptopTextAreaLayout(370f, 20f, 15, 14);
+        SetText(listingSummaryText, BuildProcessSummary(state));
+        SetText(feedbackText, string.Empty);
+        SetListingSectionButtonsVisible(false);
+        SetStrategyButtonsVisible(false);
+        SetRecruiterChoiceButtonsVisible(false);
+        SetConfirmVisible(false);
+        SetRecruiterInteractable(false);
+        SetPostOutcomeButtonsVisible(IsCompletedRoomRunActive());
+        RefreshDebugDisplay();
+    }
+
+    public void ReturnToMainMenu()
+    {
+        if (FinalRoundRunState.HasInstance)
+        {
+            FinalRoundRunState.Instance.ResetRun();
+        }
+
+        Debug.Log("Final Round P31: returning from Desk to main menu.");
+        SceneManager.LoadScene(interviewRoomSceneName);
+    }
+
+    private static string BuildOutcomeInboxMessage(CandidateState state)
+    {
+        string outcome = string.IsNullOrWhiteSpace(state.RoomOutcome) ? "Hold" : state.RoomOutcome;
+        string subject;
+        string body;
+        switch (outcome)
+        {
+            case nameof(InterviewOutcomeType.StrongPass):
+                subject = "Subject: Strong next step";
+                body =
+                    "Thanks again for the final conversation. The panel came away with a strong signal and would like to continue quickly.\n\n" +
+                    "We are aligning on the next practical step and will follow up with details shortly.";
+                break;
+            case nameof(InterviewOutcomeType.Pass):
+                subject = "Subject: Interview follow-up";
+                body =
+                    "Thank you for speaking with the panel. There are a few areas the team would want to calibrate, but the signal from the final round was strong enough to continue the process.\n\n" +
+                    "We will come back once the hiring team has aligned on timing and next steps.";
+                break;
+            case nameof(InterviewOutcomeType.Reject):
+                subject = "Subject: Final round update";
+                body =
+                    "Thank you for the time and preparation throughout the process.\n\n" +
+                    "After review, the team has decided not to move forward. The feedback was not about one single answer, but about overall fit for this specific panel and role at this stage.";
+                break;
+            default:
+                subject = "Subject: Final round update";
+                body =
+                    "Thank you for the conversation today. We appreciate the time and preparation.\n\n" +
+                    "We are still aligning internally and will come back to you once we have completed the process. At this stage, feedback is not negative, but it is not fully settled.";
+                break;
+        }
+
+        return
+            "From  Maya Patel, Northbridge Recruiting\n" +
+            "Time  Today, 17:18\n" +
+            $"{subject}\n\n" +
+            "Hi,\n\n" +
+            body + "\n\n" +
+            BuildCandidateContextLine(state);
+    }
+
+    private static string BuildOutcomeFeedbackLine(CandidateState state)
+    {
+        return
+            $"Outcome: {FormatId(state.RoomOutcome)}\n" +
+            $"Process signal: job {FormatId(state.SelectedJobId)}, application {FormatId(state.ApplicationChoiceId)}, recruiter path {FormatId(state.RecruiterPathId)}.";
+    }
+
+    private static string BuildProcessSummary(CandidateState state)
+    {
+        return
+            "Desk-to-Room process summary\n\n" +
+            $"Job: {FormatId(state.SelectedJobId)}\n" +
+            $"Application: {FormatId(state.ApplicationChoiceId)}\n" +
+            $"Recruiter: {FormatId(state.RecruiterPathId)}\n" +
+            $"Replies: {FormatId(state.RecruiterResponseIds)}\n" +
+            $"Room outcome: {FormatId(state.RoomOutcome)}\n\n" +
+            "CandidateState\n" +
+            $"Role {FormatSigned(state.RoleFit)} | Trust {FormatSigned(state.RecruiterTrust)} | Confidence {FormatSigned(state.CandidateConfidence)} | Energy {FormatSigned(state.Energy)}\n" +
+            $"Overclaim {FormatSigned(state.OverclaimRisk)} | Tech Ready {FormatSigned(state.TechnicalReadiness)} | Rapport {FormatSigned(state.RapportMomentum)}\n\n" +
+            "Room modifiers\n" +
+            BuildRoomModifierBrief(state.RoomModifierSummary);
+    }
+
+    private static string BuildRoomModifierBrief(string modifierSummary)
+    {
+        if (string.IsNullOrWhiteSpace(modifierSummary))
+        {
+            return "Neutral / no Desk modifiers applied.";
+        }
+
+        string[] lines = modifierSummary.Split(new[] { '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries);
+        if (lines.Length == 0)
+        {
+            return "Neutral / no Desk modifiers applied.";
+        }
+
+        string firstLine = lines[0];
+        string secondLine = lines.Length > 1 ? lines[1] : string.Empty;
+        return string.IsNullOrWhiteSpace(secondLine)
+            ? firstLine
+            : $"{firstLine}\n{secondLine}";
+    }
+
+    private static string BuildCandidateContextLine(CandidateState state)
+    {
+        if (state.OverclaimRisk >= 2)
+        {
+            return "The team noted some gaps between early positioning and scenario depth.";
+        }
+
+        if (state.RecruiterTrust >= 2)
+        {
+            return "The early screen helped create a positive starting point.";
+        }
+
+        if (state.Energy <= -2)
+        {
+            return "The panel felt the process lost some momentum in later stages.";
+        }
+
+        if (state.RoleFit >= 2)
+        {
+            return "The role alignment remained a positive signal.";
+        }
+
+        return "The final decision reflects both the Desk process and the Room panel signal.";
     }
 
     private void BuildPrototypeSceneShell()
@@ -626,13 +839,15 @@ public sealed class DeskPrototypeController : MonoBehaviour
         rowLayout.childForceExpandHeight = false;
         buttonRow.GetComponent<LayoutElement>().preferredHeight = 52f;
 
-        CreateButton("View Listing", buttonRow.transform, ShowListingView, 130f, 46f, 16);
-        CreateButton("Application Strategy", buttonRow.transform, ShowApplicationChoices, 185f, 46f, 16);
+        viewListingButton = CreateButton("View Listing", buttonRow.transform, ShowListingView, 130f, 46f, 16);
+        applicationStrategyButton = CreateButton("Application Strategy", buttonRow.transform, ShowApplicationChoices, 185f, 46f, 16);
         confirmApplicationButton = CreateButton("Confirm Application", buttonRow.transform, ConfirmApplication, 175f, 46f, 16);
         confirmApplicationButtonObject = confirmApplicationButton.gameObject;
         recruiterButton = CreateButton("Recruiter Message", buttonRow.transform, ShowRecruiterScreen, 170f, 46f, 16);
         interviewButton = CreateButton("Debug: Go To Interview", buttonRow.transform, GoToInterviewRoom, 220f, 46f, 16);
-        CreateButton("Reset Desk Run", buttonRow.transform, ResetDeskRun, 150f, 46f, 16);
+        processSummaryButton = CreateButton("Process Summary", buttonRow.transform, ShowProcessSummary, 170f, 46f, 16);
+        mainMenuButton = CreateButton("Main Menu", buttonRow.transform, ReturnToMainMenu, 130f, 46f, 16);
+        resetButton = CreateButton("Reset Desk Run", buttonRow.transform, ResetDeskRun, 150f, 46f, 16);
 
         SetListingSectionButtonsVisible(true);
         SetStrategyButtonsVisible(false);
@@ -641,6 +856,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         SetConfirmVisible(true);
         SetRecruiterInteractable(false);
         SetInterviewButtonLabel("Debug: Go To Interview");
+        SetPostOutcomeButtonsVisible(false);
         SetLaptopPanelVisible(false);
     }
 
@@ -674,7 +890,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
             : "No active CandidateState.\nDirect Room launch will use neutral VS1 fallback.";
 
         debugText.text =
-            $"P29 Desk Prototype\nState: {currentState}\nTarget Scene: {interviewRoomSceneName}\nApplication Confirmed: {applicationConfirmed}\nRecruiter Complete: {recruiterCompleted}\n\n{summary}";
+            $"P31 Desk Prototype\nState: {currentState}\nTarget Scene: {interviewRoomSceneName}\nApplication Confirmed: {applicationConfirmed}\nRecruiter Complete: {recruiterCompleted}\n\n{summary}";
     }
 
     private void SetLaptopPanelVisible(bool visible)
@@ -750,6 +966,82 @@ public sealed class DeskPrototypeController : MonoBehaviour
         {
             text.text = label;
         }
+    }
+
+    private void SetLaptopTextAreaLayout(float summaryHeight, float feedbackHeight, int summaryFontSize, int feedbackFontSize)
+    {
+        if (listingSummaryText != null)
+        {
+            listingSummaryText.fontSize = summaryFontSize;
+            LayoutElement summaryLayout = listingSummaryText.GetComponent<LayoutElement>();
+            if (summaryLayout != null)
+            {
+                summaryLayout.preferredHeight = summaryHeight;
+            }
+        }
+
+        if (feedbackText != null)
+        {
+            feedbackText.fontSize = feedbackFontSize;
+            LayoutElement feedbackLayout = feedbackText.GetComponent<LayoutElement>();
+            if (feedbackLayout != null)
+            {
+                feedbackLayout.preferredHeight = feedbackHeight;
+            }
+        }
+    }
+
+    private void SetResetButtonLabel(string label)
+    {
+        if (resetButton == null)
+        {
+            return;
+        }
+
+        TMP_Text text = resetButton.GetComponentInChildren<TMP_Text>();
+        if (text != null)
+        {
+            text.text = label;
+        }
+    }
+
+    private void SetPostOutcomeButtonsVisible(bool visible)
+    {
+        SetButtonVisible(applicationStrategyButton, !visible);
+        SetButtonVisible(recruiterButton, !visible);
+        SetButtonVisible(interviewButton, !visible);
+        SetButtonVisible(processSummaryButton, visible);
+        SetButtonVisible(mainMenuButton, visible);
+        SetResetButtonLabel(visible ? "Start New Run" : "Reset Desk Run");
+
+        if (visible)
+        {
+            SetConfirmVisible(false);
+        }
+    }
+
+    private static void SetButtonVisible(Button button, bool visible)
+    {
+        if (button != null)
+        {
+            button.gameObject.SetActive(visible);
+        }
+    }
+
+    private static bool IsCompletedRoomRunActive()
+    {
+        return FinalRoundRunState.TryGetActiveState(out CandidateState state)
+            && !string.IsNullOrWhiteSpace(state.RoomOutcome);
+    }
+
+    private static string FormatId(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "none" : value;
+    }
+
+    private static string FormatSigned(int value)
+    {
+        return value >= 0 ? $"+{value}" : value.ToString();
     }
 
     private string GetActiveJobId()

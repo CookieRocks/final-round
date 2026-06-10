@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-10_  
-_Current milestone context: VS1 complete; P30 run-state modifiers into The Room in progress_
+_Current milestone context: VS1 complete; P31 return-to-desk outcome/inbox in progress_
 
 ## 1. Purpose of this document
 
@@ -493,9 +493,9 @@ P30 — Run-State Modifiers into The Room
   -> stage intro, reaction warmth, Architect pressure, and email context variants added
 
 P31 — Return-to-Desk Outcome / Inbox
-  -> outcome returns to desk
-  -> inbox summary
-  -> restart/new run path
+  -> Room outcome can return to Desk
+  -> Desk shows Northbridge Mail inbox summary after the final interview
+  -> process summary, main menu, and start-new-run paths added
 
 P32 — VS2 Readiness Review
   -> decide whether The Desk becomes VS2
