@@ -70,6 +70,12 @@ The F1 panel supports:
 
 ## Windows Standalone Build
 
+A prebuilt VS1 archive is checked in at the repository root:
+
+- `FinalRound-VS1.zip`
+
+To make a fresh Windows build:
+
 1. Open `File > Build Profiles` or `File > Build Settings`, depending on your Unity version.
 2. Select `Windows, Mac, Linux` / `Standalone`.
 3. Set the target platform to `Windows`.

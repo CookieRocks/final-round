@@ -1,5 +1,44 @@
 # Changelog
 
+## VS1 - The Room
+
+Released: 2026-06-10
+
+### Overview
+
+`Final Round VS1: The Room` promotes the room prototype into the first vertical slice. It delivers a complete playable cybersecurity presales interview loop: main menu, room entry, sit-down interaction, seated interview panel, six staged questions, judgement reactions, outcome email, scorecard, restart, and debug tooling.
+
+### Added
+
+- Added VS1 milestone documentation in `Docs/FinalRound_VS1_TheRoom.md`.
+- Added VS1 readiness review documentation in `Docs/FinalRound_P25_VS1ReadinessReview.md`.
+- Added the prebuilt VS1 archive:
+  - `FinalRound-VS1.zip`
+
+### Changed
+
+- Updated visible build label to `Final Round VS1: The Room`.
+- Updated README to describe the active VS1 room slice rather than the older call-panel prototype.
+- Updated versioning notes to mark `Final Round - Vertical Slice VS1: The Room` as the current milestone.
+- Tuned six-question outcome thresholds for the real staged room flow:
+  - StrongPass: 10.1%
+  - Pass: 44.3%
+  - Hold: 35.1%
+  - Reject: 10.4%
+- Expanded the ScriptableObject question bank to 24 questions.
+- Added staged-run audit coverage for the real 2/2/2 question flow.
+- Improved interviewer material/readability, overlay composition, and panel placement across the P21-P25 room prototype milestones.
+
+### Fixed
+
+- Fixed two answer options that rendered blank in Unity by removing colon punctuation from their answer text.
+- Reduced sideways interviewer reaction tilt so the Sales Director no longer reads as leaning awkwardly during agreement or emphasis.
+
+### Validation
+
+- Manual Unity smoke test passed before VS1 promotion.
+- `dotnet build "Assembly-CSharp.csproj"` passed with 0 warnings and 0 errors during VS1 promotion.
+
 ## v1.0 RC1 - Release Candidate Stabilization
 
 Released: 2026-06-06
