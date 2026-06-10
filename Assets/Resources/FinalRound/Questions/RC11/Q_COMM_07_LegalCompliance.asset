@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22d0308a90dc49ae97395f1b651723b5, type: 3}
+  m_Name: Q_COMM_07_LegalCompliance
+  questionId: COMM-07
+  category: 2
+  speakerName: Sales Director
+  questionText: >-
+    Legal raises compliance concerns late in the cycle and Sales says they are slowing everything down. How do you respond in the panel?
+  answerOptions:
+  - {fileID: 11400001}
+  - {fileID: 11400002}
+  - {fileID: 11400003}
+  - {fileID: 11400004}
+--- !u!114 &11400001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_07_A1
+  answerText: >-
+    Treat legal as a buying stakeholder, identify the specific control concern, and build it into the close plan.
+  technicalDelta: 1
+  commercialDelta: 3
+  rapportDelta: 2
+  energyDelta: -1
+--- !u!114 &11400002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_07_A2
+  answerText: >-
+    Explain the standard compliance packet and push to keep the technical win moving.
+  technicalDelta: 1
+  commercialDelta: 1
+  rapportDelta: -1
+  energyDelta: 0
+--- !u!114 &11400003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_07_A3
+  answerText: >-
+    Admit legal may find a real blocker, then propose a short architecture-and-contract review before next steps.
+  technicalDelta: 2
+  commercialDelta: 1
+  rapportDelta: 1
+  energyDelta: -2
+--- !u!114 &11400004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_07_A4
+  answerText: >-
+    Suggest legal usually comes around once security signs off, and keep the meeting focused on value.
+  technicalDelta: -1
+  commercialDelta: 2
+  rapportDelta: -2
+  energyDelta: 0

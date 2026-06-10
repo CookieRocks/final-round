@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22d0308a90dc49ae97395f1b651723b5, type: 3}
+  m_Name: Q_TECH_08_DataResidencyChallenge
+  questionId: TECH-08
+  category: 1
+  speakerName: Principal Security Architect
+  questionText: >-
+    The customer challenges data residency and asks exactly what leaves their environment during analysis. How do you answer?
+  answerOptions:
+  - {fileID: 11400001}
+  - {fileID: 11400002}
+  - {fileID: 11400003}
+  - {fileID: 11400004}
+--- !u!114 &11400001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_08_A1
+  answerText: >-
+    Describe the data flow, retention controls, and exceptions, then offer to validate it against their legal requirements.
+  technicalDelta: 3
+  commercialDelta: 1
+  rapportDelta: 1
+  energyDelta: -1
+--- !u!114 &11400002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_08_A2
+  answerText: >-
+    Say compliance has approved this for many enterprise customers and move to the security benefits.
+  technicalDelta: -1
+  commercialDelta: 2
+  rapportDelta: -1
+  energyDelta: 0
+--- !u!114 &11400003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_08_A3
+  answerText: >-
+    Admit you need to confirm edge cases, then list what you know and commit to a written architecture answer.
+  technicalDelta: 1
+  commercialDelta: 0
+  rapportDelta: 2
+  energyDelta: -1
+--- !u!114 &11400004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_08_A4
+  answerText: >-
+    Ask legal to join later and avoid specifics until the commercial team can frame the risk.
+  technicalDelta: -2
+  commercialDelta: 1
+  rapportDelta: -1
+  energyDelta: -1

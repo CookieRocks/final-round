@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22d0308a90dc49ae97395f1b651723b5, type: 3}
+  m_Name: Q_COMM_05_ProvingValue
+  questionId: COMM-05
+  category: 2
+  speakerName: Sales Director
+  questionText: >-
+    The VP asks how you will prove value in ninety days without promising a breach will not happen. What do you say?
+  answerOptions:
+  - {fileID: 11400001}
+  - {fileID: 11400002}
+  - {fileID: 11400003}
+  - {fileID: 11400004}
+--- !u!114 &11400001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_05_A1
+  answerText: >-
+    Define measurable leading indicators: coverage gaps closed, analyst time saved, and executive risk evidence produced.
+  technicalDelta: 1
+  commercialDelta: 3
+  rapportDelta: 1
+  energyDelta: -1
+--- !u!114 &11400002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_05_A2
+  answerText: >-
+    Explain that breach prevention is the ultimate value and the platform materially reduces that likelihood.
+  technicalDelta: 1
+  commercialDelta: 1
+  rapportDelta: -1
+  energyDelta: 0
+--- !u!114 &11400003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_05_A3
+  answerText: >-
+    Offer a conservative success plan and say you will not claim outcomes the telemetry cannot prove.
+  technicalDelta: 2
+  commercialDelta: 1
+  rapportDelta: 2
+  energyDelta: -2
+--- !u!114 &11400004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_05_A4
+  answerText: >-
+    Ask what value story the VP needs for the board, then back into the proof points from that story.
+  technicalDelta: 0
+  commercialDelta: 3
+  rapportDelta: 2
+  energyDelta: 0

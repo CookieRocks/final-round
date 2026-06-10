@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22d0308a90dc49ae97395f1b651723b5, type: 3}
+  m_Name: Q_CTX_08_DiscoveryShortcut
+  questionId: CTX-08
+  category: 0
+  speakerName: Hiring Manager
+  questionText: >-
+    The account executive says discovery is already done and asks you to just run the executive demo. The first slide makes that seem optimistic. What do you do?
+  answerOptions:
+  - {fileID: 11400001}
+  - {fileID: 11400002}
+  - {fileID: 11400003}
+  - {fileID: 11400004}
+--- !u!114 &11400001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_CTX_08_A1
+  answerText: >-
+    Open with two validation questions, explain they will make the demo shorter, and then tailor live.
+  technicalDelta: 1
+  commercialDelta: 2
+  rapportDelta: 1
+  energyDelta: 0
+--- !u!114 &11400002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_CTX_08_A2
+  answerText: >-
+    Trust the account executive and give the standard executive demo with confidence.
+  technicalDelta: -1
+  commercialDelta: 1
+  rapportDelta: 0
+  energyDelta: 1
+--- !u!114 &11400003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_CTX_08_A3
+  answerText: >-
+    Stop and say discovery was clearly not done, then ask to restart the meeting.
+  technicalDelta: 1
+  commercialDelta: -1
+  rapportDelta: -3
+  energyDelta: -1
+--- !u!114 &11400004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_CTX_08_A4
+  answerText: >-
+    Name the assumption risk, ask the executive to pick the business outcome, and skip anything that does not support it.
+  technicalDelta: 0
+  commercialDelta: 3
+  rapportDelta: 1
+  energyDelta: -1

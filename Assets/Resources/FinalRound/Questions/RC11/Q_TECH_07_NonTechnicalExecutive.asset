@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22d0308a90dc49ae97395f1b651723b5, type: 3}
+  m_Name: Q_TECH_07_NonTechnicalExecutive
+  questionId: TECH-07
+  category: 1
+  speakerName: Principal Security Architect
+  questionText: >-
+    A non-technical executive joins and asks you to explain the architecture in two minutes without acronyms. What do you do?
+  answerOptions:
+  - {fileID: 11400001}
+  - {fileID: 11400002}
+  - {fileID: 11400003}
+  - {fileID: 11400004}
+--- !u!114 &11400001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_07_A1
+  answerText: >-
+    Explain data sources, decision logic, and response actions as a simple chain from signal to business action.
+  technicalDelta: 2
+  commercialDelta: 2
+  rapportDelta: 1
+  energyDelta: 0
+--- !u!114 &11400002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_07_A2
+  answerText: >-
+    Keep the full architecture language because simplifying it may create technical misunderstanding.
+  technicalDelta: 2
+  commercialDelta: -1
+  rapportDelta: -2
+  energyDelta: -1
+--- !u!114 &11400003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_07_A3
+  answerText: >-
+    Say the details are mostly for the security team and summarize the business outcomes instead.
+  technicalDelta: -1
+  commercialDelta: 2
+  rapportDelta: 1
+  energyDelta: 0
+--- !u!114 &11400004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_07_A4
+  answerText: >-
+    Admit the two-minute version loses nuance, then give the short version and offer a deeper appendix.
+  technicalDelta: 1
+  commercialDelta: 1
+  rapportDelta: 2
+  energyDelta: -1

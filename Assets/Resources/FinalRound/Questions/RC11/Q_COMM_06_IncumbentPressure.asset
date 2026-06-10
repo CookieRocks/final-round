@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22d0308a90dc49ae97395f1b651723b5, type: 3}
+  m_Name: Q_COMM_06_IncumbentPressure
+  questionId: COMM-06
+  category: 2
+  speakerName: Sales Director
+  questionText: >-
+    The incumbent offers a renewal discount if the customer cancels the evaluation this week. Sales wants a sharp competitive response. What do you do?
+  answerOptions:
+  - {fileID: 11400001}
+  - {fileID: 11400002}
+  - {fileID: 11400003}
+  - {fileID: 11400004}
+--- !u!114 &11400001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_06_A1
+  answerText: >-
+    Reframe the decision around risk and operating cost, then ask which incumbent gaps the discount does not solve.
+  technicalDelta: 1
+  commercialDelta: 3
+  rapportDelta: 1
+  energyDelta: 0
+--- !u!114 &11400002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_06_A2
+  answerText: >-
+    Attack the incumbent's architecture and imply the discount proves they are scared.
+  technicalDelta: 2
+  commercialDelta: 1
+  rapportDelta: -3
+  energyDelta: -1
+--- !u!114 &11400003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_06_A3
+  answerText: >-
+    Offer to match the urgency with a compressed technical validation plan, not a price argument.
+  technicalDelta: 2
+  commercialDelta: 2
+  rapportDelta: 0
+  energyDelta: -1
+--- !u!114 &11400004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_COMM_06_A4
+  answerText: >-
+    Tell Sales to handle pricing while you stay focused on the demo.
+  technicalDelta: 0
+  commercialDelta: -1
+  rapportDelta: 0
+  energyDelta: -1

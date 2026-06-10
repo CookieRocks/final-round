@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22d0308a90dc49ae97395f1b651723b5, type: 3}
+  m_Name: Q_CTX_07_CfoSecurityDisagreement
+  questionId: CTX-07
+  category: 0
+  speakerName: Hiring Manager
+  questionText: >-
+    The security team wants faster detection, but the CFO says the priority is audit cost and tool consolidation. How do you keep both sides in the conversation?
+  answerOptions:
+  - {fileID: 11400001}
+  - {fileID: 11400002}
+  - {fileID: 11400003}
+  - {fileID: 11400004}
+--- !u!114 &11400001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_CTX_07_A1
+  answerText: >-
+    Build a shared decision frame: detection impact, consolidation savings, and what evidence each stakeholder needs.
+  technicalDelta: 1
+  commercialDelta: 3
+  rapportDelta: 1
+  energyDelta: -1
+--- !u!114 &11400002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_CTX_07_A2
+  answerText: >-
+    Side with security because technical risk should drive the buying process.
+  technicalDelta: 2
+  commercialDelta: -2
+  rapportDelta: -1
+  energyDelta: 0
+--- !u!114 &11400003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_CTX_07_A3
+  answerText: >-
+    Ask the CFO for budget constraints first and promise the technical team you will come back to detection later.
+  technicalDelta: -1
+  commercialDelta: 2
+  rapportDelta: 0
+  energyDelta: -1
+--- !u!114 &11400004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_CTX_07_A4
+  answerText: >-
+    Admit the goals may conflict, then ask which trade-off they are already making today.
+  technicalDelta: 0
+  commercialDelta: 1
+  rapportDelta: 2
+  energyDelta: 0

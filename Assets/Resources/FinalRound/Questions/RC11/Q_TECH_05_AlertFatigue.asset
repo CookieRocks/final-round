@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22d0308a90dc49ae97395f1b651723b5, type: 3}
+  m_Name: Q_TECH_05_AlertFatigue
+  questionId: TECH-05
+  category: 1
+  speakerName: Principal Security Architect
+  questionText: >-
+    Their SOC lead says false positives are so bad that analysts ignore half the alerts. How do you prove you will not add more noise?
+  answerOptions:
+  - {fileID: 11400001}
+  - {fileID: 11400002}
+  - {fileID: 11400003}
+  - {fileID: 11400004}
+--- !u!114 &11400001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_05_A1
+  answerText: >-
+    Ask for a sample of noisy alert types and define a proof that measures precision, analyst action, and missed-risk review.
+  technicalDelta: 3
+  commercialDelta: 1
+  rapportDelta: 1
+  energyDelta: -1
+--- !u!114 &11400002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_05_A2
+  answerText: >-
+    Explain that your analytics are higher fidelity and show the marketing benchmark.
+  technicalDelta: 1
+  commercialDelta: 1
+  rapportDelta: -1
+  energyDelta: 0
+--- !u!114 &11400003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_05_A3
+  answerText: >-
+    Admit tuning takes work, then propose a phased rollout with suppression criteria owned by the SOC.
+  technicalDelta: 2
+  commercialDelta: 0
+  rapportDelta: 2
+  energyDelta: -1
+--- !u!114 &11400004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
+  m_Name: Q_TECH_05_A4
+  answerText: >-
+    Say the product can replace their existing noisy rules, which should reduce analyst load quickly.
+  technicalDelta: -1
+  commercialDelta: 2
+  rapportDelta: -1
+  energyDelta: 1
