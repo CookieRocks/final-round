@@ -21,7 +21,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
   m_Name: Q_COMM_05_A1
   answerText: >-
-    Define measurable leading indicators: coverage gaps closed, analyst time saved, and executive risk evidence produced.
+    Define measurable leading indicators such as coverage gaps closed, analyst time saved, and executive risk evidence produced.
   technicalDelta: 1
   commercialDelta: 3
   rapportDelta: 1

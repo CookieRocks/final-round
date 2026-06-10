@@ -21,7 +21,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0d521c6b84db4b8fae30e3785d9e9582, type: 3}
   m_Name: Q_CTX_07_A1
   answerText: >-
-    Build a shared decision frame: detection impact, consolidation savings, and what evidence each stakeholder needs.
+    Build a shared decision frame covering detection impact, consolidation savings, and what evidence each stakeholder needs.
   technicalDelta: 1
   commercialDelta: 3
   rapportDelta: 1

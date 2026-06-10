@@ -113,9 +113,9 @@ public sealed class InterviewerPlaceholder : MonoBehaviour
                 : baseAvatarScale;
         targetAvatarRotation = reaction switch
         {
-            InterviewerReaction.Positive => baseAvatarRotation * Quaternion.Euler(3.25f, 0f, 0f),
-            InterviewerReaction.Awkward => baseAvatarRotation * Quaternion.Euler(0f, 0f, 3.5f),
-            InterviewerReaction.Concerned => baseAvatarRotation * Quaternion.Euler(-5f, 0f, 0f),
+            InterviewerReaction.Positive => baseAvatarRotation * Quaternion.Euler(2.25f, 0f, 0f),
+            InterviewerReaction.Awkward => baseAvatarRotation * Quaternion.Euler(-1.75f, 0f, 0f),
+            InterviewerReaction.Concerned => baseAvatarRotation * Quaternion.Euler(-3.5f, 0f, 0f),
             _ => baseAvatarRotation
         };
 
