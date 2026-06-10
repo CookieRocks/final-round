@@ -273,14 +273,7 @@ public class InterviewGameManager : MonoBehaviour
             return;
         }
 
-        if (IsRoomPrototypeScene())
-        {
-            ShowRoomStandby();
-        }
-        else
-        {
-            ShowMenu();
-        }
+        ShowMenu();
     }
 
     private void Update()
@@ -3300,6 +3293,12 @@ public class InterviewGameManager : MonoBehaviour
         }
 
         ResetGame(false);
+        if (IsRoomPrototypeScene())
+        {
+            ShowRoomStandby();
+            return;
+        }
+
         ShowProcessBriefing();
     }
 

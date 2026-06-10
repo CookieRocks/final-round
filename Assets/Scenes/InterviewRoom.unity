@@ -2070,6 +2070,26 @@ MonoBehaviour:
   doorDoorframePrefab: {fileID: 0}
   plantOrCornerPropPrefab: {fileID: 0}
   ceilingLightPrefab: {fileID: 0}
+  hiringManagerPrefab: {fileID: 919132149155446097, guid: 8b2cd0a23b5aa5c4f913ef89a4168bfc, type: 3}
+  principalSecurityArchitectPrefab: {fileID: 919132149155446097, guid: 8b2cd0a23b5aa5c4f913ef89a4168bfc, type: 3}
+  salesDirectorPrefab: {fileID: 919132149155446097, guid: 8b2cd0a23b5aa5c4f913ef89a4168bfc, type: 3}
+  hiringManagerPositionOffset: {x: -0.04, y: 0.04, z: 0.02}
+  hiringManagerRotationOffset: {x: 0, y: -6, z: 1.5}
+  hiringManagerScaleMultiplier: {x: 1.09, y: 1.09, z: 1.09}
+  principalSecurityArchitectPositionOffset: {x: 0, y: 0.06, z: -0.02}
+  principalSecurityArchitectRotationOffset: {x: 0, y: 0, z: 0}
+  principalSecurityArchitectScaleMultiplier: {x: 1.13, y: 1.13, z: 1.13}
+  salesDirectorPositionOffset: {x: 0.04, y: 0.04, z: 0.02}
+  salesDirectorRotationOffset: {x: 0, y: 6, z: -1.5}
+  salesDirectorScaleMultiplier: {x: 1.09, y: 1.09, z: 1.09}
+  autoFitInterviewerCharacterPrefabs: 1
+  interviewerCharacterFitByHeight: 1
+  interviewerCharacterTargetHeight: 1.9
+  interviewerCharacterTargetBounds: {x: 0.88, y: 1.9, z: 0.66}
+  interviewerCharacterTargetCenter: {x: 0, y: 0, z: 0.02}
+  interviewerCharacterFloorY: -0.33
+  disableAssignedInterviewerAnimators: 1
+  addChairBackForAssignedInterviewerPrefabs: 1
   candidateChairPrefabPositionOffset: {x: 0, y: -0.62, z: 0}
   candidateChairPrefabRotationOffset: {x: 0, y: 0, z: 0}
   candidateChairPrefabScale: {x: 1, y: 1, z: 1}

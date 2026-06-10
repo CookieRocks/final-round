@@ -59,23 +59,23 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
     [SerializeField] private GameObject principalSecurityArchitectPrefab;
     [Tooltip("Optional static or minimally animated human prefab for the Sales Director. Empty uses the panel fallback.")]
     [SerializeField] private GameObject salesDirectorPrefab;
-    [SerializeField] private Vector3 hiringManagerPositionOffset = Vector3.zero;
-    [SerializeField] private Vector3 hiringManagerRotationOffset = Vector3.zero;
-    [SerializeField] private Vector3 hiringManagerScaleMultiplier = Vector3.one;
-    [SerializeField] private Vector3 principalSecurityArchitectPositionOffset = Vector3.zero;
+    [SerializeField] private Vector3 hiringManagerPositionOffset = new Vector3(-0.04f, 0.04f, 0.02f);
+    [SerializeField] private Vector3 hiringManagerRotationOffset = new Vector3(0f, -6f, 1.5f);
+    [SerializeField] private Vector3 hiringManagerScaleMultiplier = new Vector3(1.09f, 1.09f, 1.09f);
+    [SerializeField] private Vector3 principalSecurityArchitectPositionOffset = new Vector3(0f, 0.06f, -0.02f);
     [SerializeField] private Vector3 principalSecurityArchitectRotationOffset = Vector3.zero;
-    [SerializeField] private Vector3 principalSecurityArchitectScaleMultiplier = Vector3.one;
-    [SerializeField] private Vector3 salesDirectorPositionOffset = Vector3.zero;
-    [SerializeField] private Vector3 salesDirectorRotationOffset = Vector3.zero;
-    [SerializeField] private Vector3 salesDirectorScaleMultiplier = Vector3.one;
+    [SerializeField] private Vector3 principalSecurityArchitectScaleMultiplier = new Vector3(1.13f, 1.13f, 1.13f);
+    [SerializeField] private Vector3 salesDirectorPositionOffset = new Vector3(0.04f, 0.04f, 0.02f);
+    [SerializeField] private Vector3 salesDirectorRotationOffset = new Vector3(0f, 6f, -1.5f);
+    [SerializeField] private Vector3 salesDirectorScaleMultiplier = new Vector3(1.09f, 1.09f, 1.09f);
     [Tooltip("When enabled, assigned interviewer character prefabs are uniformly scaled and centered into the role slot before offsets are applied.")]
     [SerializeField] private bool autoFitInterviewerCharacterPrefabs = true;
     [Tooltip("Character prefabs are usually best fitted by visible height; imported width/depth bounds can include bind-pose or accessory extents.")]
     [SerializeField] private bool interviewerCharacterFitByHeight = true;
-    [SerializeField] private float interviewerCharacterTargetHeight = 1.62f;
-    [SerializeField] private Vector3 interviewerCharacterTargetBounds = new Vector3(0.82f, 1.62f, 0.62f);
-    [SerializeField] private Vector3 interviewerCharacterTargetCenter = new Vector3(0f, 0f, 0.04f);
-    [SerializeField] private float interviewerCharacterFloorY = 0.04f;
+    [SerializeField] private float interviewerCharacterTargetHeight = 1.9f;
+    [SerializeField] private Vector3 interviewerCharacterTargetBounds = new Vector3(0.88f, 1.9f, 0.66f);
+    [SerializeField] private Vector3 interviewerCharacterTargetCenter = new Vector3(0f, 0f, 0.02f);
+    [SerializeField] private float interviewerCharacterFloorY = -0.33f;
     [Tooltip("Disables Animator components on assigned interviewer prefabs so imported idle/sway clips do not distract during the interview.")]
     [SerializeField] private bool disableAssignedInterviewerAnimators = true;
     [Tooltip("Adds a simple chair backing behind assigned interviewer prefabs to sell a seated interview composition without requiring a seated rig pose.")]
@@ -607,6 +607,7 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
             CreateCube("Table Left Leg", new Vector3(-1.85f, 0.34f, 1.05f), new Vector3(0.16f, 0.68f, 0.16f), new Color32(56, 43, 34, 255), root);
             CreateCube("Table Right Leg", new Vector3(1.85f, 0.34f, 1.05f), new Vector3(0.16f, 0.68f, 0.16f), new Color32(56, 43, 34, 255), root);
         }
+        CreateCube("Interviewer Table Rear Modesty Panel", new Vector3(0f, tableSurfaceY - 0.33f, 1.28f), new Vector3(4.42f, 0.52f, 0.08f), new Color32(72, 68, 60, 255), root);
         Vector3 candidateChairPosition = new Vector3(0f, 0.62f, -1.42f);
         Quaternion candidateChairRotation = Quaternion.Euler(candidateChairPrefabRotationOffset);
         Vector3 candidateChairScale = new Vector3(
@@ -664,9 +665,9 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
         InterviewerPlaceholder[] placeholders = new InterviewerPlaceholder[3];
         Vector3[] positions =
         {
-            new Vector3(-1.68f, 0.05f, 2.1f),
-            new Vector3(0f, 0.05f, 2.24f),
-            new Vector3(1.68f, 0.05f, 2.1f)
+            new Vector3(-1.38f, 0.05f, 1.84f),
+            new Vector3(0f, 0.05f, 1.98f),
+            new Vector3(1.38f, 0.05f, 1.84f)
         };
         GameObject[] characterPrefabs =
         {
@@ -692,7 +693,7 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
             principalSecurityArchitectScaleMultiplier,
             salesDirectorScaleMultiplier
         };
-        CreateCube("Interviewer Side Dais", new Vector3(0f, 0.08f, 2.42f), new Vector3(5.4f, 0.16f, 0.84f), new Color32(32, 36, 44, 255), root);
+        CreateCube("Interviewer Side Dais", new Vector3(0f, 0.08f, 2.18f), new Vector3(4.8f, 0.16f, 0.68f), new Color32(32, 36, 44, 255), root);
 
         for (int i = 0; i < placeholders.Length; i++)
         {
@@ -703,8 +704,9 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
 
             Renderer panel;
             Renderer head;
-            Renderer nameplate = CreateCube("Nameplate Backing", new Vector3(0f, 0.62f, -0.225f), new Vector3(1.46f, 0.32f, 0.035f), new Color32(28, 34, 42, 255), placeholder.transform).GetComponent<Renderer>();
-            CreateInterviewerLabel(GetInterviewerNameplate(i), new Vector3(0f, 0.635f, -0.268f), placeholder.transform);
+            Renderer nameplate = CreateCube("Nameplate Backing", new Vector3(0f, 0.62f, 0.42f), new Vector3(1.26f, 0.24f, 0.035f), GetNameplateColor(i), placeholder.transform).GetComponent<Renderer>();
+            CreateInterviewerLabel(GetInterviewerNameplate(i), new Vector3(0f, 0.635f, 0.38f), placeholder.transform);
+            CreateInterviewerDeskProp(i, placeholder.transform);
 
             GameObject characterInstance = InstantiateInterviewerCharacter(
                 characterPrefabs[i],
@@ -736,8 +738,8 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
             {
                 panel = CreateProceduralInterviewerBust(i, placeholder.transform, out head);
             }
-            Renderer reaction = CreateCube("Reaction Hook Strip", new Vector3(0f, 0.39f, -0.22f), new Vector3(0.78f, 0.065f, 0.04f), new Color32(72, 82, 96, 255), placeholder.transform).GetComponent<Renderer>();
-            Light emphasisLight = CreatePointLight("Interviewer Subtle Emphasis Light", new Vector3(0f, 1.45f, -0.55f), 1.35f, 0.08f, new Color32(118, 206, 190, 255), placeholder.transform);
+            Renderer reaction = CreateCube("Reaction Hook Strip", new Vector3(0f, 0.42f, 0.4f), new Vector3(0.68f, 0.05f, 0.04f), new Color32(72, 82, 96, 255), placeholder.transform).GetComponent<Renderer>();
+            Light emphasisLight = CreatePointLight("Interviewer Subtle Emphasis Light", new Vector3(0f, 1.24f, 0.5f), 1.2f, 0.08f, new Color32(118, 206, 190, 255), placeholder.transform);
 
             placeholders[i] = placeholder.AddComponent<InterviewerPlaceholder>();
             placeholders[i].Configure(panel, head, reaction, characterInstance == null ? null : characterInstance.transform, nameplate, emphasisLight);
@@ -790,7 +792,37 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
 
     private static Renderer CreateInterviewerChairBack(Transform parent)
     {
-        return CreateCube("Interview Chair Back", new Vector3(0f, 0.88f, -0.22f), new Vector3(0.78f, 0.86f, 0.1f), new Color32(26, 34, 44, 255), parent).GetComponent<Renderer>();
+        CreateCube("Interview Chair Seat Hint", new Vector3(0f, 0.36f, -0.04f), new Vector3(0.78f, 0.1f, 0.56f), new Color32(24, 30, 38, 255), parent);
+        return CreateCube("Interview Chair Back", new Vector3(0f, 0.78f, -0.24f), new Vector3(0.74f, 0.66f, 0.1f), new Color32(24, 30, 38, 255), parent).GetComponent<Renderer>();
+    }
+
+    private static Color GetNameplateColor(int index)
+    {
+        return index switch
+        {
+            0 => new Color32(32, 42, 48, 255),
+            1 => new Color32(30, 38, 54, 255),
+            _ => new Color32(44, 38, 48, 255)
+        };
+    }
+
+    private static void CreateInterviewerDeskProp(int index, Transform parent)
+    {
+        switch (index)
+        {
+            case 0:
+                CreateCube("Hiring Manager Notebook", new Vector3(-0.22f, 0.48f, 0.56f), new Vector3(0.34f, 0.03f, 0.2f), new Color32(96, 128, 120, 255), parent);
+                CreateCube("Hiring Manager Pen", new Vector3(0.06f, 0.505f, 0.54f), new Vector3(0.24f, 0.018f, 0.018f), new Color32(190, 198, 190, 255), parent);
+                break;
+            case 1:
+                CreateCube("Architect Tablet", new Vector3(0f, 0.48f, 0.56f), new Vector3(0.4f, 0.03f, 0.24f), new Color32(22, 32, 44, 255), parent);
+                CreateCube("Architect Tablet Glow", new Vector3(0f, 0.502f, 0.56f), new Vector3(0.3f, 0.01f, 0.16f), new Color32(68, 132, 180, 255), parent);
+                break;
+            default:
+                CreateCube("Sales Director Folder", new Vector3(0.2f, 0.48f, 0.56f), new Vector3(0.38f, 0.03f, 0.23f), new Color32(126, 98, 74, 255), parent);
+                CreateCube("Sales Director Card", new Vector3(-0.12f, 0.502f, 0.54f), new Vector3(0.2f, 0.01f, 0.12f), new Color32(204, 190, 158, 255), parent);
+                break;
+        }
     }
 
     private GameObject InstantiateInterviewerCharacter(GameObject prefab, string name, Vector3 positionOffset, Vector3 rotationOffset, Vector3 scaleMultiplier, Transform parent)
