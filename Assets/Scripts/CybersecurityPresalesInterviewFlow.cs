@@ -1120,7 +1120,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         string selectedQuestions = GetSelectedQuestionIdSummary();
 
         debugStatusText.text =
-            "Final Round - Prototype P26\n" +
+            "Final Round - Prototype P27\n" +
             "Branch: interviewer-human-presence-pass\n" +
             $"Playtest mode: {(playtestModeEnabled ? "on" : "off")}\n" +
             $"Seed mode: {(useDeterministicQuestionSeed ? "deterministic" : "random")}\n" +
@@ -1141,11 +1141,11 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         candidateStateAvailabilityLogged = true;
         if (FinalRoundRunState.TryGetActiveState(out CandidateState state))
         {
-            Debug.Log("Final Round P26: Room detected active CandidateState.\n" + state.BuildDebugSummary());
+            Debug.Log("Final Round RunState: Room detected active CandidateState.\n" + state.BuildDebugSummary());
             return;
         }
 
-        Debug.Log("Final Round P26: Room started without active CandidateState; using neutral VS1 direct-start behavior.");
+        Debug.Log("Final Round RunState: Room started without active CandidateState; using neutral VS1 direct-start behavior.");
     }
 
     private void RecordRoomOutcome(InterviewOutcomeType outcome)

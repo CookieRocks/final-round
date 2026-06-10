@@ -14,7 +14,7 @@ public sealed class FinalRoundRunState : MonoBehaviour
     {
         if (instance != null && instance != this)
         {
-            Debug.Log("Final Round P26: duplicate FinalRoundRunState destroyed.");
+            Debug.Log("Final Round RunState: duplicate FinalRoundRunState destroyed.");
             Destroy(gameObject);
             return;
         }
@@ -43,7 +43,7 @@ public sealed class FinalRoundRunState : MonoBehaviour
     {
         FinalRoundRunState runState = EnsureInstance();
         runState.candidateState = CandidateState.CreateNeutral(true);
-        Debug.Log("Final Round P26: CandidateState created.\n" + runState.candidateState.BuildDebugSummary());
+        Debug.Log("Final Round RunState: CandidateState created.\n" + runState.candidateState.BuildDebugSummary());
         return runState.candidateState;
     }
 
@@ -69,6 +69,6 @@ public sealed class FinalRoundRunState : MonoBehaviour
     public void ResetRun()
     {
         candidateState = CandidateState.CreateNeutral(false);
-        Debug.Log("Final Round P26: CandidateState reset.\n" + candidateState.BuildDebugSummary());
+        Debug.Log("Final Round RunState: CandidateState reset.\n" + candidateState.BuildDebugSummary());
     }
 }

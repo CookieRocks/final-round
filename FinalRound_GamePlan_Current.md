@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-10_  
-_Current milestone context: VS1 complete; P26 VS2 architecture skeleton in progress_
+_Current milestone context: VS1 complete; P27 Desk scene prototype in progress_
 
 ## 1. Purpose of this document
 
@@ -473,9 +473,9 @@ P26 — VS2 Design / Architecture
   -> Desk-to-Room bridge defined without applying Room modifiers yet
 
 P27 — Desk Scene Prototype
-  -> desk/laptop scene
-  -> inspectable job listing shell
-  -> transition scaffolding only
+  -> runtime-generated desk/laptop shell added
+  -> placeholder Northbridge Jobs UI added
+  -> transition scaffolding still avoids real Room modifiers
 
 P28 — Job Listing and Application Choices
   -> one job listing
