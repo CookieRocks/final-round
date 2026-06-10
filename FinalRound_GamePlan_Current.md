@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-10_  
-_Current milestone context: VS1 complete; P28 job listing and application choices in progress_
+_Current milestone context: VS1 complete; P29 recruiter screen/message exchange in progress_
 
 ## 1. Purpose of this document
 
@@ -483,8 +483,9 @@ P28 — Job Listing and Application Choices
   -> first CandidateState deltas applied at the Desk
 
 P29 — Recruiter Screen / Message Exchange
-  -> one recruiter thread or short call
-  -> recruiter trust / role fit / overclaim risk modifiers
+  -> one Maya Patel recruiter screen added
+  -> recruiter trust / role fit / overclaim risk modifiers added
+  -> still avoids applying Desk modifiers to The Room
 
 P30 — Run-State Modifiers into The Room
   -> pass CandidateState into VS1

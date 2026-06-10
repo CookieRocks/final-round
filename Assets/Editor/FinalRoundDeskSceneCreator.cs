@@ -10,7 +10,9 @@ public static class FinalRoundDeskSceneCreator
     private const string DeskScenePath = "Assets/Scenes/DeskScene.unity";
     private const string InterviewRoomScenePath = "Assets/Scenes/InterviewRoom.unity";
     private const string ContentFolderPath = "Assets/Resources/FinalRound/VS2/P28";
+    private const string P29ContentFolderPath = "Assets/Resources/FinalRound/VS2/P29";
     private const string JobListingAssetPath = ContentFolderPath + "/NCS-SE-001_JobListing.asset";
+    private const string RecruiterMessageAssetPath = P29ContentFolderPath + "/MAYA-PATEL-INTRO.asset";
     private const string RootObjectName = "DeskSceneRoot";
     private const string ControllerObjectName = "DeskPrototypeController";
 
@@ -77,6 +79,31 @@ public static class FinalRoundDeskSceneCreator
         catch (System.Exception exception)
         {
             Debug.LogError($"Final Round P28: Desk content asset create/repair failed.\n{exception}");
+        }
+    }
+
+    [MenuItem("Final Round/Create/Repair P29 Recruiter Content Assets")]
+    public static void CreateOrRepairP29RecruiterContentAssets()
+    {
+        try
+        {
+            EnsureP29ContentFolders();
+            RecruiterMessageData message = CreateOrUpdateRecruiterMessage();
+            RecruiterScreenQuestionData[] questions = CreateOrUpdateRecruiterQuestions();
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            message = AssetDatabase.LoadAssetAtPath<RecruiterMessageData>(RecruiterMessageAssetPath);
+            questions = LoadRecruiterQuestionAssets();
+            AssignRecruiterContentToDeskScene(message, questions);
+            Debug.Log(
+                "Final Round P29: recruiter content assets create/repair complete.\n" +
+                $"- Recruiter message: {RecruiterMessageAssetPath}\n" +
+                $"- Recruiter prompts: {questions.Length}\n" +
+                "- DeskScene assignment repaired if DeskScene exists.");
+        }
+        catch (System.Exception exception)
+        {
+            Debug.LogError($"Final Round P29: recruiter content asset create/repair failed.\n{exception}");
         }
     }
 
@@ -164,10 +191,34 @@ public static class FinalRoundDeskSceneCreator
         EditorSceneManager.SaveScene(scene, DeskScenePath);
     }
 
+    private static void AssignRecruiterContentToDeskScene(RecruiterMessageData message, RecruiterScreenQuestionData[] questions)
+    {
+        if (AssetDatabase.LoadAssetAtPath<SceneAsset>(DeskScenePath) == null)
+        {
+            Debug.LogWarning("Final Round P29: DeskScene does not exist yet. Run Final Round > Create/Repair Desk Scene after creating recruiter content assets.");
+            return;
+        }
+
+        Scene scene = EditorSceneManager.OpenScene(DeskScenePath, OpenSceneMode.Single);
+        GameObject root = FindOrCreateRoot();
+        DeskPrototypeController controller = FindOrCreateController(root.transform);
+        SerializedObject serializedController = new SerializedObject(controller);
+        SetObject(serializedController, "recruiterIntroMessage", message);
+        SetObjectArray(serializedController, "authoredRecruiterQuestions", questions);
+        SetBool(serializedController, "generatePrototypeSceneObjects", true);
+        SetString(serializedController, "interviewRoomSceneName", "InterviewRoom");
+        serializedController.ApplyModifiedPropertiesWithoutUndo();
+        EditorUtility.SetDirty(controller);
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene, DeskScenePath);
+    }
+
     private static void AssignContentIfAvailable(SerializedObject serializedController)
     {
         JobListingData jobListing = AssetDatabase.LoadAssetAtPath<JobListingData>(JobListingAssetPath);
         ApplicationChoiceData[] choices = LoadApplicationChoiceAssets();
+        RecruiterMessageData recruiterMessage = AssetDatabase.LoadAssetAtPath<RecruiterMessageData>(RecruiterMessageAssetPath);
+        RecruiterScreenQuestionData[] recruiterQuestions = LoadRecruiterQuestionAssets();
         if (jobListing != null)
         {
             SetObject(serializedController, "defaultJobListing", jobListing);
@@ -177,6 +228,16 @@ public static class FinalRoundDeskSceneCreator
         {
             SetObjectArray(serializedController, "authoredApplicationChoices", choices);
         }
+
+        if (recruiterMessage != null)
+        {
+            SetObject(serializedController, "recruiterIntroMessage", recruiterMessage);
+        }
+
+        if (recruiterQuestions.Length > 0)
+        {
+            SetObjectArray(serializedController, "authoredRecruiterQuestions", recruiterQuestions);
+        }
     }
 
     private static void EnsureContentFolders()
@@ -185,6 +246,14 @@ public static class FinalRoundDeskSceneCreator
         EnsureFolder("Assets/Resources", "FinalRound");
         EnsureFolder("Assets/Resources/FinalRound", "VS2");
         EnsureFolder("Assets/Resources/FinalRound/VS2", "P28");
+    }
+
+    private static void EnsureP29ContentFolders()
+    {
+        EnsureFolder("Assets", "Resources");
+        EnsureFolder("Assets/Resources", "FinalRound");
+        EnsureFolder("Assets/Resources/FinalRound", "VS2");
+        EnsureFolder("Assets/Resources/FinalRound/VS2", "P29");
     }
 
     private static void EnsureFolder(string parent, string folder)
@@ -287,6 +356,94 @@ public static class FinalRoundDeskSceneCreator
         return assets;
     }
 
+    private static RecruiterMessageData CreateOrUpdateRecruiterMessage()
+    {
+        RecruiterMessageData message = AssetDatabase.LoadAssetAtPath<RecruiterMessageData>(RecruiterMessageAssetPath);
+        if (message == null)
+        {
+            if (AssetDatabase.AssetPathExists(RecruiterMessageAssetPath))
+            {
+                Debug.LogWarning($"Final Round P29: deleting invalid generated recruiter message asset before repair: {RecruiterMessageAssetPath}");
+                AssetDatabase.DeleteAsset(RecruiterMessageAssetPath);
+            }
+
+            message = ScriptableObject.CreateInstance<RecruiterMessageData>();
+            AssetDatabase.CreateAsset(message, RecruiterMessageAssetPath);
+        }
+
+        message.messageId = "MAYA-PATEL-INTRO";
+        message.senderName = "Maya Patel";
+        message.subject = "Northbridge Cyber Systems - quick screen";
+        message.messageText = "Hi,\n\nThanks for applying. Your profile looks relevant for the Senior Solutions Engineer - Security Presales role. The team is moving fairly quickly, so I would like to run through a short screen before I forward your profile to the panel.\n\nA few quick questions below.";
+        message.responseChoices = new RecruiterResponseChoice[0];
+        message.nextMessageId = "REC-AVAILABILITY";
+        EditorUtility.SetDirty(message);
+        return message;
+    }
+
+    private static RecruiterScreenQuestionData[] CreateOrUpdateRecruiterQuestions()
+    {
+        DeskPrototypeController.RecruiterScreenPrompt[] sourcePrompts = DeskPrototypeController.BuildFallbackRecruiterPrompts();
+        RecruiterScreenQuestionData[] assets = new RecruiterScreenQuestionData[sourcePrompts.Length];
+        for (int i = 0; i < sourcePrompts.Length; i++)
+        {
+            DeskPrototypeController.RecruiterScreenPrompt source = sourcePrompts[i];
+            string path = $"{P29ContentFolderPath}/{source.questionId}.asset";
+            RecruiterScreenQuestionData asset = AssetDatabase.LoadAssetAtPath<RecruiterScreenQuestionData>(path);
+            if (asset == null)
+            {
+                if (AssetDatabase.AssetPathExists(path))
+                {
+                    Debug.LogWarning($"Final Round P29: deleting invalid generated recruiter screen asset before repair: {path}");
+                    AssetDatabase.DeleteAsset(path);
+                }
+
+                asset = ScriptableObject.CreateInstance<RecruiterScreenQuestionData>();
+                AssetDatabase.CreateAsset(asset, path);
+            }
+
+            asset.questionId = source.questionId;
+            asset.prompt = source.prompt;
+            asset.responseChoices = ToAssetChoices(source.responseChoices);
+            asset.successText = "Maya keeps the process moving.";
+            asset.concernText = "Maya has a little less signal than she wants.";
+            EditorUtility.SetDirty(asset);
+            assets[i] = asset;
+        }
+
+        return assets;
+    }
+
+    private static RecruiterScreenResponseChoice[] ToAssetChoices(DeskPrototypeController.RecruiterScreenChoice[] sourceChoices)
+    {
+        if (sourceChoices == null)
+        {
+            return new RecruiterScreenResponseChoice[0];
+        }
+
+        RecruiterScreenResponseChoice[] choices = new RecruiterScreenResponseChoice[sourceChoices.Length];
+        for (int i = 0; i < sourceChoices.Length; i++)
+        {
+            DeskPrototypeController.RecruiterScreenChoice source = sourceChoices[i];
+            choices[i] = new RecruiterScreenResponseChoice
+            {
+                choiceId = source.choiceId,
+                label = source.label,
+                responseText = source.responseText,
+                feedbackText = source.feedbackText,
+                roleFitDelta = source.roleFitDelta,
+                recruiterTrustDelta = source.recruiterTrustDelta,
+                candidateConfidenceDelta = source.candidateConfidenceDelta,
+                energyDelta = source.energyDelta,
+                overclaimRiskDelta = source.overclaimRiskDelta,
+                technicalReadinessDelta = source.technicalReadinessDelta,
+                rapportMomentumDelta = source.rapportMomentumDelta
+            };
+        }
+
+        return choices;
+    }
+
     private static ApplicationChoiceData[] LoadApplicationChoiceAssets()
     {
         string[] guids = AssetDatabase.FindAssets("t:ApplicationChoiceData", new[] { ContentFolderPath });
@@ -299,6 +456,18 @@ public static class FinalRoundDeskSceneCreator
             .ToArray();
     }
 
+    private static RecruiterScreenQuestionData[] LoadRecruiterQuestionAssets()
+    {
+        string[] guids = AssetDatabase.FindAssets("t:RecruiterScreenQuestionData", new[] { P29ContentFolderPath });
+        return guids
+            .Select(AssetDatabase.GUIDToAssetPath)
+            .Select(AssetDatabase.LoadAssetAtPath<RecruiterScreenQuestionData>)
+            .Where(asset => asset != null)
+            .OrderBy(GetRecruiterQuestionSortOrder)
+            .ThenBy(asset => asset.questionId)
+            .ToArray();
+    }
+
     private static int GetApplicationChoiceSortOrder(ApplicationChoiceData asset)
     {
         return asset.choiceId switch
@@ -307,6 +476,17 @@ public static class FinalRoundDeskSceneCreator
             "APP-TAILORED-CREDIBLE" => 1,
             "APP-AGGRESSIVE-POSITIONING" => 2,
             "APP-QUICK-APPLY" => 3,
+            _ => 100
+        };
+    }
+
+    private static int GetRecruiterQuestionSortOrder(RecruiterScreenQuestionData asset)
+    {
+        return asset.questionId switch
+        {
+            "REC-AVAILABILITY" => 0,
+            "REC-FIT" => 1,
+            "REC-PROCESS" => 2,
             _ => 100
         };
     }

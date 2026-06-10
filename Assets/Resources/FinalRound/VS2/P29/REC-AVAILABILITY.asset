@@ -1,0 +1,67 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5992729585baf7948839b76690268c62, type: 3}
+  m_Name: REC-AVAILABILITY
+  m_EditorClassIdentifier: Assembly-CSharp::RecruiterScreenQuestionData
+  questionId: REC-AVAILABILITY
+  prompt: Are you available for a short screen this week?
+  responseChoices:
+  - choiceId: REC-AVAIL-CLEAR
+    label: Clear Availability
+    responseText: Yes. I can do Tuesday or Thursday afternoon, and I can send a few
+      other options if helpful.
+    feedbackText: Maya has enough signal to schedule without chasing you.
+    roleFitDelta: 0
+    recruiterTrustDelta: 2
+    candidateConfidenceDelta: 1
+    energyDelta: 0
+    overclaimRiskDelta: 0
+    technicalReadinessDelta: 0
+    rapportMomentumDelta: 1
+  - choiceId: REC-AVAIL-EAGER
+    label: Immediately Free
+    responseText: I can talk any time today, tomorrow, or whenever the team wants.
+      I am very keen.
+    feedbackText: The enthusiasm helps, but it reads slightly uncalibrated.
+    roleFitDelta: 0
+    recruiterTrustDelta: 0
+    candidateConfidenceDelta: 1
+    energyDelta: -1
+    overclaimRiskDelta: 0
+    technicalReadinessDelta: 0
+    rapportMomentumDelta: 0
+  - choiceId: REC-AVAIL-CAUTIOUS
+    label: Cautious Window
+    responseText: Possibly. I would need to check my week and understand roughly
+      what the screen covers first.
+    feedbackText: The caution is reasonable, but Maya has to do a little more work
+      to move things forward.
+    roleFitDelta: 0
+    recruiterTrustDelta: -1
+    candidateConfidenceDelta: 0
+    energyDelta: 1
+    overclaimRiskDelta: 0
+    technicalReadinessDelta: 0
+    rapportMomentumDelta: 0
+  - choiceId: REC-AVAIL-SLOW
+    label: Slow Response
+    responseText: Maybe later in the week. I am not sure yet.
+    feedbackText: Maya can keep you in process, but the momentum cools.
+    roleFitDelta: 0
+    recruiterTrustDelta: -2
+    candidateConfidenceDelta: -1
+    energyDelta: -1
+    overclaimRiskDelta: 0
+    technicalReadinessDelta: 0
+    rapportMomentumDelta: -1
+  successText: Maya keeps the process moving.
+  concernText: Maya has a little less signal than she wants.

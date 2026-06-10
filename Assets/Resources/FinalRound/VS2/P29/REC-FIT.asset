@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5992729585baf7948839b76690268c62, type: 3}
+  m_Name: REC-FIT
+  m_EditorClassIdentifier: Assembly-CSharp::RecruiterScreenQuestionData
+  questionId: REC-FIT
+  prompt: How would you summarise your fit for a security presales role like this?
+  responseChoices:
+  - choiceId: REC-FIT-BALANCED
+    label: Balanced Fit
+    responseText: I am strongest where customer conversations, security architecture,
+      and practical trade-offs meet.
+    feedbackText: Maya gets a clean, credible positioning line to carry forward.
+    roleFitDelta: 2
+    recruiterTrustDelta: 2
+    candidateConfidenceDelta: 1
+    energyDelta: 0
+    overclaimRiskDelta: 0
+    technicalReadinessDelta: 1
+    rapportMomentumDelta: 1
+  - choiceId: REC-FIT-TECHNICAL
+    label: Technical Depth
+    responseText: The technical side is the strongest match. I can go deep on detection,
+      architecture, and risk.
+    feedbackText: The technical signal is useful, though Maya may still need evidence
+      that you can sell the story.
+    roleFitDelta: 1
+    recruiterTrustDelta: 1
+    candidateConfidenceDelta: 1
+    energyDelta: 0
+    overclaimRiskDelta: 0
+    technicalReadinessDelta: 2
+    rapportMomentumDelta: -1
+  - choiceId: REC-FIT-PERFECT
+    label: Perfect Match
+    responseText: Honestly, it sounds like exactly what I have already been doing
+      end to end.
+    feedbackText: It is punchy, but it creates proof pressure for later.
+    roleFitDelta: 2
+    recruiterTrustDelta: -1
+    candidateConfidenceDelta: 2
+    energyDelta: 0
+    overclaimRiskDelta: 2
+    technicalReadinessDelta: 0
+    rapportMomentumDelta: -1
+  - choiceId: REC-FIT-MODEST
+    label: Modest Fit
+    responseText: Some parts fit well, though I would probably need to grow into
+      the full presales side.
+    feedbackText: The honesty helps, but the answer may undersell your readiness.
+    roleFitDelta: -1
+    recruiterTrustDelta: 1
+    candidateConfidenceDelta: -2
+    energyDelta: 0
+    overclaimRiskDelta: -1
+    technicalReadinessDelta: 0
+    rapportMomentumDelta: 1
+  successText: Maya keeps the process moving.
+  concernText: Maya has a little less signal than she wants.

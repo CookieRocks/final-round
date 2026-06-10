@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5992729585baf7948839b76690268c62, type: 3}
+  m_Name: REC-PROCESS
+  m_EditorClassIdentifier: Assembly-CSharp::RecruiterScreenQuestionData
+  questionId: REC-PROCESS
+  prompt: The team may move quickly if there is alignment. Are you comfortable with
+    a technical panel and final-round customer scenario?
+  responseChoices:
+  - choiceId: REC-PROCESS-REALISTIC
+    label: Realistic Yes
+    responseText: Yes. I am comfortable with that, and I would want to understand
+      the customer scenario format before the final round.
+    feedbackText: Maya reads this as confident without pretending the process is
+      trivial.
+    roleFitDelta: 1
+    recruiterTrustDelta: 2
+    candidateConfidenceDelta: 1
+    energyDelta: 0
+    overclaimRiskDelta: 0
+    technicalReadinessDelta: 1
+    rapportMomentumDelta: 1
+  - choiceId: REC-PROCESS-OVERCONFIDENT
+    label: No Problem
+    responseText: Absolutely. I have handled much tougher panels, so I am not worried
+      about it.
+    feedbackText: The confidence lands, but it also raises the bar for the panel.
+    roleFitDelta: 0
+    recruiterTrustDelta: -1
+    candidateConfidenceDelta: 2
+    energyDelta: 0
+    overclaimRiskDelta: 2
+    technicalReadinessDelta: 0
+    rapportMomentumDelta: -1
+  - choiceId: REC-PROCESS-CLARIFY
+    label: Clarify Format
+    responseText: Yes, and it would help to know whether they are testing discovery,
+      architecture, or executive communication.
+    feedbackText: The clarification is useful and makes you sound prepared rather
+      than difficult.
+    roleFitDelta: 0
+    recruiterTrustDelta: 2
+    candidateConfidenceDelta: 1
+    energyDelta: -1
+    overclaimRiskDelta: 0
+    technicalReadinessDelta: 2
+    rapportMomentumDelta: 1
+  - choiceId: REC-PROCESS-HESITANT
+    label: Hesitant
+    responseText: I can probably do it, but I would need to know exactly what they
+      are looking for before agreeing.
+    feedbackText: Maya may still move you forward, but the answer carries uncertainty.
+    roleFitDelta: -1
+    recruiterTrustDelta: -2
+    candidateConfidenceDelta: -2
+    energyDelta: -1
+    overclaimRiskDelta: 0
+    technicalReadinessDelta: 0
+    rapportMomentumDelta: -1
+  successText: Maya keeps the process moving.
+  concernText: Maya has a little less signal than she wants.

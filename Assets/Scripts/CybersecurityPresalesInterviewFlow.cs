@@ -1120,7 +1120,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         string selectedQuestions = GetSelectedQuestionIdSummary();
 
         debugStatusText.text =
-            "Final Round - Prototype P28\n" +
+            "Final Round - Prototype P29\n" +
             "Branch: interviewer-human-presence-pass\n" +
             $"Playtest mode: {(playtestModeEnabled ? "on" : "off")}\n" +
             $"Seed mode: {(useDeterministicQuestionSeed ? "deterministic" : "random")}\n" +

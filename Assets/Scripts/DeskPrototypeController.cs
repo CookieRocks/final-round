@@ -40,6 +40,44 @@ public sealed class DeskPrototypeController : MonoBehaviour
         }
     }
 
+    [System.Serializable]
+    public sealed class RecruiterScreenChoice
+    {
+        public string choiceId;
+        public string label;
+        [TextArea(2, 6)] public string responseText;
+        [TextArea(2, 6)] public string feedbackText;
+        [Range(CandidateState.MinPrototypeModifier, CandidateState.MaxPrototypeModifier)] public int roleFitDelta;
+        [Range(CandidateState.MinPrototypeModifier, CandidateState.MaxPrototypeModifier)] public int recruiterTrustDelta;
+        [Range(CandidateState.MinPrototypeModifier, CandidateState.MaxPrototypeModifier)] public int candidateConfidenceDelta;
+        [Range(CandidateState.MinPrototypeModifier, CandidateState.MaxPrototypeModifier)] public int energyDelta;
+        [Range(CandidateState.MinPrototypeModifier, CandidateState.MaxPrototypeModifier)] public int overclaimRiskDelta;
+        [Range(CandidateState.MinPrototypeModifier, CandidateState.MaxPrototypeModifier)] public int technicalReadinessDelta;
+        [Range(CandidateState.MinPrototypeModifier, CandidateState.MaxPrototypeModifier)] public int rapportMomentumDelta;
+
+        public string BuildDeltaSummary()
+        {
+            return
+                $"Role Fit {FormatDelta(roleFitDelta)}, Recruiter Trust {FormatDelta(recruiterTrustDelta)}, " +
+                $"Confidence {FormatDelta(candidateConfidenceDelta)}, Energy {FormatDelta(energyDelta)}, " +
+                $"Overclaim Risk {FormatDelta(overclaimRiskDelta)}, Technical Readiness {FormatDelta(technicalReadinessDelta)}, " +
+                $"Rapport Momentum {FormatDelta(rapportMomentumDelta)}";
+        }
+
+        private static string FormatDelta(int delta)
+        {
+            return delta >= 0 ? $"+{delta}" : delta.ToString();
+        }
+    }
+
+    [System.Serializable]
+    public sealed class RecruiterScreenPrompt
+    {
+        public string questionId;
+        public string prompt;
+        public RecruiterScreenChoice[] responseChoices;
+    }
+
     public enum DeskPrototypeState
     {
         Standby,
@@ -56,6 +94,10 @@ public sealed class DeskPrototypeController : MonoBehaviour
     private const string PlaceholderRole = "Senior Solutions Engineer - Security Presales";
     private const string DefaultSalaryRange = "Base salary listed as competitive, with variable compensation discussed later in process.";
     private const string DefaultProcessNotes = "Recruiter screen, technical/presales panel, final customer-scenario round. Timeline described as fast if the team aligns.";
+    private const string RecruiterPathId = "MAYA-PATEL-SCREEN";
+    private const string RecruiterSender = "Maya Patel";
+    private const string RecruiterSubject = "Northbridge Cyber Systems - quick screen";
+    private const string RecruiterIntroMessage = "Hi,\n\nThanks for applying. Your profile looks relevant for the Senior Solutions Engineer - Security Presales role. The team is moving fairly quickly, so I would like to run through a short screen before I forward your profile to the panel.\n\nA few quick questions below.";
 
     [Header("Scene")]
     [SerializeField] private string interviewRoomSceneName = "InterviewRoom";
@@ -67,6 +109,8 @@ public sealed class DeskPrototypeController : MonoBehaviour
     [SerializeField] private DeskPrototypeState currentState = DeskPrototypeState.Standby;
     [SerializeField] private JobListingData defaultJobListing;
     [SerializeField] private ApplicationChoiceData[] authoredApplicationChoices;
+    [SerializeField] private RecruiterMessageData recruiterIntroMessage;
+    [SerializeField] private RecruiterScreenQuestionData[] authoredRecruiterQuestions;
 
     [Header("Input")]
 #if !ENABLE_INPUT_SYSTEM
@@ -77,17 +121,28 @@ public sealed class DeskPrototypeController : MonoBehaviour
     private Canvas canvas;
     private GameObject laptopPanel;
     private GameObject debugPanel;
+    private GameObject listingSectionRow;
+    private GameObject strategyRow;
+    private GameObject recruiterRow;
     private TMP_Text debugText;
     private TMP_Text modeText;
     private TMP_Text listingSummaryText;
     private TMP_Text feedbackText;
     private Button confirmApplicationButton;
+    private Button recruiterButton;
+    private Button interviewButton;
+    private GameObject confirmApplicationButtonObject;
     private Button[] listingSectionButtons;
     private Button[] strategyButtons;
+    private Button[] recruiterChoiceButtons;
     private ApplicationStrategyChoice[] fallbackApplicationChoices;
+    private RecruiterScreenPrompt[] fallbackRecruiterPrompts;
     private ApplicationStrategyChoice selectedApplicationChoice;
     private int currentListingSectionIndex;
+    private int currentRecruiterPromptIndex;
     private bool applicationConfirmed;
+    private bool recruiterCompleted;
+    private string recruiterResponseIds;
 
     public DeskPrototypeState CurrentState => currentState;
 
@@ -100,7 +155,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
         BuildPrototypeUi();
         RefreshDebugDisplay();
-        Debug.Log("Final Round P28: Desk prototype ready. Press E/Space or click the laptop to open the job listing UI.");
+        Debug.Log("Final Round P29: Desk prototype ready. Press E/Space or click the laptop to open the job listing UI.");
     }
 
     private void Update()
@@ -117,8 +172,11 @@ public sealed class DeskPrototypeController : MonoBehaviour
         state.SelectedJobId = GetActiveJobId();
         currentState = DeskPrototypeState.LaptopFocus;
         applicationConfirmed = false;
+        recruiterCompleted = false;
+        recruiterResponseIds = string.Empty;
+        currentRecruiterPromptIndex = 0;
         selectedApplicationChoice = null;
-        Debug.Log("Final Round P28: Desk run started.\n" + state.BuildDebugSummary());
+        Debug.Log("Final Round P29: Desk run started.\n" + state.BuildDebugSummary());
         RefreshDebugDisplay();
     }
 
@@ -163,7 +221,10 @@ public sealed class DeskPrototypeController : MonoBehaviour
         ShowListingSection(currentListingSectionIndex);
         SetListingSectionButtonsVisible(true);
         SetStrategyButtonsVisible(false);
+        SetRecruiterChoiceButtonsVisible(false);
         SetConfirmInteractable(false);
+        SetConfirmVisible(true);
+        SetRecruiterInteractable(applicationConfirmed);
         RefreshDebugDisplay();
     }
 
@@ -180,14 +241,16 @@ public sealed class DeskPrototypeController : MonoBehaviour
         {
             listingSummaryText.text =
                 "Choose an application strategy.\n\n" +
-                "This is the first VS2 step that changes CandidateState. The Room will receive the state, but P28 still does not apply Room modifiers.";
+                "This is a VS2 step that changes CandidateState. The Room will receive the state, but P29 still does not apply Room modifiers.";
         }
 
         SetText(modeText, "Choose Application Strategy");
         SetText(feedbackText, "No strategy selected.");
         SetListingSectionButtonsVisible(false);
         SetStrategyButtonsVisible(true);
+        SetRecruiterChoiceButtonsVisible(false);
         SetConfirmInteractable(false);
+        SetConfirmVisible(true);
         RefreshDebugDisplay();
     }
 
@@ -215,19 +278,109 @@ public sealed class DeskPrototypeController : MonoBehaviour
             selectedApplicationChoice.rapportMomentumDelta);
 
         applicationConfirmed = true;
+        recruiterCompleted = false;
         currentState = DeskPrototypeState.Prep;
         SetText(modeText, "Application Submitted");
         SetText(
             listingSummaryText,
             "Application submitted.\n\n" +
             selectedApplicationChoice.feedbackText +
-            "\n\nPrototype shortcut remains available for testing the Desk-to-Room bridge.");
-        SetText(feedbackText, "CandidateState updated.\n" + selectedApplicationChoice.BuildDeltaSummary());
+            "\n\nMaya Patel has replied with a short recruiter screen.");
+        SetText(feedbackText, "CandidateState updated.\n" + selectedApplicationChoice.BuildDeltaSummary() + "\n\nContinue to the recruiter message when ready.");
+        SetListingSectionButtonsVisible(false);
+        SetStrategyButtonsVisible(false);
+        SetRecruiterChoiceButtonsVisible(false);
+        SetConfirmInteractable(false);
+        SetConfirmVisible(false);
+        SetRecruiterInteractable(true);
+
+        Debug.Log("Final Round P29: application strategy confirmed.\n" + state.BuildDebugSummary());
+        RefreshDebugDisplay();
+    }
+
+    public void ShowRecruiterScreen()
+    {
+        if (!FinalRoundRunState.HasActiveRun())
+        {
+            BeginDeskRun();
+        }
+
+        if (!applicationConfirmed && FinalRoundRunState.TryGetActiveState(out CandidateState state) && !string.IsNullOrWhiteSpace(state.ApplicationChoiceId))
+        {
+            applicationConfirmed = true;
+        }
+
+        if (!applicationConfirmed)
+        {
+            SetText(feedbackText, "Choose and confirm an application strategy before the recruiter screen.");
+            return;
+        }
+
+        currentState = DeskPrototypeState.Recruiter;
+        SetText(modeText, recruiterCompleted ? "Recruiter Screen Complete" : $"Recruiter Screen {currentRecruiterPromptIndex + 1} of {GetRecruiterPrompts().Length}");
         SetListingSectionButtonsVisible(false);
         SetStrategyButtonsVisible(false);
         SetConfirmInteractable(false);
+        SetConfirmVisible(false);
+        SetRecruiterChoiceButtonsVisible(!recruiterCompleted);
+        SetText(feedbackText, recruiterCompleted ? "Recruiter screen complete." : "Choose one reply below.");
+        RenderRecruiterPrompt();
+        RefreshDebugDisplay();
+    }
 
-        Debug.Log("Final Round P28: application strategy confirmed.\n" + state.BuildDebugSummary());
+    private void SelectRecruiterResponse(RecruiterScreenChoice choice)
+    {
+        if (choice == null || recruiterCompleted)
+        {
+            return;
+        }
+
+        CandidateState state = FinalRoundRunState.HasActiveRun()
+            ? FinalRoundRunState.Instance.State
+            : FinalRoundRunState.CreateNeutralRun();
+
+        state.SelectedJobId = string.IsNullOrWhiteSpace(state.SelectedJobId) ? GetActiveJobId() : state.SelectedJobId;
+        state.ApplyDeltas(
+            choice.roleFitDelta,
+            choice.recruiterTrustDelta,
+            choice.candidateConfidenceDelta,
+            choice.energyDelta,
+            choice.overclaimRiskDelta,
+            choice.technicalReadinessDelta,
+            choice.rapportMomentumDelta);
+
+        recruiterResponseIds = string.IsNullOrWhiteSpace(recruiterResponseIds)
+            ? choice.choiceId
+            : $"{recruiterResponseIds},{choice.choiceId}";
+        state.RecruiterResponseIds = recruiterResponseIds;
+
+        SetText(feedbackText, $"{choice.label}: {choice.feedbackText}");
+
+        currentRecruiterPromptIndex++;
+        RecruiterScreenPrompt[] prompts = GetRecruiterPrompts();
+        if (currentRecruiterPromptIndex >= prompts.Length)
+        {
+            recruiterCompleted = true;
+            currentRecruiterPromptIndex = prompts.Length - 1;
+            state.RecruiterPathId = RecruiterPathId;
+            SetText(modeText, "Recruiter Screen Complete");
+            SetText(
+                listingSummaryText,
+                "Maya has forwarded your profile to the panel.\n\nYou have been invited to the final interview.");
+            SetText(feedbackText, "Recruiter screen complete. CandidateState updated.");
+            SetRecruiterChoiceButtonsVisible(false);
+            SetInterviewButtonLabel("Continue to Interview");
+            SetRecruiterInteractable(false);
+            Debug.Log("Final Round P29: recruiter screen complete.\n" + state.BuildDebugSummary());
+        }
+        else
+        {
+            SetText(modeText, $"Recruiter Screen {currentRecruiterPromptIndex + 1} of {prompts.Length}");
+            SetText(feedbackText, "Choose one reply below.");
+            RenderRecruiterPrompt();
+            Debug.Log("Final Round P29: recruiter response recorded.\n" + state.BuildDebugSummary());
+        }
+
         RefreshDebugDisplay();
     }
 
@@ -253,7 +406,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
         currentState = DeskPrototypeState.TransitioningToRoom;
         Debug.Log(
-            $"Final Round P28: Desk-to-Room transition requested. Scene: {interviewRoomSceneName}\n" +
+            $"Final Round P29: Desk-to-Room transition requested. Scene: {interviewRoomSceneName}\n" +
             state.BuildDebugSummary());
 
         RefreshDebugDisplay();
@@ -279,15 +432,22 @@ public sealed class DeskPrototypeController : MonoBehaviour
         }
 
         applicationConfirmed = false;
+        recruiterCompleted = false;
+        recruiterResponseIds = string.Empty;
         selectedApplicationChoice = null;
         currentListingSectionIndex = 0;
+        currentRecruiterPromptIndex = 0;
         SetText(modeText, "View Listing");
         SetText(feedbackText, "Desk run reset. Open the laptop to begin again.");
         SetListingSectionButtonsVisible(true);
         SetStrategyButtonsVisible(false);
+        SetRecruiterChoiceButtonsVisible(false);
         SetConfirmInteractable(false);
+        SetConfirmVisible(true);
+        SetRecruiterInteractable(false);
+        SetInterviewButtonLabel("Debug: Go To Interview");
 
-        Debug.Log("Final Round P28: Desk run reset.");
+        Debug.Log("Final Round P29: Desk run reset.");
         RefreshDebugDisplay();
     }
 
@@ -402,32 +562,32 @@ public sealed class DeskPrototypeController : MonoBehaviour
         modeText = CreateText("Laptop Mode", laptopPanel.transform, "View Listing", 20, FontStyles.Bold, TextAlignmentOptions.Left);
         modeText.color = new Color32(98, 218, 195, 255);
 
-        GameObject sectionRow = new GameObject("Listing Section Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
-        sectionRow.transform.SetParent(laptopPanel.transform, false);
-        HorizontalLayoutGroup sectionLayout = sectionRow.GetComponent<HorizontalLayoutGroup>();
+        listingSectionRow = new GameObject("Listing Section Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+        listingSectionRow.transform.SetParent(laptopPanel.transform, false);
+        HorizontalLayoutGroup sectionLayout = listingSectionRow.GetComponent<HorizontalLayoutGroup>();
         sectionLayout.spacing = 8f;
         sectionLayout.childForceExpandWidth = false;
         sectionLayout.childForceExpandHeight = false;
-        sectionRow.GetComponent<LayoutElement>().preferredHeight = 42f;
+        listingSectionRow.GetComponent<LayoutElement>().preferredHeight = 42f;
 
         string[] sectionLabels = GetListingSectionLabels();
         listingSectionButtons = new Button[sectionLabels.Length];
         for (int i = 0; i < sectionLabels.Length; i++)
         {
             int sectionIndex = i;
-            listingSectionButtons[i] = CreateButton(sectionLabels[i], sectionRow.transform, () => ShowListingSection(sectionIndex), 116f, 38f, 14);
+            listingSectionButtons[i] = CreateButton(sectionLabels[i], listingSectionRow.transform, () => ShowListingSection(sectionIndex), 116f, 38f, 14);
         }
 
-        listingSummaryText = CreateText("Laptop Summary", laptopPanel.transform, BuildListingSectionText(0), 20, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        listingSummaryText = CreateText("Laptop Summary", laptopPanel.transform, BuildListingSectionText(0), 18, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         listingSummaryText.color = new Color32(209, 217, 224, 255);
         listingSummaryText.rectTransform.sizeDelta = new Vector2(0f, 260f);
-        listingSummaryText.GetComponent<LayoutElement>().preferredHeight = 260f;
+        listingSummaryText.GetComponent<LayoutElement>().preferredHeight = 250f;
 
-        feedbackText = CreateText("Application Feedback", laptopPanel.transform, "Review the opportunity, then choose how to position the application.", 17, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        feedbackText = CreateText("Application Feedback", laptopPanel.transform, "Review the opportunity, then choose how to position the application.", 16, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         feedbackText.color = new Color32(172, 181, 196, 255);
-        feedbackText.GetComponent<LayoutElement>().preferredHeight = 82f;
+        feedbackText.GetComponent<LayoutElement>().preferredHeight = 96f;
 
-        GameObject strategyRow = new GameObject("Application Strategy Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+        strategyRow = new GameObject("Application Strategy Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
         strategyRow.transform.SetParent(laptopPanel.transform, false);
         HorizontalLayoutGroup strategyLayout = strategyRow.GetComponent<HorizontalLayoutGroup>();
         strategyLayout.spacing = 10f;
@@ -443,6 +603,21 @@ public sealed class DeskPrototypeController : MonoBehaviour
             strategyButtons[i] = CreateButton(choice.label, strategyRow.transform, () => SelectApplicationChoice(choice));
         }
 
+        recruiterRow = new GameObject("Recruiter Response Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+        recruiterRow.transform.SetParent(laptopPanel.transform, false);
+        HorizontalLayoutGroup recruiterLayout = recruiterRow.GetComponent<HorizontalLayoutGroup>();
+        recruiterLayout.spacing = 10f;
+        recruiterLayout.childForceExpandWidth = false;
+        recruiterLayout.childForceExpandHeight = false;
+        recruiterRow.GetComponent<LayoutElement>().preferredHeight = 48f;
+
+        recruiterChoiceButtons = new Button[4];
+        for (int i = 0; i < recruiterChoiceButtons.Length; i++)
+        {
+            int choiceIndex = i;
+            recruiterChoiceButtons[i] = CreateButton($"Reply {i + 1}", recruiterRow.transform, () => SelectRecruiterResponse(GetCurrentRecruiterChoice(choiceIndex)), 210f, 46f, 16);
+        }
+
         GameObject buttonRow = new GameObject("Laptop Button Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
         buttonRow.transform.SetParent(laptopPanel.transform, false);
         HorizontalLayoutGroup rowLayout = buttonRow.GetComponent<HorizontalLayoutGroup>();
@@ -451,15 +626,21 @@ public sealed class DeskPrototypeController : MonoBehaviour
         rowLayout.childForceExpandHeight = false;
         buttonRow.GetComponent<LayoutElement>().preferredHeight = 52f;
 
-        CreateButton("View Listing", buttonRow.transform, ShowListingView, 150f);
-        CreateButton("Choose Application Strategy", buttonRow.transform, ShowApplicationChoices, 230f);
-        confirmApplicationButton = CreateButton("Confirm Application", buttonRow.transform, ConfirmApplication, 210f);
-        CreateButton("Go To Interview Room (Prototype Shortcut)", buttonRow.transform, GoToInterviewRoom, 270f);
-        CreateButton("Reset Desk Run", buttonRow.transform, ResetDeskRun, 185f);
+        CreateButton("View Listing", buttonRow.transform, ShowListingView, 130f, 46f, 16);
+        CreateButton("Application Strategy", buttonRow.transform, ShowApplicationChoices, 185f, 46f, 16);
+        confirmApplicationButton = CreateButton("Confirm Application", buttonRow.transform, ConfirmApplication, 175f, 46f, 16);
+        confirmApplicationButtonObject = confirmApplicationButton.gameObject;
+        recruiterButton = CreateButton("Recruiter Message", buttonRow.transform, ShowRecruiterScreen, 170f, 46f, 16);
+        interviewButton = CreateButton("Debug: Go To Interview", buttonRow.transform, GoToInterviewRoom, 220f, 46f, 16);
+        CreateButton("Reset Desk Run", buttonRow.transform, ResetDeskRun, 150f, 46f, 16);
 
         SetListingSectionButtonsVisible(true);
         SetStrategyButtonsVisible(false);
+        SetRecruiterChoiceButtonsVisible(false);
         SetConfirmInteractable(false);
+        SetConfirmVisible(true);
+        SetRecruiterInteractable(false);
+        SetInterviewButtonLabel("Debug: Go To Interview");
         SetLaptopPanelVisible(false);
     }
 
@@ -493,7 +674,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
             : "No active CandidateState.\nDirect Room launch will use neutral VS1 fallback.";
 
         debugText.text =
-            $"P28 Desk Prototype\nState: {currentState}\nTarget Scene: {interviewRoomSceneName}\nApplication Confirmed: {applicationConfirmed}\n\n{summary}";
+            $"P29 Desk Prototype\nState: {currentState}\nTarget Scene: {interviewRoomSceneName}\nApplication Confirmed: {applicationConfirmed}\nRecruiter Complete: {recruiterCompleted}\n\n{summary}";
     }
 
     private void SetLaptopPanelVisible(bool visible)
@@ -506,6 +687,68 @@ public sealed class DeskPrototypeController : MonoBehaviour
         if (debugPanel != null)
         {
             debugPanel.SetActive(!visible);
+        }
+    }
+
+    private void RenderRecruiterPrompt()
+    {
+        RecruiterScreenPrompt[] prompts = GetRecruiterPrompts();
+        if (prompts.Length == 0)
+        {
+            SetText(modeText, "Recruiter Screen Unavailable");
+            SetText(listingSummaryText, "Recruiter content is unavailable. Use the prototype shortcut to continue to the interview room.");
+            SetText(feedbackText, "Run Final Round > Create/Repair P29 Recruiter Content Assets, or use runtime fallback content.");
+            SetRecruiterChoiceButtonsVisible(false);
+            return;
+        }
+
+        RecruiterScreenPrompt prompt = prompts[Mathf.Clamp(currentRecruiterPromptIndex, 0, prompts.Length - 1)];
+        string intro = currentRecruiterPromptIndex == 0
+            ? $"{RecruiterSender} - Senior Talent Partner\nSubject: {RecruiterSubject}\n\nMaya says your profile looks relevant and the team is moving quickly. She wants a short screen before forwarding you to the panel.\n\n"
+            : string.Empty;
+
+        SetText(
+            listingSummaryText,
+            $"{intro}Question {currentRecruiterPromptIndex + 1} of {prompts.Length}\n\n{prompt.prompt}");
+        RefreshRecruiterChoiceButtonLabels();
+    }
+
+    private RecruiterScreenChoice GetCurrentRecruiterChoice(int choiceIndex)
+    {
+        RecruiterScreenPrompt[] prompts = GetRecruiterPrompts();
+        if (prompts.Length == 0)
+        {
+            return null;
+        }
+
+        RecruiterScreenPrompt prompt = prompts[Mathf.Clamp(currentRecruiterPromptIndex, 0, prompts.Length - 1)];
+        if (prompt.responseChoices == null || choiceIndex < 0 || choiceIndex >= prompt.responseChoices.Length)
+        {
+            return null;
+        }
+
+        return prompt.responseChoices[choiceIndex];
+    }
+
+    private void SetRecruiterInteractable(bool interactable)
+    {
+        if (recruiterButton != null)
+        {
+            recruiterButton.interactable = interactable;
+        }
+    }
+
+    private void SetInterviewButtonLabel(string label)
+    {
+        if (interviewButton == null)
+        {
+            return;
+        }
+
+        TMP_Text text = interviewButton.GetComponentInChildren<TMP_Text>();
+        if (text != null)
+        {
+            text.text = label;
         }
     }
 
@@ -727,6 +970,93 @@ public sealed class DeskPrototypeController : MonoBehaviour
         return fallbackApplicationChoices;
     }
 
+    private string GetRecruiterIntroMessage()
+    {
+        return recruiterIntroMessage != null && !string.IsNullOrWhiteSpace(recruiterIntroMessage.messageText)
+            ? recruiterIntroMessage.messageText
+            : RecruiterIntroMessage;
+    }
+
+    private RecruiterScreenPrompt[] GetRecruiterPrompts()
+    {
+        if (authoredRecruiterQuestions != null && authoredRecruiterQuestions.Length > 0)
+        {
+            int validPromptCount = 0;
+            for (int i = 0; i < authoredRecruiterQuestions.Length; i++)
+            {
+                if (authoredRecruiterQuestions[i] != null)
+                {
+                    validPromptCount++;
+                }
+            }
+
+            if (validPromptCount == authoredRecruiterQuestions.Length)
+            {
+                RecruiterScreenPrompt[] prompts = new RecruiterScreenPrompt[authoredRecruiterQuestions.Length];
+                for (int i = 0; i < authoredRecruiterQuestions.Length; i++)
+                {
+                    prompts[i] = FromAsset(authoredRecruiterQuestions[i]);
+                }
+
+                return prompts;
+            }
+
+            Debug.LogWarning("Final Round P29: authored recruiter questions contain null entries. Falling back to built-in recruiter screen content.");
+        }
+
+        if (fallbackRecruiterPrompts == null || fallbackRecruiterPrompts.Length == 0)
+        {
+            fallbackRecruiterPrompts = BuildFallbackRecruiterPrompts();
+        }
+
+        return fallbackRecruiterPrompts;
+    }
+
+    private static RecruiterScreenPrompt FromAsset(RecruiterScreenQuestionData asset)
+    {
+        if (asset == null || string.IsNullOrWhiteSpace(asset.questionId) || string.IsNullOrWhiteSpace(asset.prompt))
+        {
+            Debug.LogWarning("Final Round P29: recruiter question asset is missing required fields. Using first fallback prompt.");
+            return BuildFallbackRecruiterPrompts()[0];
+        }
+
+        RecruiterScreenChoice[] choices = new RecruiterScreenChoice[asset.responseChoices != null ? asset.responseChoices.Length : 0];
+        for (int i = 0; i < choices.Length; i++)
+        {
+            choices[i] = FromAsset(asset.responseChoices[i]);
+        }
+
+        return new RecruiterScreenPrompt
+        {
+            questionId = asset.questionId,
+            prompt = asset.prompt,
+            responseChoices = choices
+        };
+    }
+
+    private static RecruiterScreenChoice FromAsset(RecruiterScreenResponseChoice asset)
+    {
+        if (asset == null || string.IsNullOrWhiteSpace(asset.choiceId) || string.IsNullOrWhiteSpace(asset.label))
+        {
+            return BuildFallbackRecruiterPrompts()[0].responseChoices[0];
+        }
+
+        return new RecruiterScreenChoice
+        {
+            choiceId = asset.choiceId,
+            label = asset.label,
+            responseText = asset.responseText,
+            feedbackText = asset.feedbackText,
+            roleFitDelta = asset.roleFitDelta,
+            recruiterTrustDelta = asset.recruiterTrustDelta,
+            candidateConfidenceDelta = asset.candidateConfidenceDelta,
+            energyDelta = asset.energyDelta,
+            overclaimRiskDelta = asset.overclaimRiskDelta,
+            technicalReadinessDelta = asset.technicalReadinessDelta,
+            rapportMomentumDelta = asset.rapportMomentumDelta
+        };
+    }
+
     public static ApplicationStrategyChoice[] BuildFallbackApplicationChoices()
     {
         return new[]
@@ -790,6 +1120,176 @@ public sealed class DeskPrototypeController : MonoBehaviour
         };
     }
 
+    public static RecruiterScreenPrompt[] BuildFallbackRecruiterPrompts()
+    {
+        return new[]
+        {
+            new RecruiterScreenPrompt
+            {
+                questionId = "REC-AVAILABILITY",
+                prompt = "Are you available for a short screen this week?",
+                responseChoices = new[]
+                {
+                    new RecruiterScreenChoice
+                    {
+                        choiceId = "REC-AVAIL-CLEAR",
+                        label = "Clear Availability",
+                        responseText = "Yes. I can do Tuesday or Thursday afternoon, and I can send a few other options if helpful.",
+                        feedbackText = "Maya has enough signal to schedule without chasing you.",
+                        recruiterTrustDelta = 2,
+                        candidateConfidenceDelta = 1,
+                        energyDelta = 0,
+                        rapportMomentumDelta = 1
+                    },
+                    new RecruiterScreenChoice
+                    {
+                        choiceId = "REC-AVAIL-EAGER",
+                        label = "Immediately Free",
+                        responseText = "I can talk any time today, tomorrow, or whenever the team wants. I am very keen.",
+                        feedbackText = "The enthusiasm helps, but it reads slightly uncalibrated.",
+                        recruiterTrustDelta = 0,
+                        candidateConfidenceDelta = 1,
+                        energyDelta = -1,
+                        rapportMomentumDelta = 0
+                    },
+                    new RecruiterScreenChoice
+                    {
+                        choiceId = "REC-AVAIL-CAUTIOUS",
+                        label = "Cautious Window",
+                        responseText = "Possibly. I would need to check my week and understand roughly what the screen covers first.",
+                        feedbackText = "The caution is reasonable, but Maya has to do a little more work to move things forward.",
+                        recruiterTrustDelta = -1,
+                        candidateConfidenceDelta = 0,
+                        energyDelta = 1,
+                        rapportMomentumDelta = 0
+                    },
+                    new RecruiterScreenChoice
+                    {
+                        choiceId = "REC-AVAIL-SLOW",
+                        label = "Slow Response",
+                        responseText = "Maybe later in the week. I am not sure yet.",
+                        feedbackText = "Maya can keep you in process, but the momentum cools.",
+                        recruiterTrustDelta = -2,
+                        candidateConfidenceDelta = -1,
+                        energyDelta = -1,
+                        rapportMomentumDelta = -1
+                    }
+                }
+            },
+            new RecruiterScreenPrompt
+            {
+                questionId = "REC-FIT",
+                prompt = "How would you summarise your fit for a security presales role like this?",
+                responseChoices = new[]
+                {
+                    new RecruiterScreenChoice
+                    {
+                        choiceId = "REC-FIT-BALANCED",
+                        label = "Balanced Fit",
+                        responseText = "I am strongest where customer conversations, security architecture, and practical trade-offs meet.",
+                        feedbackText = "Maya gets a clean, credible positioning line to carry forward.",
+                        roleFitDelta = 2,
+                        recruiterTrustDelta = 2,
+                        candidateConfidenceDelta = 1,
+                        technicalReadinessDelta = 1,
+                        rapportMomentumDelta = 1
+                    },
+                    new RecruiterScreenChoice
+                    {
+                        choiceId = "REC-FIT-TECHNICAL",
+                        label = "Technical Depth",
+                        responseText = "The technical side is the strongest match. I can go deep on detection, architecture, and risk.",
+                        feedbackText = "The technical signal is useful, though Maya may still need evidence that you can sell the story.",
+                        roleFitDelta = 1,
+                        recruiterTrustDelta = 1,
+                        candidateConfidenceDelta = 1,
+                        technicalReadinessDelta = 2,
+                        rapportMomentumDelta = -1
+                    },
+                    new RecruiterScreenChoice
+                    {
+                        choiceId = "REC-FIT-PERFECT",
+                        label = "Perfect Match",
+                        responseText = "Honestly, it sounds like exactly what I have already been doing end to end.",
+                        feedbackText = "It is punchy, but it creates proof pressure for later.",
+                        roleFitDelta = 2,
+                        recruiterTrustDelta = -1,
+                        candidateConfidenceDelta = 2,
+                        overclaimRiskDelta = 2,
+                        rapportMomentumDelta = -1
+                    },
+                    new RecruiterScreenChoice
+                    {
+                        choiceId = "REC-FIT-MODEST",
+                        label = "Modest Fit",
+                        responseText = "Some parts fit well, though I would probably need to grow into the full presales side.",
+                        feedbackText = "The honesty helps, but the answer may undersell your readiness.",
+                        roleFitDelta = -1,
+                        recruiterTrustDelta = 1,
+                        candidateConfidenceDelta = -2,
+                        overclaimRiskDelta = -1,
+                        rapportMomentumDelta = 1
+                    }
+                }
+            },
+            new RecruiterScreenPrompt
+            {
+                questionId = "REC-PROCESS",
+                prompt = "The team may move quickly if there is alignment. Are you comfortable with a technical panel and final-round customer scenario?",
+                responseChoices = new[]
+                {
+                    new RecruiterScreenChoice
+                    {
+                        choiceId = "REC-PROCESS-REALISTIC",
+                        label = "Realistic Yes",
+                        responseText = "Yes. I am comfortable with that, and I would want to understand the customer scenario format before the final round.",
+                        feedbackText = "Maya reads this as confident without pretending the process is trivial.",
+                        roleFitDelta = 1,
+                        recruiterTrustDelta = 2,
+                        candidateConfidenceDelta = 1,
+                        technicalReadinessDelta = 1,
+                        rapportMomentumDelta = 1
+                    },
+                    new RecruiterScreenChoice
+                    {
+                        choiceId = "REC-PROCESS-OVERCONFIDENT",
+                        label = "No Problem",
+                        responseText = "Absolutely. I have handled much tougher panels, so I am not worried about it.",
+                        feedbackText = "The confidence lands, but it also raises the bar for the panel.",
+                        recruiterTrustDelta = -1,
+                        candidateConfidenceDelta = 2,
+                        overclaimRiskDelta = 2,
+                        rapportMomentumDelta = -1
+                    },
+                    new RecruiterScreenChoice
+                    {
+                        choiceId = "REC-PROCESS-CLARIFY",
+                        label = "Clarify Format",
+                        responseText = "Yes, and it would help to know whether they are testing discovery, architecture, or executive communication.",
+                        feedbackText = "The clarification is useful and makes you sound prepared rather than difficult.",
+                        recruiterTrustDelta = 2,
+                        candidateConfidenceDelta = 1,
+                        energyDelta = -1,
+                        technicalReadinessDelta = 2,
+                        rapportMomentumDelta = 1
+                    },
+                    new RecruiterScreenChoice
+                    {
+                        choiceId = "REC-PROCESS-HESITANT",
+                        label = "Hesitant",
+                        responseText = "I can probably do it, but I would need to know exactly what they are looking for before agreeing.",
+                        feedbackText = "Maya may still move you forward, but the answer carries uncertainty.",
+                        roleFitDelta = -1,
+                        recruiterTrustDelta = -2,
+                        candidateConfidenceDelta = -2,
+                        energyDelta = -1,
+                        rapportMomentumDelta = -1
+                    }
+                }
+            }
+        };
+    }
+
     private static string FormatList(string[] items)
     {
         if (items == null || items.Length == 0)
@@ -802,6 +1302,11 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
     private void SetStrategyButtonsVisible(bool visible)
     {
+        if (strategyRow != null)
+        {
+            strategyRow.SetActive(visible);
+        }
+
         if (strategyButtons == null)
         {
             return;
@@ -821,8 +1326,39 @@ public sealed class DeskPrototypeController : MonoBehaviour
         }
     }
 
+    private void SetRecruiterChoiceButtonsVisible(bool visible)
+    {
+        if (recruiterRow != null)
+        {
+            recruiterRow.SetActive(visible);
+        }
+
+        if (recruiterChoiceButtons == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < recruiterChoiceButtons.Length; i++)
+        {
+            if (recruiterChoiceButtons[i] != null)
+            {
+                recruiterChoiceButtons[i].gameObject.SetActive(visible);
+            }
+        }
+
+        if (visible)
+        {
+            RefreshRecruiterChoiceButtonLabels();
+        }
+    }
+
     private void SetListingSectionButtonsVisible(bool visible)
     {
+        if (listingSectionRow != null)
+        {
+            listingSectionRow.SetActive(visible);
+        }
+
         if (listingSectionButtons == null)
         {
             return;
@@ -878,11 +1414,48 @@ public sealed class DeskPrototypeController : MonoBehaviour
         }
     }
 
+    private void RefreshRecruiterChoiceButtonLabels()
+    {
+        if (recruiterChoiceButtons == null)
+        {
+            return;
+        }
+
+        RecruiterScreenPrompt[] prompts = GetRecruiterPrompts();
+        RecruiterScreenChoice[] choices = prompts.Length > 0
+            ? prompts[Mathf.Clamp(currentRecruiterPromptIndex, 0, prompts.Length - 1)].responseChoices
+            : null;
+
+        for (int i = 0; i < recruiterChoiceButtons.Length; i++)
+        {
+            bool hasChoice = choices != null && i < choices.Length && choices[i] != null;
+            recruiterChoiceButtons[i].gameObject.SetActive(hasChoice && currentState == DeskPrototypeState.Recruiter && !recruiterCompleted);
+            if (!hasChoice)
+            {
+                continue;
+            }
+
+            TMP_Text label = recruiterChoiceButtons[i].GetComponentInChildren<TMP_Text>();
+            if (label != null)
+            {
+                label.text = choices[i].label;
+            }
+        }
+    }
+
     private void SetConfirmInteractable(bool interactable)
     {
         if (confirmApplicationButton != null)
         {
             confirmApplicationButton.interactable = interactable;
+        }
+    }
+
+    private void SetConfirmVisible(bool visible)
+    {
+        if (confirmApplicationButtonObject != null)
+        {
+            confirmApplicationButtonObject.SetActive(visible);
         }
     }
 
