@@ -10,12 +10,16 @@ public static class FinalRoundQuestionBankBalanceAudit
 {
     private const string ResourcePath = "FinalRound/Questions/RC11";
     private const string ReportPath = "Docs/FinalRound_RC12_BalanceAudit.md";
+    private const string StagedRunReportPath = "Docs/FinalRound_P23_StagedRunAudit.md";
     private const int StartingTechnical = 4;
     private const int StartingCommercial = 4;
     private const int StartingRapport = 4;
     private const int StartingEnergy = 6;
     private const int ExpectedDeltaMin = -3;
     private const int ExpectedDeltaMax = 3;
+    private const int StagedRunQuestionsPerCategory = 2;
+    private const int StagedRunSampleCount = 100000;
+    private const int StagedRunSampleSeed = 230023;
 
     [MenuItem("Final Round/Audit Question Bank Balance")]
     public static void GenerateReport()
@@ -31,6 +35,22 @@ public static class FinalRoundQuestionBankBalanceAudit
         File.WriteAllText(absolutePath, report);
         AssetDatabase.Refresh();
         Debug.Log($"Final Round RC12 question bank balance audit written to {ReportPath}");
+    }
+
+    [MenuItem("Final Round/Audit P23 Staged Run Balance")]
+    public static void GenerateStagedRunReport()
+    {
+        InterviewQuestionData[] questions = Resources.LoadAll<InterviewQuestionData>(ResourcePath)
+            .Where(question => question != null)
+            .OrderBy(question => question.QuestionId, StringComparer.Ordinal)
+            .ToArray();
+
+        string report = BuildStagedRunReport(questions);
+        string absolutePath = Path.Combine(Directory.GetCurrentDirectory(), StagedRunReportPath);
+        Directory.CreateDirectory(Path.GetDirectoryName(absolutePath));
+        File.WriteAllText(absolutePath, report);
+        AssetDatabase.Refresh();
+        Debug.Log($"Final Round P23 staged-run balance audit written to {StagedRunReportPath}");
     }
 
     [MenuItem("Final Round/Find RC15 Seed Presets")]
@@ -114,6 +134,64 @@ public static class FinalRoundQuestionBankBalanceAudit
         return report.ToString();
     }
 
+    private static string BuildStagedRunReport(IReadOnlyList<InterviewQuestionData> sourceQuestions)
+    {
+        List<QuestionRecord> validQuestions = new List<QuestionRecord>();
+        List<string> validationNotes = new List<string>();
+
+        foreach (InterviewQuestionData question in sourceQuestions)
+        {
+            if (question == null)
+            {
+                continue;
+            }
+
+            if (!TryConvert(question, out QuestionRecord record, out string validationNote))
+            {
+                validationNotes.Add(validationNote);
+                continue;
+            }
+
+            validQuestions.Add(record);
+        }
+
+        List<QuestionRecord> contextQuestions = validQuestions.Where(question => question.Category == QuestionCategory.ContextCustomerScenario).ToList();
+        List<QuestionRecord> technicalQuestions = validQuestions.Where(question => question.Category == QuestionCategory.TechnicalSecurityJudgement).ToList();
+        List<QuestionRecord> commercialQuestions = validQuestions.Where(question => question.Category == QuestionCategory.CommercialExecutivePressure).ToList();
+        List<StagedSimulatedOutcome> outcomes = SimulateStagedRuns(contextQuestions, technicalQuestions, commercialQuestions, StagedRunSampleCount, StagedRunSampleSeed);
+
+        StringBuilder report = new StringBuilder();
+        report.AppendLine("# Final Round - Room Prototype P23 Staged Run Audit");
+        report.AppendLine();
+        report.AppendLine("Generated from `Assets/Resources/FinalRound/Questions/RC11`.");
+        report.AppendLine("No question wording, score deltas, outcome thresholds, stage structure, UI, or room setup was changed by this audit.");
+        report.AppendLine();
+        report.AppendLine("## Runtime Flow Verification");
+        report.AppendLine();
+        report.AppendLine("The active room interview flow is `CybersecurityPresalesInterviewFlow`, which loads ScriptableObject questions from `FinalRound/Questions/RC11` when no explicit inspector question bank is assigned.");
+        report.AppendLine("Runtime stages are configured as:");
+        report.AppendLine("- Stage 1: Customer Context: 2 context/customer scenario questions.");
+        report.AppendLine("- Stage 2: Technical Judgement: 2 technical/security judgement questions.");
+        report.AppendLine("- Stage 3: Commercial Pressure: 2 commercial/executive pressure questions.");
+        report.AppendLine("- Total runtime questions per run: 6.");
+        report.AppendLine();
+        report.AppendLine("P22's reported distribution was a short-run audit: 1 context + 1 technical + 1 commercial question, 3 total. It does not match the current 6-question staged runtime flow.");
+        report.AppendLine();
+        report.AppendLine("## Audit Method");
+        report.AppendLine();
+        report.AppendLine($"This P23 audit uses a deterministic sampled staged-run simulation with seed `{StagedRunSampleSeed}` and `{StagedRunSampleCount}` sampled runs.");
+        report.AppendLine("For each sampled run it selects 2 questions without replacement from each category, then selects one of 4 answers for each selected question with uniform probability.");
+        report.AppendLine("Scores start at Technical 4, Commercial 4, Rapport 4, Energy 6. Score clamping is applied after each answer, matching runtime `InterviewScore.Apply` behavior.");
+        report.AppendLine();
+        AppendValidationSummary(report, sourceQuestions.Count, validQuestions, contextQuestions, technicalQuestions, commercialQuestions, validationNotes);
+        AppendStagedOutcomeSummary(report, outcomes);
+        AppendStagedScoreSummary(report, outcomes);
+        AppendClampSummary(report, outcomes);
+        AppendQuestionNotes(report, validQuestions);
+        AppendStagedRecommendations(report, outcomes, validQuestions);
+        return report.ToString();
+    }
+
     private static bool TryConvert(InterviewQuestionData question, out QuestionRecord record, out string validationNote)
     {
         record = null;
@@ -176,6 +254,55 @@ public static class FinalRoundQuestionBankBalanceAudit
                     }
                 }
             }
+        }
+
+        return outcomes;
+    }
+
+    private static List<StagedSimulatedOutcome> SimulateStagedRuns(
+        IReadOnlyList<QuestionRecord> contextQuestions,
+        IReadOnlyList<QuestionRecord> technicalQuestions,
+        IReadOnlyList<QuestionRecord> commercialQuestions,
+        int sampleCount,
+        int sampleSeed)
+    {
+        List<StagedSimulatedOutcome> outcomes = new List<StagedSimulatedOutcome>(sampleCount);
+        if (contextQuestions.Count == 0 || technicalQuestions.Count == 0 || commercialQuestions.Count == 0)
+        {
+            return outcomes;
+        }
+
+        System.Random random = new System.Random(sampleSeed);
+        for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
+        {
+            List<QuestionRecord> selectedQuestions = new List<QuestionRecord>();
+            selectedQuestions.AddRange(PickQuestions(contextQuestions, random, StagedRunQuestionsPerCategory));
+            selectedQuestions.AddRange(PickQuestions(technicalQuestions, random, StagedRunQuestionsPerCategory));
+            selectedQuestions.AddRange(PickQuestions(commercialQuestions, random, StagedRunQuestionsPerCategory));
+
+            int technicalScore = StartingTechnical;
+            int commercialScore = StartingCommercial;
+            int rapportScore = StartingRapport;
+            int energyScore = StartingEnergy;
+            bool clampOccurred = false;
+
+            for (int questionIndex = 0; questionIndex < selectedQuestions.Count; questionIndex++)
+            {
+                QuestionRecord question = selectedQuestions[questionIndex];
+                AnswerRecord answer = question.Answers[random.Next(question.Answers.Count)];
+                technicalScore = ClampScoreWithFlag(technicalScore + answer.Technical, ref clampOccurred);
+                commercialScore = ClampScoreWithFlag(commercialScore + answer.Commercial, ref clampOccurred);
+                rapportScore = ClampScoreWithFlag(rapportScore + answer.Rapport, ref clampOccurred);
+                energyScore = ClampScoreWithFlag(energyScore + answer.Energy, ref clampOccurred);
+            }
+
+            outcomes.Add(new StagedSimulatedOutcome(
+                technicalScore,
+                commercialScore,
+                rapportScore,
+                energyScore,
+                DetermineOutcome(technicalScore, commercialScore, rapportScore, energyScore),
+                clampOccurred));
         }
 
         return outcomes;
@@ -296,6 +423,17 @@ public static class FinalRoundQuestionBankBalanceAudit
         return Mathf.Clamp(value, 0, 10);
     }
 
+    private static int ClampScoreWithFlag(int value, ref bool clampOccurred)
+    {
+        int clamped = ClampScore(value);
+        if (clamped != value)
+        {
+            clampOccurred = true;
+        }
+
+        return clamped;
+    }
+
     private static void AppendValidationSummary(
         StringBuilder report,
         int sourceCount,
@@ -353,6 +491,51 @@ public static class FinalRoundQuestionBankBalanceAudit
         report.AppendLine();
     }
 
+    private static void AppendStagedOutcomeSummary(StringBuilder report, IReadOnlyList<StagedSimulatedOutcome> outcomes)
+    {
+        report.AppendLine("## Outcome Distribution For Real Runtime Flow");
+        report.AppendLine();
+        report.AppendLine($"- Total sampled staged runs: {outcomes.Count}");
+        foreach (InterviewOutcomeType outcomeType in Enum.GetValues(typeof(InterviewOutcomeType)))
+        {
+            int count = outcomes.Count(outcome => outcome.Outcome == outcomeType);
+            float percent = outcomes.Count == 0 ? 0f : count * 100f / outcomes.Count;
+            report.AppendLine($"- {outcomeType}: {count} ({percent:0.0}%)");
+        }
+        report.AppendLine();
+    }
+
+    private static void AppendStagedScoreSummary(StringBuilder report, IReadOnlyList<StagedSimulatedOutcome> outcomes)
+    {
+        report.AppendLine("## Score Distribution Summary");
+        report.AppendLine();
+        AppendDimension(report, "Technical", outcomes.Select(outcome => outcome.Technical));
+        AppendDimension(report, "Commercial", outcomes.Select(outcome => outcome.Commercial));
+        AppendDimension(report, "Rapport", outcomes.Select(outcome => outcome.Rapport));
+        AppendDimension(report, "Energy", outcomes.Select(outcome => outcome.Energy));
+        report.AppendLine();
+    }
+
+    private static void AppendClampSummary(StringBuilder report, IReadOnlyList<StagedSimulatedOutcome> outcomes)
+    {
+        report.AppendLine("## Clamp And Saturation Notes");
+        report.AppendLine();
+        if (outcomes.Count == 0)
+        {
+            report.AppendLine("- No staged runs were available to inspect for score clamping.");
+            report.AppendLine();
+            return;
+        }
+
+        int clampCount = outcomes.Count(outcome => outcome.ClampOccurred);
+        report.AppendLine($"- Runs where at least one score delta was clamped during answer application: {clampCount} ({clampCount * 100f / outcomes.Count:0.0}%).");
+        AppendSaturationDimension(report, "Technical", outcomes.Select(outcome => outcome.Technical));
+        AppendSaturationDimension(report, "Commercial", outcomes.Select(outcome => outcome.Commercial));
+        AppendSaturationDimension(report, "Rapport", outcomes.Select(outcome => outcome.Rapport));
+        AppendSaturationDimension(report, "Energy", outcomes.Select(outcome => outcome.Energy));
+        report.AppendLine();
+    }
+
     private static void AppendDimension(StringBuilder report, string label, IEnumerable<int> values)
     {
         int[] valueArray = values.ToArray();
@@ -363,6 +546,20 @@ public static class FinalRoundQuestionBankBalanceAudit
         }
 
         report.AppendLine($"- {label}: average {valueArray.Average():0.00}, min {valueArray.Min()}, max {valueArray.Max()}");
+    }
+
+    private static void AppendSaturationDimension(StringBuilder report, string label, IEnumerable<int> values)
+    {
+        int[] valueArray = values.ToArray();
+        if (valueArray.Length == 0)
+        {
+            report.AppendLine($"- {label}: no data");
+            return;
+        }
+
+        int minimumCount = valueArray.Count(value => value == 0);
+        int maximumCount = valueArray.Count(value => value == 10);
+        report.AppendLine($"- {label}: final score at 0 in {minimumCount} runs ({minimumCount * 100f / valueArray.Length:0.0}%), at 10 in {maximumCount} runs ({maximumCount * 100f / valueArray.Length:0.0}%).");
     }
 
     private static void AppendQuestionNotes(StringBuilder report, IReadOnlyList<QuestionRecord> questions)
@@ -415,6 +612,62 @@ public static class FinalRoundQuestionBankBalanceAudit
         }
 
         report.AppendLine("- Review any dominant-answer warnings before expanding the bank.");
+        report.AppendLine("- No automatic tuning changes were applied.");
+    }
+
+    private static void AppendStagedRecommendations(StringBuilder report, IReadOnlyList<StagedSimulatedOutcome> outcomes, IReadOnlyList<QuestionRecord> questions)
+    {
+        report.AppendLine("## Recommendation");
+        report.AppendLine();
+        if (outcomes.Count == 0)
+        {
+            report.AppendLine("- No staged answer paths were available to simulate.");
+            return;
+        }
+
+        bool missingOutcome = false;
+        bool strongPassTooCommon = false;
+        foreach (InterviewOutcomeType outcomeType in Enum.GetValues(typeof(InterviewOutcomeType)))
+        {
+            int count = outcomes.Count(outcome => outcome.Outcome == outcomeType);
+            if (count == 0)
+            {
+                missingOutcome = true;
+                report.AppendLine($"- {outcomeType} never appears in the staged-run sample.");
+            }
+            else if (count > outcomes.Count * 0.7f)
+            {
+                report.AppendLine($"- {outcomeType} appears very often ({count}/{outcomes.Count}).");
+            }
+
+            if (outcomeType == InterviewOutcomeType.StrongPass && count > outcomes.Count * 0.2f)
+            {
+                strongPassTooCommon = true;
+                report.AppendLine($"- StrongPass appears high for a final-round prototype sample ({count}/{outcomes.Count}).");
+            }
+        }
+
+        int dominantWarnings = questions.Count(question => HasDominantAnswer(question, out _));
+        int tradeoffWarnings = questions.Count(HasNoMeaningfulTradeoff);
+        int clampCount = outcomes.Count(outcome => outcome.ClampOccurred);
+        bool clampFrequent = clampCount > outcomes.Count * 0.5f;
+        report.AppendLine($"- Dominant-answer warnings: {dominantWarnings}.");
+        report.AppendLine($"- Limited-trade-off warnings: {tradeoffWarnings}.");
+        report.AppendLine($"- Runs with at least one score clamp: {clampCount}.");
+
+        if (!missingOutcome && dominantWarnings == 0 && tradeoffWarnings == 0 && !strongPassTooCommon && !clampFrequent)
+        {
+            report.AppendLine("- Recommendation: leave tuning as-is for now. The real staged flow keeps all outcomes reachable and preserves mixed-performance Holds.");
+        }
+        else if (strongPassTooCommon || clampFrequent)
+        {
+            report.AppendLine("- Recommendation: tune in a follow-up pass. Do not change P23 content here, but the 6-question runtime flow makes high-end scores saturate more often than the short-run audit suggested.");
+        }
+        else
+        {
+            report.AppendLine("- Recommendation: review the warnings above before making threshold or score-delta changes.");
+        }
+
         report.AppendLine("- No automatic tuning changes were applied.");
     }
 
@@ -540,6 +793,26 @@ public static class FinalRoundQuestionBankBalanceAudit
             Rapport = rapport;
             Energy = energy;
             Outcome = outcome;
+        }
+    }
+
+    private readonly struct StagedSimulatedOutcome
+    {
+        public int Technical { get; }
+        public int Commercial { get; }
+        public int Rapport { get; }
+        public int Energy { get; }
+        public InterviewOutcomeType Outcome { get; }
+        public bool ClampOccurred { get; }
+
+        public StagedSimulatedOutcome(int technical, int commercial, int rapport, int energy, InterviewOutcomeType outcome, bool clampOccurred)
+        {
+            Technical = technical;
+            Commercial = commercial;
+            Rapport = rapport;
+            Energy = energy;
+            Outcome = outcome;
+            ClampOccurred = clampOccurred;
         }
     }
 
