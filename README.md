@@ -1,53 +1,72 @@
 # Final Round
 
-Prototype version: `Prototype v1.0 RC1`
+Current milestone: `Final Round VS1: The Room`
 
-Final Round is a compact Unity game about surviving a multi-stage Sales Engineering interview loop. Each run asks you to manage confidence, energy, technical credibility, commercial alignment, and interview pressure while moving through a recruiter screen, hiring manager round, technical panel, and VP round.
+Final Round is a compact Unity prototype about surviving a cybersecurity presales final-round interview. VS1 focuses on a single playable vertical slice: entering the interview room, sitting down in front of a three-person panel, answering a staged six-question interview, and receiving an outcome email plus scorecard.
 
-The game is built as a replayable prototype: question pools, answer order, company profile, random events, and process identity can vary by run, while deterministic seed settings support repeatable testing.
+## Current VS1 Features
 
-## Current Features
+- First-person room entry.
+- Main menu and start flow.
+- Sit-down interaction with seated camera.
+- Three human interviewer placeholders.
+- Staged cybersecurity presales interview.
+- 24-question ScriptableObject question bank.
+- Six-question runtime flow:
+  - 2 customer/context questions.
+  - 2 technical/security judgement questions.
+  - 2 commercial/executive pressure questions.
+- Hidden scoring across Technical, Commercial, Rapport, and Energy.
+- Judgement reactions after answers.
+- Four outcome types:
+  - StrongPass
+  - Pass
+  - Hold
+  - Reject
+- Outcome email.
+- Scorecard.
+- Debug tools for deterministic seeds and forced outcomes.
 
-- Multi-stage Sales Engineering interview process.
-- Randomized question pools and answer order.
-- Process ID and run seed support.
-- Company-specific process profiles, rules, and call-panel themes.
-- Process Briefing before the first round.
-- Interview Pressure meter.
-- Limited-use Prep Cards during questions.
-- Between-round Recovery Choices.
-- Non-repeating between-stage random events.
-- 2D video-call interview panel.
-- Procedural audio feedback and optional clip hooks.
-- Settings screen for audio, motion, run seed, and fullscreen.
-- End-of-run badges.
-- Final outcome summary with stats, highlights, style, badges, advice, and company rule context.
+## Outcome Balance
+
+The P24/P25 six-question staged audit distribution is:
+
+- StrongPass: 10.1%
+- Pass: 44.3%
+- Hold: 35.1%
+- Reject: 10.4%
 
 ## Controls
 
-- Mouse: click answers, cards, settings, and continue buttons.
-- `1`, `2`, `3`: choose visible answer options.
-- `Q`, `W`, `E`: use Prep Cards before selecting an answer.
-- `1` through `5`: choose between-round Recovery Choices when that screen is active.
-- `Enter`: continue feedback, stage transition, random event, or recovery screens.
-- `Esc`: pause/resume, return to menu from pause, or close Settings.
+- Move: standard first-person movement.
+- Look: mouse/camera look before sitting.
+- `E`: sit when the chair prompt is active.
+- `Esc`: pause/resume or close menu overlays.
+- `F1`: toggle room interview debug tools.
+- Mouse: select answers and outcome/scorecard buttons.
 
-## Settings
+## Debug Tools
 
-Settings are available from the Main Menu and Pause Overlay.
+The F1 panel supports:
 
-- Audio: Master Volume, SFX Volume, Mute Audio.
-- Motion: Reduce Motion.
-- Run Options: deterministic run seed, seed input, apply seed, new random seed.
-- Display: fullscreen toggle.
-
-Settings are stored with PlayerPrefs on the current machine. Seed changes apply to the next new process and do not restart an active run.
+- Toggle deterministic seed.
+- Cycle seed.
+- Preset Seed 1-4.
+- Force Strong Pass.
+- Force Pass.
+- Force Hold.
+- Force Reject.
+- Clear Forced Outcome.
+- Skip To Outcome.
+- Restart Current Run.
 
 ## Run In Unity
 
 1. Open the project folder in Unity.
 2. Open `Assets/Scenes/InterviewRoom.unity`.
 3. Press Play.
+4. Start the interview process from the main menu.
+5. Walk to the chair and press `E` when prompted.
 
 ## Windows Standalone Build
 
@@ -57,23 +76,22 @@ Settings are stored with PlayerPrefs on the current machine. Seed changes apply 
 4. Confirm `Assets/Scenes/InterviewRoom.unity` is the enabled scene in `Scenes In Build`.
 5. Click `Switch Platform` if Unity is not already on Windows Standalone.
 6. Click `Build`.
-7. Choose an output folder, for example `Builds/FinalRound_Windows`.
+7. Choose an output folder, for example `Builds/FinalRound_VS1_TheRoom`.
 8. Run the generated `Final Round.exe`.
 
 ## Build Readiness Notes
 
 - The active build scene is `Assets/Scenes/InterviewRoom.unity`.
-- The project uses Unity's Input System backend; keyboard shortcuts use `Keyboard.current` in that mode.
-- Runtime UI and the 2D interview call panel are generated from scripts at play/build time.
-- Audio feedback is optional and generated procedurally when no sound files are assigned.
-- Reduce Motion is available from Settings for reducing pulse/scale animation.
-- The intended RC build target is `Builds/v1.0-rc1/Final Round.exe`.
+- Runtime UI and room objects are generated or assigned from scene scripts.
+- Unity player builds require a valid local Unity license.
+- `dotnet build "Assembly-CSharp.csproj"` validates C# compilation but does not replace an interactive Unity smoke test.
 
 ## Known Limitations
 
-- Prototype balance is intentionally lightweight and may still need more full-run testing.
-- The video-call viewport is cosmetic only.
-- The game is tuned around 1920x1080 and 1366x768 style layouts; unusual aspect ratios may need more UI tuning.
-- No save system, unlock collection, localization, or controller support yet.
-- Accessibility is limited to Reduce Motion and optional/mutable audio.
-- Company/process rules and pressure are intentionally lightweight, not a full interview simulation system.
+- Interviewers are still standing prefabs hidden by table occlusion, not seated rigs.
+- No voice, lip sync, facial animation, or animation pipeline.
+- Room art remains prototype quality.
+- Outcome email is overlay-based.
+- Score saturation remains technical debt even though outcome distribution is tuned.
+- Question resources still live under the legacy `RC11` folder path.
+- No localization, controller support, save system, or broader campaign structure yet.

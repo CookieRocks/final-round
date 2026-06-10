@@ -18,14 +18,14 @@ Final Round uses milestone labels to describe the maturity and intent of a build
 
 ## Current convention
 
-Going forward, room prototype milestones use:
+The current vertical slice milestone is:
+
+- `Final Round - Vertical Slice VS1: The Room`
+
+Prototype milestone labels remain valid for future prototype-only checkpoints:
 
 - `Final Round - Room Prototype P21`
 - `Final Round - Room Prototype P22`
-
-The next planned milestone is:
-
-- `Final Round - Room Prototype P22: Expanded Question Bank Batch 1`
 
 ## Legacy naming
 
