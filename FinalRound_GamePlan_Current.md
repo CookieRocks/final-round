@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-10_  
-_Current milestone context: VS1 complete; P29 recruiter screen/message exchange in progress_
+_Current milestone context: VS1 complete; P30 run-state modifiers into The Room in progress_
 
 ## 1. Purpose of this document
 
@@ -488,9 +488,9 @@ P29 — Recruiter Screen / Message Exchange
   -> still avoids applying Desk modifiers to The Room
 
 P30 — Run-State Modifiers into The Room
-  -> pass CandidateState into VS1
-  -> starting score modifiers
-  -> stage intro and email copy variants
+  -> CandidateState now lightly affects VS1
+  -> small starting score modifiers added
+  -> stage intro, reaction warmth, Architect pressure, and email context variants added
 
 P31 — Return-to-Desk Outcome / Inbox
   -> outcome returns to desk

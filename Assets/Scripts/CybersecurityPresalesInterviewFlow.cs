@@ -65,6 +65,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private bool candidateStateAvailabilityLogged;
     private bool preserveForcedOutcomeOnRestart;
     private bool panelRootSuppressedByGameUi;
+    private RoomModifierResult activeRoomModifiers;
+    private bool hasActiveRoomModifiers;
     private readonly List<int> selectedAnswerIndexes = new List<int>();
     private readonly HashSet<int> shownStageIntroIndexes = new HashSet<int>();
 
@@ -132,6 +134,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         shownStageIntroIndexes.Clear();
         score.Reset();
         SelectQuestionsForRun();
+        ResolveAndApplyRoomModifiers();
         if (roomController == null)
         {
             roomController = GetComponent<TheRoomPrototypeController>();
@@ -173,6 +176,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         }
 
         score.Reset();
+        activeRoomModifiers = default;
+        hasActiveRoomModifiers = false;
         roomController?.ClearJudgementReaction();
         ClearQuestionText();
         ClearOutcomeText();
@@ -266,7 +271,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         if (transitionPanel != null && transitionText != null)
         {
             transitionPanel.SetActive(true);
-            transitionText.text = stage.IntroText;
+            transitionText.text = GetStageIntroText(stage);
             yield return new WaitForSeconds(stageIntroPauseDuration);
             transitionPanel.SetActive(false);
         }
@@ -274,6 +279,52 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         shownStageIntroIndexes.Add(stage.StageIndex);
         questionPanel.SetActive(true);
         RenderCurrentQuestion();
+    }
+
+    private void ResolveAndApplyRoomModifiers()
+    {
+        if (!FinalRoundRunState.TryGetActiveState(out CandidateState state))
+        {
+            activeRoomModifiers = default;
+            hasActiveRoomModifiers = false;
+            return;
+        }
+
+        activeRoomModifiers = RoomModifierResolver.Resolve(state);
+        hasActiveRoomModifiers = true;
+        score.ApplyStartingModifiers(
+            activeRoomModifiers.TechnicalStartModifier,
+            activeRoomModifiers.CommercialStartModifier,
+            activeRoomModifiers.RapportStartModifier,
+            activeRoomModifiers.EnergyStartModifier);
+        Debug.Log("Final Round P30: Room modifiers resolved and applied.\n" + activeRoomModifiers.DebugSummary);
+    }
+
+    private string GetStageIntroText(InterviewStageData stage)
+    {
+        if (!hasActiveRoomModifiers || stage == null)
+        {
+            return stage == null ? string.Empty : stage.IntroText;
+        }
+
+        if (stage.StageIndex == 0)
+        {
+            return activeRoomModifiers.IntroTone switch
+            {
+                RoomIntroTone.Warm => "The Hiring Manager folds their hands. \"Maya spoke positively about your screening conversation. Let's build from there.\"",
+                RoomIntroTone.LimitedSignal => "The Hiring Manager checks their notes. \"We have limited signal from the screen, so we'll use this session to go deeper.\"",
+                RoomIntroTone.DetailPressure => "The Hiring Manager looks up from the notes. \"There were a few strong claims earlier. We'll test the detail through the scenarios.\"",
+                RoomIntroTone.ClearMomentum => "The Hiring Manager folds their hands. \"You came through the early screen clearly. Let's see how you handle the scenarios.\"",
+                _ => stage.IntroText
+            };
+        }
+
+        if (stage.StageIndex == 1 && activeRoomModifiers.ArchitectPressure == ArchitectPressureLevel.Sharper)
+        {
+            return "The Principal Security Architect leans forward. \"I want to test the technical detail behind the earlier positioning.\"";
+        }
+
+        return stage.IntroText;
     }
 
     private void ChooseAnswer(int answerIndex)
@@ -343,10 +394,20 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
             "<color=#647080>Time</color>  Today, 16:42";
         outcomeTitleText.text = email.SubjectLine;
         outcomeOpeningText.text = email.OpeningLine;
-        outcomeBodyText.text = email.OutcomeParagraph;
+        outcomeBodyText.text = AddOutcomeContextLine(email.OutcomeParagraph);
         outcomeFeedbackText.text = $"<b>Feedback summary</b>\n{email.FeedbackParagraph}";
         LogRoomRunSummaryOnce(outcome);
         RefreshDebugStatus();
+    }
+
+    private string AddOutcomeContextLine(string outcomeParagraph)
+    {
+        if (!hasActiveRoomModifiers || string.IsNullOrWhiteSpace(activeRoomModifiers.OutcomeEmailContextLine))
+        {
+            return outcomeParagraph;
+        }
+
+        return $"{outcomeParagraph}\n\n{activeRoomModifiers.OutcomeEmailContextLine}";
     }
 
     private void ShowScorecard()
@@ -523,7 +584,39 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
             };
         }
 
+        ApplyRoomModifierReactionBias(answer, ref tone, ref speaker, ref text);
         return new ReactionResult(tone, speaker, text, GetReactionDuration(tone));
+    }
+
+    private void ApplyRoomModifierReactionBias(AnswerData answer, ref ReactionTone tone, ref ReactionSpeaker speaker, ref string text)
+    {
+        if (!hasActiveRoomModifiers)
+        {
+            return;
+        }
+
+        if (activeRoomModifiers.ArchitectPressure == ArchitectPressureLevel.Sharper
+            && answer.Technical <= 0
+            && (tone == ReactionTone.Neutral || tone == ReactionTone.Awkward))
+        {
+            tone = ReactionTone.Concerned;
+            speaker = ReactionSpeaker.SecurityArchitect;
+            text = "The Architect writes a short note and waits for more detail.";
+            return;
+        }
+
+        if (activeRoomModifiers.ReactionWarmthModifier > 0 && tone == ReactionTone.Neutral)
+        {
+            speaker = ReactionSpeaker.HiringManager;
+            text = "The Hiring Manager nods once and lets the answer sit.";
+            return;
+        }
+
+        if (activeRoomModifiers.ReactionWarmthModifier < 0 && tone == ReactionTone.Neutral)
+        {
+            speaker = ReactionSpeaker.Room;
+            text = "The panel stay guarded, pens moving quietly.";
+        }
     }
 
     private float GetReactionDuration(ReactionTone tone)
@@ -1120,13 +1213,14 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         string selectedQuestions = GetSelectedQuestionIdSummary();
 
         debugStatusText.text =
-            "Final Round - Prototype P29\n" +
+            "Final Round - Prototype P30\n" +
             "Branch: interviewer-human-presence-pass\n" +
             $"Playtest mode: {(playtestModeEnabled ? "on" : "off")}\n" +
             $"Seed mode: {(useDeterministicQuestionSeed ? "deterministic" : "random")}\n" +
             $"Current seed: {currentQuestionSeed}\n" +
             $"Question IDs: {selectedQuestions}\n" +
             $"CandidateState: {GetCandidateStateDebugLine()}\n" +
+            $"Room modifiers: {GetRoomModifierDebugLine()}\n" +
             $"Forced outcome: {(debugForceOutcome ? debugForcedOutcome.ToString() : "off")}\n" +
             "Toggle: F1";
     }
@@ -1163,6 +1257,16 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         return FinalRoundRunState.TryGetActiveState(out CandidateState state)
             ? $"active desk run, job {FormatDebugId(state.SelectedJobId)}"
             : "neutral direct-start fallback";
+    }
+
+    private string GetRoomModifierDebugLine()
+    {
+        if (!hasActiveRoomModifiers)
+        {
+            return "neutral";
+        }
+
+        return activeRoomModifiers.DebugSummary.Replace("\n", " | ");
     }
 
     private static string FormatDebugId(string value)
@@ -1776,6 +1880,14 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
             Commercial = Mathf.Clamp(Commercial + answer.Commercial, 0, 10);
             Rapport = Mathf.Clamp(Rapport + answer.Rapport, 0, 10);
             Energy = Mathf.Clamp(Energy + answer.Energy, 0, 10);
+        }
+
+        public void ApplyStartingModifiers(int technical, int commercial, int rapport, int energy)
+        {
+            Technical = Mathf.Clamp(Technical + technical, 0, 10);
+            Commercial = Mathf.Clamp(Commercial + commercial, 0, 10);
+            Rapport = Mathf.Clamp(Rapport + rapport, 0, 10);
+            Energy = Mathf.Clamp(Energy + energy, 0, 10);
         }
 
         public OutcomeScoreSnapshot ToSnapshot()
