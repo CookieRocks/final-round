@@ -127,10 +127,12 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
     private Canvas canvas;
     private GameObject laptopPanel;
+    private GameObject pausePanel;
     private GameObject debugPanel;
     private GameObject listingSectionRow;
     private GameObject strategyRow;
     private GameObject recruiterRow;
+    private GameObject postAftermathChoiceRow;
     private TMP_Text debugText;
     private TMP_Text modeText;
     private TMP_Text listingSummaryText;
@@ -142,8 +144,15 @@ public sealed class DeskPrototypeController : MonoBehaviour
     private Button interviewButton;
     private Button clearRoomButton;
     private Button processSummaryButton;
+    private Button applyAgainButton;
+    private Button takeBreakButton;
+    private Button askFeedbackButton;
+    private Button reviewProcessSummaryButton;
     private Button mainMenuButton;
     private Button resetButton;
+    private Button pauseResumeButton;
+    private Button pauseMainMenuButton;
+    private Button pauseStartNewRunButton;
     private GameObject confirmApplicationButtonObject;
     private Button[] listingSectionButtons;
     private Button[] strategyButtons;
@@ -156,6 +165,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
     private bool applicationConfirmed;
     private bool recruiterCompleted;
     private bool deskDebugVisible;
+    private bool pauseVisible;
     private string recruiterResponseIds;
 
     public DeskPrototypeState CurrentState => currentState;
@@ -180,6 +190,16 @@ public sealed class DeskPrototypeController : MonoBehaviour
         if (WasDebugTogglePressed())
         {
             ToggleDeskDebug();
+        }
+
+        if (WasPauseTogglePressed())
+        {
+            TogglePauseMenu();
+        }
+
+        if (pauseVisible)
+        {
+            return;
         }
 
         if (WasOpenLaptopPressed() || WasLaptopClicked())
@@ -522,7 +542,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         }
 
         SetText(modeText, "Northbridge Mail / Inbox");
-        SetLaptopTextAreaLayout(330f, 54f, 17, 15);
+        SetLaptopTextAreaLayout(state.AftermathCompleted ? 285f : 330f, state.AftermathCompleted ? 105f : 54f, 17, 15);
         SetText(listingSummaryText, BuildOutcomeInboxMessage(state));
         SetText(feedbackText, BuildOutcomeFeedbackLine(state));
         SetListingSectionButtonsVisible(false);
@@ -532,6 +552,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         SetRecruiterInteractable(false);
         SetResetButtonLabel("Start New Run");
         SetPostOutcomeButtonsVisible(true);
+        SetPostAftermathChoicesVisible(state.AftermathCompleted);
 
         Debug.Log("Final Round P31: Desk inbox opened for completed Room run.\n" + state.BuildDebugSummary());
         RefreshDebugDisplay();
@@ -556,7 +577,38 @@ public sealed class DeskPrototypeController : MonoBehaviour
         SetConfirmVisible(false);
         SetRecruiterInteractable(false);
         SetPostOutcomeButtonsVisible(IsCompletedRoomRunActive());
+        SetPostAftermathChoicesVisible(state.AftermathCompleted);
         RefreshDebugDisplay();
+    }
+
+    private void ApplyAgainAfterAftermath()
+    {
+        ResetDeskRun();
+        OpenLaptopInterface();
+        SetText(feedbackText, "You set this process down and start again a little steadier.");
+    }
+
+    private void TakeBreakAfterAftermath()
+    {
+        if (!FinalRoundRunState.TryGetActiveState(out CandidateState state))
+        {
+            SetText(feedbackText, "No active process is available.");
+            return;
+        }
+
+        state.Energy += 1;
+        SetText(feedbackText, "You step away from the laptop. Nothing is solved, but your energy returns a little.");
+        RefreshDebugDisplay();
+    }
+
+    private void AskForFeedbackAfterAftermath()
+    {
+        SetText(feedbackText, "Maya says she'll ask the panel, but can't promise detailed feedback.");
+    }
+
+    private void ReviewProcessSummaryAfterAftermath()
+    {
+        ShowProcessSummary();
     }
 
     public void ReturnToMainMenu()
@@ -615,7 +667,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
     private static string BuildOutcomeFeedbackLine(CandidateState state)
     {
         string aftermathLine = state.AftermathCompleted
-            ? "\nAftermath: Clear the Room completed."
+            ? "\nAftermath: Clear the Room completed.\nThe room is quieter now. The rejection is still there, but it no longer fills the screen."
             : IsAftermathEntryAvailable(state)
                 ? "\nAftermath: Clear the Room is available."
                 : string.Empty;
@@ -766,6 +818,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         CreateHeader(canvas.transform);
         CreateDebugPanel(canvas.transform);
         CreateLaptopPanel(canvas.transform);
+        CreatePausePanel(canvas.transform);
     }
 
     private void CreateHeader(Transform parent)
@@ -867,6 +920,19 @@ public sealed class DeskPrototypeController : MonoBehaviour
             recruiterChoiceButtons[i] = CreateButton($"Reply {i + 1}", recruiterRow.transform, () => SelectRecruiterResponse(GetCurrentRecruiterChoice(choiceIndex)), 210f, 46f, 16);
         }
 
+        postAftermathChoiceRow = new GameObject("Post Aftermath Choice Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+        postAftermathChoiceRow.transform.SetParent(laptopPanel.transform, false);
+        HorizontalLayoutGroup aftermathLayout = postAftermathChoiceRow.GetComponent<HorizontalLayoutGroup>();
+        aftermathLayout.spacing = 12f;
+        aftermathLayout.childForceExpandWidth = false;
+        aftermathLayout.childForceExpandHeight = false;
+        postAftermathChoiceRow.GetComponent<LayoutElement>().preferredHeight = 46f;
+
+        applyAgainButton = CreateButton("Apply Again", postAftermathChoiceRow.transform, ApplyAgainAfterAftermath, 135f, 42f, 15);
+        takeBreakButton = CreateButton("Take a Break", postAftermathChoiceRow.transform, TakeBreakAfterAftermath, 145f, 42f, 15);
+        askFeedbackButton = CreateButton("Ask for Feedback", postAftermathChoiceRow.transform, AskForFeedbackAfterAftermath, 170f, 42f, 15);
+        reviewProcessSummaryButton = CreateButton("Review Summary", postAftermathChoiceRow.transform, ReviewProcessSummaryAfterAftermath, 170f, 42f, 15);
+
         GameObject buttonRow = new GameObject("Laptop Button Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
         buttonRow.transform.SetParent(laptopPanel.transform, false);
         HorizontalLayoutGroup rowLayout = buttonRow.GetComponent<HorizontalLayoutGroup>();
@@ -894,6 +960,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         SetRecruiterInteractable(false);
         SetInterviewButtonLabel("Debug: Go To Interview");
         SetPostOutcomeButtonsVisible(false);
+        SetPostAftermathChoicesVisible(false);
         SetLaptopPanelVisible(false);
     }
 
@@ -913,6 +980,34 @@ public sealed class DeskPrototypeController : MonoBehaviour
         textRect.anchorMax = Vector2.one;
         textRect.offsetMin = new Vector2(18f, 14f);
         textRect.offsetMax = new Vector2(-18f, -14f);
+    }
+
+    private void CreatePausePanel(Transform parent)
+    {
+        pausePanel = CreatePanel("Desk Pause Menu", parent, new Color32(8, 12, 17, 242));
+        RectTransform rect = pausePanel.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.sizeDelta = new Vector2(420f, 300f);
+
+        VerticalLayoutGroup layout = pausePanel.AddComponent<VerticalLayoutGroup>();
+        layout.padding = new RectOffset(28, 28, 26, 26);
+        layout.spacing = 14f;
+        layout.childForceExpandWidth = true;
+        layout.childForceExpandHeight = false;
+
+        TMP_Text title = CreateText("Desk Pause Title", pausePanel.transform, "THE DESK", 28, FontStyles.Bold, TextAlignmentOptions.Center);
+        title.GetComponent<LayoutElement>().preferredHeight = 42f;
+
+        TMP_Text body = CreateText("Desk Pause Body", pausePanel.transform, "Pause", 18, FontStyles.Normal, TextAlignmentOptions.Center);
+        body.color = new Color32(172, 181, 196, 255);
+        body.GetComponent<LayoutElement>().preferredHeight = 34f;
+
+        pauseResumeButton = CreateButton("Resume", pausePanel.transform, HidePauseMenu, 220f, 42f, 16);
+        pauseMainMenuButton = CreateButton("Main Menu", pausePanel.transform, ReturnToMainMenu, 220f, 42f, 16);
+        pauseStartNewRunButton = CreateButton("Start New Run", pausePanel.transform, ResetDeskRunFromPause, 220f, 42f, 16);
+        SetPauseMenuVisible(false);
     }
 
     private void RefreshDebugDisplay()
@@ -964,6 +1059,31 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
         bool laptopIsOpen = laptopPanel != null && laptopPanel.activeSelf;
         debugPanel.SetActive(deskDebugVisible && !laptopIsOpen);
+    }
+
+    private void TogglePauseMenu()
+    {
+        SetPauseMenuVisible(!pauseVisible);
+    }
+
+    private void HidePauseMenu()
+    {
+        SetPauseMenuVisible(false);
+    }
+
+    private void ResetDeskRunFromPause()
+    {
+        SetPauseMenuVisible(false);
+        ResetDeskRun();
+    }
+
+    private void SetPauseMenuVisible(bool visible)
+    {
+        pauseVisible = visible;
+        if (pausePanel != null)
+        {
+            pausePanel.SetActive(visible);
+        }
     }
 
     private void RenderRecruiterPrompt()
@@ -1073,12 +1193,26 @@ public sealed class DeskPrototypeController : MonoBehaviour
         SetButtonVisible(clearRoomButton, visible && IsAftermathEntryAvailable());
         SetButtonVisible(processSummaryButton, visible);
         SetButtonVisible(mainMenuButton, visible);
+        SetPostAftermathChoicesVisible(visible && IsPostAftermathChoicesAvailable());
         SetResetButtonLabel(visible ? "Start New Run" : "Reset Desk Run");
 
         if (visible)
         {
             SetConfirmVisible(false);
         }
+    }
+
+    private void SetPostAftermathChoicesVisible(bool visible)
+    {
+        if (postAftermathChoiceRow != null)
+        {
+            postAftermathChoiceRow.SetActive(visible);
+        }
+
+        SetButtonVisible(applyAgainButton, visible);
+        SetButtonVisible(takeBreakButton, visible);
+        SetButtonVisible(askFeedbackButton, visible);
+        SetButtonVisible(reviewProcessSummaryButton, visible);
     }
 
     private static void SetButtonVisible(Button button, bool visible)
@@ -1099,6 +1233,12 @@ public sealed class DeskPrototypeController : MonoBehaviour
     {
         return FinalRoundRunState.TryGetActiveState(out CandidateState state)
             && IsAftermathEntryAvailable(state);
+    }
+
+    private static bool IsPostAftermathChoicesAvailable()
+    {
+        return FinalRoundRunState.TryGetActiveState(out CandidateState state)
+            && state.AftermathCompleted;
     }
 
     private static bool IsAftermathEntryAvailable(CandidateState state)
@@ -1860,6 +2000,15 @@ public sealed class DeskPrototypeController : MonoBehaviour
         return Keyboard.current != null && Keyboard.current.f1Key.wasPressedThisFrame;
 #else
         return Input.GetKeyDown(KeyCode.F1);
+#endif
+    }
+
+    private static bool WasPauseTogglePressed()
+    {
+#if ENABLE_INPUT_SYSTEM
+        return Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame;
+#else
+        return Input.GetKeyDown(KeyCode.Escape);
 #endif
     }
 

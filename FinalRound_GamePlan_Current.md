@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-11_  
-_Current milestone context: VS3 promoted: The Aftermath_
+_Current milestone context: P40 post-aftermath Desk choices in progress_
 
 ## 1. Purpose of this document
 
@@ -621,6 +621,11 @@ P39 - VS3 Readiness Review
   -> confirm safety boundary
   -> confirm VS1/VS2 direct paths remain protected
   -> promote The Aftermath to VS3
+
+P40 - Post-Aftermath Desk Choices
+  -> add small closure choices after aftermath completion
+  -> keep Start New Run available
+  -> avoid new jobs, recruiter branches, scoring changes, or new systems
 ```
 
 Avoid adding more room polish until friend/playtester feedback returns, unless something is clearly broken.
