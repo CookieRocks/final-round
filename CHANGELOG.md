@@ -1,5 +1,42 @@
 # Changelog
 
+## VS2 - The Desk
+
+Released: 2026-06-11
+
+### Overview
+
+`Final Round VS2: The Desk` connects the job-search setup to the existing Room interview slice. The playtest build now covers the Desk-to-Room loop: main menu, job search start, Desk laptop, Northbridge role listing, application strategy, Maya Patel recruiter screen, Room interview, outcome email, return to Desk, inbox summary, and start-new-run path.
+
+### Added
+
+- Added the Desk scene and laptop-driven VS2 flow.
+- Added shared candidate-state handoff from Desk choices into the Room.
+- Added recruiter screen choices before the interview.
+- Added return-to-Desk post-outcome inbox and process summary.
+- Added Desk debug readout toggle with `F1`.
+- Added editor playtest build and package tooling:
+  - `Assets/Editor/FinalRoundPlaytestBuild.cs`
+- Added VS2/P33/P34 playtest documentation:
+  - `Docs/FinalRound_VS2_TheDesk.md`
+  - `Docs/FinalRound_P33_PostVS2PlaytestHardening.md`
+  - `Docs/FinalRound_P34_ExternalPlaytestPackaging.md`
+  - `Docs/FinalRound_Playtest_README.md`
+- Added the prebuilt VS2 playtest archive:
+  - `FinalRound_VS2_Playtest.zip`
+
+### Changed
+
+- Updated the main menu copy so `Start Job Search` is the intended VS2 path.
+- Renamed the direct Room start button to `Debug: Start Room Directly`.
+- Updated in-game guidance for the Desk, Room, and debug flows.
+- Updated the current game plan to treat VS2 as complete and P34 playtest packaging as the active handoff point.
+
+### Validation
+
+- `dotnet build "Assembly-CSharp.csproj"` passed with 0 warnings and 0 errors during VS2 package commit.
+- `dotnet build "Assembly-CSharp-Editor.csproj"` passed with 0 warnings and 0 errors during VS2 package commit.
+
 ## VS1 - The Room
 
 Released: 2026-06-10

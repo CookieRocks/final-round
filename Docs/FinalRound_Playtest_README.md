@@ -31,6 +31,12 @@ This is a prototype, not a finished game. Some art, UI, and text presentation ar
 
 Use `Debug: Start Room Directly` only if you want to test the Room as a standalone interview slice.
 
+The checked-in repository package is:
+
+```text
+FinalRound_VS2_Playtest.zip
+```
+
 ## Controls
 
 ### Desk
@@ -89,4 +95,4 @@ Useful feedback:
 - The scorecard and outcome email are prototype UI.
 - Some internal scoring saturation remains technical debt.
 
-Thanks for playing and poking at the weird little hiring machine.
+Thanks for playing and testing the hiring loop.

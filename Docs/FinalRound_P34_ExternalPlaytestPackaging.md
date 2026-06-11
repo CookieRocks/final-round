@@ -81,6 +81,12 @@ Builds/Playtest/FinalRound_VS2_Playtest.zip
 
 Generated build folders and zips are protected by the existing `.gitignore` rule for `Builds/`.
 
+The external playtest package checked into the repository root is:
+
+```text
+FinalRound_VS2_Playtest.zip
+```
+
 ## How To Build For Playtesters
 
 1. Open the project in Unity.
@@ -88,7 +94,7 @@ Generated build folders and zips are protected by the existing `.gitignore` rule
 3. Run `Final Round > Build Playtest Windows`.
 4. Confirm `FinalRound.exe` exists under `Builds/Playtest/FinalRound_VS2_Windows/`.
 5. Run `Final Round > Package Latest Playtest Build`.
-6. Send `Builds/Playtest/FinalRound_VS2_Playtest.zip` to playtesters.
+6. Send `Builds/Playtest/FinalRound_VS2_Playtest.zip` to playtesters, or copy it to the repository root as `FinalRound_VS2_Playtest.zip` when preparing a checked-in package checkpoint.
 
 ## What Failed In P33
 

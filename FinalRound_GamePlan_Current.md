@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
-_Last updated: 2026-06-10_  
-_Current milestone context: VS2 complete; P34 external playtest packaging in progress_
+_Last updated: 2026-06-11_  
+_Current milestone context: VS2 complete; P34 external playtest package committed for external playtesting_
 
 ## 1. Purpose of this document
 
