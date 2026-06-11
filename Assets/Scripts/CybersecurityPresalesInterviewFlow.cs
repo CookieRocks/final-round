@@ -34,12 +34,12 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private readonly InterviewScore score = new InterviewScore();
     private static readonly RoomUiTheme uiTheme = RoomUiTheme.Default;
     [SerializeField] private InterviewQuestionData[] questionBank;
-    [SerializeField] private float stageIntroPauseDuration = 1.2f;
+    [SerializeField] private float stageIntroPauseDuration = 3.5f;
     [SerializeField] private float finalOutcomePauseDuration = 1.45f;
-    [SerializeField] private float positiveReactionDuration = 1.1f;
-    [SerializeField] private float neutralReactionDuration = 1.25f;
-    [SerializeField] private float awkwardReactionDuration = 1.45f;
-    [SerializeField] private float concernedReactionDuration = 1.65f;
+    [SerializeField] private float positiveReactionDuration = 2.35f;
+    [SerializeField] private float neutralReactionDuration = 2.5f;
+    [SerializeField] private float awkwardReactionDuration = 2.75f;
+    [SerializeField] private float concernedReactionDuration = 2.9f;
     [SerializeField] private bool debugForceOutcome;
     [SerializeField] private InterviewOutcomeType debugForcedOutcome = InterviewOutcomeType.Pass;
     [SerializeField] private bool useDeterministicQuestionSeed;
@@ -316,17 +316,17 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         {
             return activeRoomModifiers.IntroTone switch
             {
-                RoomIntroTone.Warm => "The Hiring Manager folds their hands. \"Maya spoke positively about your screening conversation. Let's build from there.\"",
-                RoomIntroTone.LimitedSignal => "The Hiring Manager checks their notes. \"We have limited signal from the screen, so we'll use this session to go deeper.\"",
-                RoomIntroTone.DetailPressure => "The Hiring Manager looks up from the notes. \"There were a few strong claims earlier. We'll test the detail through the scenarios.\"",
-                RoomIntroTone.ClearMomentum => "The Hiring Manager folds their hands. \"You came through the early screen clearly. Let's see how you handle the scenarios.\"",
-                _ => stage.IntroText
+                RoomIntroTone.Warm => "The Hiring Manager folds their hands. \"Maya's screen gave us a positive starting point. Let's build from there.\"",
+                RoomIntroTone.LimitedSignal => "The Hiring Manager checks Maya's notes. \"We have limited signal from the screen, so we'll use this session to go deeper.\"",
+                RoomIntroTone.DetailPressure => "The Hiring Manager looks up from the application notes. \"There were a few strong claims earlier. We'll test the detail through the scenarios.\"",
+                RoomIntroTone.ClearMomentum => "The Hiring Manager folds their hands. \"Your screen and application notes came through clearly. Let's see how you handle the scenarios.\"",
+                _ => "The Hiring Manager glances at Maya's screening notes. \"We'll use this session to understand how you work through customer scenarios.\""
             };
         }
 
         if (stage.StageIndex == 1 && activeRoomModifiers.ArchitectPressure == ArchitectPressureLevel.Sharper)
         {
-            return "The Principal Security Architect leans forward. \"I want to test the technical detail behind the earlier positioning.\"";
+            return "The Principal Security Architect leans forward. \"Your earlier positioning was strong. I want to test the technical detail behind it.\"";
         }
 
         return stage.IntroText;
@@ -648,7 +648,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
             _ => neutralReactionDuration
         };
 
-        return Mathf.Clamp(duration, 1f, 1.75f);
+        return Mathf.Clamp(duration, 1.5f, 3.25f);
     }
 
     private InterviewOutcomeType GetOutcome()

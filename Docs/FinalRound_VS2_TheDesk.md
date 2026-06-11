@@ -85,6 +85,7 @@ Desk actions include:
 ### Room
 
 - Move/look before sitting: existing first-person controls.
+- Room mouse look sensitivity is reduced for playtest readability and is tunable on `SimpleFirstPersonWalkController`.
 - `E`: sit when prompted at the interview chair.
 - Mouse: select interview answers and outcome buttons.
 - `Esc`: pause/resume menu.
@@ -207,6 +208,8 @@ P30 modifiers remain intentionally small:
 - high overclaim risk creates scrutiny and sharper Architect pressure rather than instant punishment;
 - low-energy or low-trust paths are harder but recoverable;
 - positive Desk paths help but do not guarantee StrongPass.
+
+First playtest feedback showed that these effects needed to be more visible to players. Current Room copy now surfaces carry-through through natural lines about Maya's screening notes, application notes, and earlier positioning. Normal play still does not show raw CandidateState values or numeric deltas.
 
 No Room thresholds, question content, score deltas, or six-question stage structure were changed for VS2 promotion.
 

@@ -3145,8 +3145,8 @@ public class InterviewGameManager : MonoBehaviour
     private static string BuildRoomStandbyObjective(CandidateState deskHandoffState)
     {
         return deskHandoffState == null
-            ? "Find the interview chair."
-            : "Maya has forwarded your profile. Find the interview chair.";
+            ? "Find the highlighted chair and press E to sit."
+            : "Maya has forwarded your profile. The panel has her screening notes. Find the highlighted chair and press E to sit.";
     }
 
     private void SetRuntimeBackgroundVisible(bool visible)

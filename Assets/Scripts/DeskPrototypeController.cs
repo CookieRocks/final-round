@@ -399,7 +399,9 @@ public sealed class DeskPrototypeController : MonoBehaviour
             SetText(modeText, "Recruiter Screen Complete");
             SetText(
                 listingSummaryText,
-                "Maya has forwarded your profile to the panel.\n\nYou have been invited to the final interview.");
+                "Maya forwards your profile to the interview panel.\n\n" +
+                "Your application notes are attached to the invite.\n\n" +
+                "Final round scheduled.");
             SetText(feedbackText, "Recruiter screen complete. Continue to the interview when ready.");
             SetRecruiterChoiceButtonsVisible(false);
             SetInterviewButtonLabel("Continue to Interview");

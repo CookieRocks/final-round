@@ -8,7 +8,8 @@ public sealed class SimpleFirstPersonWalkController : MonoBehaviour
 {
     [SerializeField] private Camera playerCamera;
     [SerializeField] private float moveSpeed = 3.4f;
-    [SerializeField] private float mouseSensitivity = 1.4f;
+    [Tooltip("Pre-sit Room look sensitivity only. UI mouse selection is unaffected.")]
+    [SerializeField] private float mouseSensitivity = 0.85f;
     [SerializeField] private float gravity = -18f;
     [SerializeField] private bool movementEnabled = true;
 
