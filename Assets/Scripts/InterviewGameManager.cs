@@ -21,6 +21,7 @@ public class InterviewGameManager : MonoBehaviour
     private const float ScreenFadeDuration = 0.16f;
     private const string BuildVersion = "Final Round VS2: The Desk";
     private const string DeskSceneName = "DeskScene";
+    private const string AftermathRoomSceneName = "AftermathRoom";
     private const int MaxDisplayedRunBadges = 4;
     private const string PrefMasterVolume = "FinalRound.MasterVolume";
     private const string PrefSfxVolume = "FinalRound.SfxVolume";
@@ -97,6 +98,7 @@ public class InterviewGameManager : MonoBehaviour
     private Button randomEventContinueButton;
     private Button startJobSearchButton;
     private Button startInterviewButton;
+    private Button startAftermathButton;
     private Button howToPlayButton;
     private Button aboutButton;
     private Button settingsButton;
@@ -800,6 +802,7 @@ public class InterviewGameManager : MonoBehaviour
 
         startJobSearchButton = CreateMenuButton(menuScreen.transform, "Start Job Search", StartJobSearch);
         startInterviewButton = CreateMenuButton(menuScreen.transform, "Debug: Start Room Directly", StartInterviewProcess);
+        startAftermathButton = CreateMenuButton(menuScreen.transform, "Debug: Start Aftermath", StartAftermathDebug);
         settingsButton = CreateMenuButton(menuScreen.transform, "Settings", OpenSettingsFromMenu);
         howToPlayButton = CreateMenuButton(menuScreen.transform, "How To Play", ShowHowToPlay);
         aboutButton = CreateMenuButton(menuScreen.transform, "About", ShowAbout);
@@ -3354,6 +3357,23 @@ public class InterviewGameManager : MonoBehaviour
         SceneManager.LoadScene(DeskSceneName);
     }
 
+    private void StartAftermathDebug()
+    {
+        HidePauseOverlay();
+        CandidateState state = FinalRoundRunState.CreateNeutralRun();
+        state.SelectedJobId = "DEBUG-AFTERMATH";
+        state.ApplicationChoiceId = "debug-after-reject";
+        state.RecruiterPathId = "debug-direct";
+        state.RecruiterResponseIds = "debug-direct";
+        state.RoomOutcome = nameof(InterviewOutcomeType.Reject);
+        state.RoomModifierSummary = "Debug aftermath entry seeded from main menu.";
+        state.AftermathAvailable = true;
+        state.AftermathCompleted = false;
+
+        Debug.Log("Final Round P37: debug aftermath entry seeded from main menu.\n" + state.BuildDebugSummary());
+        SceneManager.LoadScene(AftermathRoomSceneName);
+    }
+
     private void BeginProcess()
     {
         HidePauseOverlay();
@@ -3401,10 +3421,11 @@ public class InterviewGameManager : MonoBehaviour
         outcomeScreen.SetActive(false);
 
         progressText.text = "Main Menu";
-        subtitleText.text = "Start at the Desk, or jump directly to the Room for testing.";
+        subtitleText.text = "Start at the Desk, or jump directly to a debug slice for testing.";
         menuBodyText.text =
             "Start Job Search begins the full Desk-to-Room loop.\n\n" +
             "Debug: Start Room Directly skips the Desk and launches the interview room with neutral fallback state.\n\n" +
+            "Debug: Start Aftermath seeds a Reject aftermath state and launches the symbolic aftermath room for testing.\n\n" +
             GetCompanyProfileSummary();
         UpdateRoomBackdrop("Main Menu");
         FadeInScreen(menuScreen);
@@ -3417,6 +3438,7 @@ public class InterviewGameManager : MonoBehaviour
             "For the full VS2 flow, choose Start Job Search, open the laptop, review the role, choose an application strategy, complete the recruiter screen, then continue to the Room.\n\n" +
             "At the Desk: press E, press Space, or click the laptop to open it. Press F1 to toggle the Desk debug readout.\n\n" +
             "In the Room: sit at the chair, choose answers with the mouse, and use F1 for Room debug tools.\n\n" +
+            "In The Aftermath: use the Feedback Hammer with left click, E, or Space to process symbolic objects.\n\n" +
             "Use Q, W, and E to play Prep Cards before answering.\n\n" +
             "Between rounds, use 1 through 5 to choose a recovery move.\n\n" +
             "Manage Confidence, Energy, Technical Credibility, and Commercial Alignment.\n\n" +

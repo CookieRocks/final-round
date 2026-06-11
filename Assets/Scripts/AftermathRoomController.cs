@@ -1,9 +1,12 @@
+using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 #if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 #endif
 
@@ -12,6 +15,12 @@ public sealed class AftermathRoomController : MonoBehaviour
     private const string AftermathSceneName = "AftermathRoom";
     private const string DeskSceneName = "DeskScene";
     private const string InterviewRoomSceneName = "InterviewRoom";
+    private const int ComposureTarget = 100;
+    private const float HitFeedbackSeconds = 1.25f;
+    private const float DestroyedFeedbackSeconds = 2.5f;
+    private const float CompletionFeedbackSeconds = 4f;
+    private const float MinLookPitch = -18f;
+    private const float MaxLookPitch = 24f;
 
     private readonly Color backgroundColor = new Color32(5, 7, 10, 255);
     private readonly Color panelColor = new Color32(18, 21, 28, 238);
@@ -21,13 +30,25 @@ public sealed class AftermathRoomController : MonoBehaviour
 
     [SerializeField] private bool generateSceneShell = true;
     [SerializeField] private float recoveryDelta = 1f;
+    [SerializeField] private float hitRaycastDistance = 10f;
+    [SerializeField] private float movementSpeed = 2.4f;
+    [SerializeField] private float lookSensitivity = 1.5f;
 
     private TMP_Text titleText;
     private TMP_Text objectiveText;
     private TMP_Text statusText;
+    private TMP_Text hammerText;
     private Slider composureSlider;
     private Button returnToDeskButton;
     private Button mainMenuButton;
+    private Camera aftermathCamera;
+    private int composure;
+    private bool acceptsDestructibleInput;
+    private bool completionReached;
+    private float cameraYaw;
+    private float cameraPitch = 10f;
+    private Coroutine feedbackRoutine;
+    private readonly List<AftermathDestructible> destructibles = new List<AftermathDestructible>();
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
@@ -55,17 +76,19 @@ public sealed class AftermathRoomController : MonoBehaviour
 
     private void BuildSceneShell()
     {
-        Camera camera = Camera.main;
-        if (camera == null)
+        aftermathCamera = Camera.main;
+        if (aftermathCamera == null)
         {
             GameObject cameraObject = new GameObject("Aftermath Camera");
             cameraObject.tag = "MainCamera";
-            camera = cameraObject.AddComponent<Camera>();
+            aftermathCamera = cameraObject.AddComponent<Camera>();
         }
 
-        camera.transform.SetPositionAndRotation(new Vector3(0f, 1.55f, -5.8f), Quaternion.Euler(10f, 0f, 0f));
-        camera.clearFlags = CameraClearFlags.SolidColor;
-        camera.backgroundColor = backgroundColor;
+        aftermathCamera.transform.SetPositionAndRotation(new Vector3(0f, 1.55f, -5.8f), Quaternion.Euler(10f, 0f, 0f));
+        cameraYaw = aftermathCamera.transform.eulerAngles.y;
+        cameraPitch = NormalizePitch(aftermathCamera.transform.eulerAngles.x);
+        aftermathCamera.clearFlags = CameraClearFlags.SolidColor;
+        aftermathCamera.backgroundColor = backgroundColor;
 
         if (FindAnyObjectByType<Light>() == null)
         {
@@ -88,30 +111,33 @@ public sealed class AftermathRoomController : MonoBehaviour
         Material propMaterial = CreateMaterial("Aftermath Prop Material", new Color32(61, 65, 74, 255));
         Material accentMaterial = CreateMaterial("Aftermath Accent Material", new Color32(93, 178, 162, 255));
         Material paperMaterial = CreateMaterial("Aftermath Paper Material", new Color32(205, 205, 190, 255));
+        Material brokenMaterial = CreateMaterial("Aftermath Processed Material", new Color32(88, 96, 108, 255));
+        Material phraseMaterial = CreateMaterial("Aftermath Phrase Plaque Material", new Color32(42, 45, 54, 255));
 
         CreateCube("Aftermath Room Floor", new Vector3(0f, -0.05f, 0f), new Vector3(7.4f, 0.1f, 7.4f), floorMaterial, root);
         CreateCube("Aftermath Back Wall", new Vector3(0f, 1.55f, 3.6f), new Vector3(7.4f, 3.1f, 0.12f), wallMaterial, root);
         CreateCube("Aftermath Left Wall", new Vector3(-3.7f, 1.55f, 0f), new Vector3(0.12f, 3.1f, 7.4f), wallMaterial, root);
         CreateCube("Aftermath Right Wall", new Vector3(3.7f, 1.55f, 0f), new Vector3(0.12f, 3.1f, 7.4f), wallMaterial, root);
         CreateCube("Empty Interview Table", new Vector3(0f, 0.72f, 0.65f), new Vector3(4.8f, 0.2f, 1.55f), propMaterial, root);
-        CreateCube("Empty Chair Left", new Vector3(-1.45f, 0.55f, 1.85f), new Vector3(0.58f, 1.1f, 0.5f), propMaterial, root);
+        CreateDestructibleCube("empty-chair-left", "Empty chair", new Vector3(-1.45f, 0.55f, 1.85f), new Vector3(0.58f, 1.1f, 0.5f), propMaterial, brokenMaterial, root, 2, 12, "The empty chair jolts sideways.", "A little pressure leaves the room.");
         CreateCube("Empty Chair Center", new Vector3(0f, 0.55f, 2.05f), new Vector3(0.58f, 1.1f, 0.5f), propMaterial, root);
         CreateCube("Empty Chair Right", new Vector3(1.45f, 0.55f, 1.85f), new Vector3(0.58f, 1.1f, 0.5f), propMaterial, root);
-        CreateCube("Aftermath Laptop", new Vector3(-1.15f, 0.92f, 0.15f), new Vector3(0.8f, 0.08f, 0.52f), accentMaterial, root);
+        CreateDestructibleCube("rejection-laptop", "Rejection laptop", new Vector3(-1.15f, 0.92f, 0.15f), new Vector3(0.8f, 0.08f, 0.52f), accentMaterial, brokenMaterial, root, 2, 14, "The laptop coughs up another polite sentence.", "The inbox is quieter now.");
         CreateCube("Aftermath Whiteboard", new Vector3(-2.75f, 1.78f, 3.5f), new Vector3(1.45f, 0.9f, 0.04f), paperMaterial, root);
-        CreateCube("Job Ad Panel", new Vector3(2.35f, 1.7f, 3.5f), new Vector3(1.45f, 1.05f, 0.04f), paperMaterial, root);
+        CreateDestructibleCube("job-ad-panel", "Job-ad panel", new Vector3(2.35f, 1.7f, 3.5f), new Vector3(1.45f, 1.05f, 0.04f), paperMaterial, brokenMaterial, root, 2, 12, "The role requirements wobble.", "The listing stops pretending to be clear.");
 
-        CreatePhrase("Unfortunately", new Vector3(-2.6f, 2.35f, 3.43f), root);
-        CreatePhrase("After careful consideration", new Vector3(0f, 2.42f, 3.43f), root);
-        CreatePhrase("We went with another candidate", new Vector3(2.2f, 2.25f, 3.43f), root);
-        CreatePhrase("Strong profile", new Vector3(-3.55f, 1.45f, -1.2f), root, Quaternion.Euler(0f, 90f, 0f));
-        CreatePhrase("No feedback available", new Vector3(3.55f, 1.36f, -0.35f), root, Quaternion.Euler(0f, -90f, 0f));
+        CreateDestructiblePhrase("unfortunately-plaque", "Unfortunately plaque", "Unfortunately...", new Vector3(-2.6f, 2.35f, 3.43f), root, Quaternion.identity, phraseMaterial, brokenMaterial, 1, 10, "The word hangs there.", "One phrase processed.");
+        CreateDestructiblePhrase("careful-consideration-sign", "Careful consideration sign", "After careful consideration", new Vector3(0f, 2.42f, 3.43f), root, Quaternion.identity, phraseMaterial, brokenMaterial, 1, 10, "Careful consideration rattles.", "The wording loses some of its power.");
+        CreateDestructiblePhrase("details-on-file-placard", "Details on file placard", "We'll keep your details on file", new Vector3(2.2f, 2.25f, 3.43f), root, Quaternion.identity, phraseMaterial, brokenMaterial, 1, 10, "The promise feels weightless.", "The file can keep itself.");
+        CreateDestructiblePhrase("no-feedback-available", "No feedback available", "No feedback available", new Vector3(3.55f, 1.36f, -0.35f), root, Quaternion.Euler(0f, -90f, 0f), phraseMaterial, brokenMaterial, 1, 10, "The blankness answers back.", "Silence has less leverage.");
         CreatePhrase("Circle back", new Vector3(0f, 1.05f, 0.62f), root);
 
-        CreateCube("Nameplate Hiring Manager", new Vector3(-1.45f, 0.88f, 0.02f), new Vector3(0.7f, 0.08f, 0.18f), accentMaterial, root);
+        CreateDestructibleCube("empty-nameplate", "Empty nameplate", new Vector3(-1.45f, 0.88f, 0.02f), new Vector3(0.7f, 0.08f, 0.18f), accentMaterial, brokenMaterial, root, 1, 8, "The blank nameplate clicks.", "The room remembers fewer titles.");
         CreateCube("Nameplate Architect", new Vector3(0f, 0.88f, 0.02f), new Vector3(0.7f, 0.08f, 0.18f), accentMaterial, root);
         CreateCube("Nameplate Sales Director", new Vector3(1.45f, 0.88f, 0.02f), new Vector3(0.7f, 0.08f, 0.18f), accentMaterial, root);
-        CreateCube("Feedback Forms Stack", new Vector3(1.05f, 0.92f, 0.25f), new Vector3(0.72f, 0.06f, 0.46f), paperMaterial, root);
+        CreateDestructibleCube("feedback-form-stack", "Feedback form stack", new Vector3(1.05f, 0.92f, 0.25f), new Vector3(0.72f, 0.06f, 0.46f), paperMaterial, brokenMaterial, root, 1, 10, "The forms rustle without detail.", "A little ambiguity leaves the stack.");
+        CreateDestructibleCube("scorecard-shard", "Scorecard shard", new Vector3(0.35f, 0.94f, 0.08f), new Vector3(0.5f, 0.04f, 0.32f), paperMaterial, brokenMaterial, root, 1, 8, "The numbers slide out of alignment.", "The scorecard matters less for a moment.");
+        CreateDestructibleCube("calendar-invite-block", "Calendar invite block", new Vector3(-3.55f, 1.15f, 0.2f), new Vector3(0.05f, 0.52f, 0.82f), accentMaterial, brokenMaterial, root, 1, 8, "The calendar invite buzzes.", "The meeting is finally over.", Quaternion.Euler(0f, 90f, 0f));
     }
 
     private Transform FindOrCreateChildRoot(string rootName)
@@ -150,7 +176,7 @@ public sealed class AftermathRoomController : MonoBehaviour
         panelRect.anchorMax = new Vector2(0f, 1f);
         panelRect.pivot = new Vector2(0f, 1f);
         panelRect.anchoredPosition = new Vector2(36f, -36f);
-        panelRect.sizeDelta = new Vector2(680f, 260f);
+        panelRect.sizeDelta = new Vector2(720f, 315f);
 
         VerticalLayoutGroup layout = panel.GetComponent<VerticalLayoutGroup>();
         layout.padding = new RectOffset(26, 26, 22, 22);
@@ -165,6 +191,9 @@ public sealed class AftermathRoomController : MonoBehaviour
         objectiveText.color = mutedTextColor;
         statusText = CreateText("Aftermath Status", panel.transform, string.Empty, 19, FontStyles.Normal);
         statusText.color = accentColor;
+
+        hammerText = CreateText("Feedback Hammer Prompt", panel.transform, "Move: WASD. Look: hold right mouse. Feedback Hammer: Left Click / E / Space.", 16, FontStyles.Normal);
+        hammerText.color = textColor;
 
         composureSlider = CreateSlider("Composure Meter", panel.transform);
         composureSlider.value = 0f;
@@ -184,18 +213,115 @@ public sealed class AftermathRoomController : MonoBehaviour
     private void RefreshState()
     {
         bool hasRejectAftermath = HasActiveRejectAftermath(out CandidateState state);
+        acceptsDestructibleInput = hasRejectAftermath && !state.AftermathCompleted;
         if (hasRejectAftermath)
         {
+            composure = state.AftermathCompleted ? ComposureTarget : 0;
+            completionReached = state.AftermathCompleted;
             SetText(statusText, state.AftermathCompleted
                 ? "Composure 100% - aftermath already processed."
-                : "Composure 0% - P36 skeleton only. Destruction arrives in P37.");
-            composureSlider.value = state.AftermathCompleted ? 1f : 0f;
+                : "Composure 0% - Feedback Hammer ready.");
+            SetText(hammerText, state.AftermathCompleted
+                ? "The room is quiet. Return to Desk when ready."
+                : "Move: WASD. Look: hold right mouse. Feedback Hammer: Left Click / E / Space.");
+            UpdateComposureUi();
             return;
         }
 
+        acceptsDestructibleInput = false;
         SetText(objectiveText, "No active aftermath run.\nThis room is safe to exit.");
         SetText(statusText, "Return to Desk or Main Menu.");
+        SetText(hammerText, "No active aftermath run.");
         composureSlider.value = 0f;
+    }
+
+    private void Update()
+    {
+        if (!acceptsDestructibleInput)
+        {
+            return;
+        }
+
+        UpdateCameraMovement();
+
+        if (IsPointerOverUi())
+        {
+            return;
+        }
+
+        if (WasPrimaryHitPressed())
+        {
+            TryFeedbackHammerHit(GetPointerPosition());
+            return;
+        }
+
+        if (WasKeyboardHitPressed())
+        {
+            TryFeedbackHammerHit(new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f));
+        }
+    }
+
+    private void UpdateCameraMovement()
+    {
+        if (aftermathCamera == null)
+        {
+            aftermathCamera = Camera.main;
+        }
+
+        if (aftermathCamera == null)
+        {
+            return;
+        }
+
+        Vector3 forward = aftermathCamera.transform.forward;
+        forward.y = 0f;
+        forward.Normalize();
+
+        Vector3 right = aftermathCamera.transform.right;
+        right.y = 0f;
+        right.Normalize();
+
+        Vector3 movement = Vector3.zero;
+        if (IsMoveKeyHeld(MoveKey.Forward))
+        {
+            movement += forward;
+        }
+
+        if (IsMoveKeyHeld(MoveKey.Back))
+        {
+            movement -= forward;
+        }
+
+        if (IsMoveKeyHeld(MoveKey.Right))
+        {
+            movement += right;
+        }
+
+        if (IsMoveKeyHeld(MoveKey.Left))
+        {
+            movement -= right;
+        }
+
+        if (movement.sqrMagnitude > 0.01f)
+        {
+            Vector3 nextPosition = aftermathCamera.transform.position + movement.normalized * movementSpeed * Time.deltaTime;
+            nextPosition.x = Mathf.Clamp(nextPosition.x, -2.9f, 2.9f);
+            nextPosition.y = 1.55f;
+            nextPosition.z = Mathf.Clamp(nextPosition.z, -6.15f, -1.15f);
+            aftermathCamera.transform.position = nextPosition;
+        }
+
+        bool lookRequested = IsLookHeld();
+        if (!lookRequested)
+        {
+            return;
+        }
+
+        Vector2 lookDelta = GetLookDelta();
+        cameraYaw += lookDelta.x * lookSensitivity;
+        cameraPitch -= lookDelta.y * lookSensitivity;
+        cameraPitch = Mathf.Clamp(cameraPitch, MinLookPitch, MaxLookPitch);
+        aftermathCamera.transform.rotation = Quaternion.Euler(cameraPitch, cameraYaw, 0f);
     }
 
     private void ReturnToDesk()
@@ -205,7 +331,7 @@ public sealed class AftermathRoomController : MonoBehaviour
             state.AftermathCompleted = true;
             state.Energy += Mathf.RoundToInt(recoveryDelta);
             state.CandidateConfidence += Mathf.RoundToInt(recoveryDelta);
-            Debug.Log("Final Round P36: returning to Desk after aftermath.\n" + state.BuildDebugSummary());
+            Debug.Log("Final Round P37: aftermath completed; returning to Desk.\n" + state.BuildDebugSummary());
         }
 
         SceneManager.LoadScene(DeskSceneName);
@@ -246,6 +372,198 @@ public sealed class AftermathRoomController : MonoBehaviour
         }
 
         return cube.transform;
+    }
+
+    private AftermathDestructible CreateDestructibleCube(
+        string objectId,
+        string displayLabel,
+        Vector3 position,
+        Vector3 scale,
+        Material intactMaterial,
+        Material brokenMaterial,
+        Transform parent,
+        int hitPoints,
+        int catharsisValue,
+        string onHitText,
+        string onDestroyedText,
+        Quaternion? rotation = null)
+    {
+        GameObject wrapper = new GameObject($"Destructible - {displayLabel}");
+        wrapper.transform.SetParent(parent, false);
+        wrapper.transform.localPosition = position;
+        wrapper.transform.localRotation = rotation ?? Quaternion.identity;
+
+        GameObject intact = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        intact.name = $"{displayLabel} Intact";
+        intact.transform.SetParent(wrapper.transform, false);
+        intact.transform.localScale = scale;
+        SetSharedMaterial(intact, intactMaterial);
+
+        GameObject broken = CreateBrokenBlock($"{displayLabel} Processed", scale, brokenMaterial, wrapper.transform);
+
+        AftermathDestructible destructible = wrapper.AddComponent<AftermathDestructible>();
+        destructible.Configure(objectId, displayLabel, hitPoints, catharsisValue, intact, broken, onHitText, onDestroyedText);
+        destructibles.Add(destructible);
+        return destructible;
+    }
+
+    private AftermathDestructible CreateDestructiblePhrase(
+        string objectId,
+        string displayLabel,
+        string phrase,
+        Vector3 position,
+        Transform parent,
+        Quaternion rotation,
+        Material plaqueMaterial,
+        Material brokenMaterial,
+        int hitPoints,
+        int catharsisValue,
+        string onHitText,
+        string onDestroyedText)
+    {
+        GameObject wrapper = new GameObject($"Destructible - {displayLabel}");
+        wrapper.transform.SetParent(parent, false);
+        wrapper.transform.localPosition = position;
+        wrapper.transform.localRotation = rotation;
+
+        GameObject intact = new GameObject($"{displayLabel} Intact");
+        intact.transform.SetParent(wrapper.transform, false);
+
+        GameObject plaque = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        plaque.name = $"{displayLabel} Plaque";
+        plaque.transform.SetParent(intact.transform, false);
+        plaque.transform.localScale = new Vector3(1.35f, 0.36f, 0.04f);
+        SetSharedMaterial(plaque, plaqueMaterial);
+
+        TMP_Text label = CreatePhrase(phrase, new Vector3(0f, 0.02f, -0.04f), intact.transform);
+        label.gameObject.name = $"{displayLabel} Text";
+        label.fontSize = phrase.Length > 18 ? 1.75f : 2.25f;
+
+        GameObject broken = CreateBrokenBlock($"{displayLabel} Processed", new Vector3(1.35f, 0.36f, 0.04f), brokenMaterial, wrapper.transform);
+
+        AftermathDestructible destructible = wrapper.AddComponent<AftermathDestructible>();
+        destructible.Configure(objectId, displayLabel, hitPoints, catharsisValue, intact, broken, onHitText, onDestroyedText);
+        destructibles.Add(destructible);
+        return destructible;
+    }
+
+    private static GameObject CreateBrokenBlock(string name, Vector3 scale, Material material, Transform parent)
+    {
+        GameObject brokenRoot = new GameObject(name);
+        brokenRoot.transform.SetParent(parent, false);
+
+        for (int i = 0; i < 3; i++)
+        {
+            GameObject shard = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            shard.name = $"Processed Fragment {i + 1}";
+            shard.transform.SetParent(brokenRoot.transform, false);
+            shard.transform.localPosition = new Vector3((i - 1) * scale.x * 0.22f, -0.03f * i, -0.02f * i);
+            shard.transform.localRotation = Quaternion.Euler(0f, 0f, (i - 1) * 8f);
+            shard.transform.localScale = new Vector3(scale.x * 0.28f, scale.y * 0.7f, scale.z * 1.1f);
+            SetSharedMaterial(shard, material);
+        }
+
+        return brokenRoot;
+    }
+
+    private void TryFeedbackHammerHit(Vector3 screenPosition)
+    {
+        if (aftermathCamera == null)
+        {
+            aftermathCamera = Camera.main;
+        }
+
+        if (aftermathCamera == null)
+        {
+            ShowFeedback("Feedback Hammer has no view into the room.", HitFeedbackSeconds);
+            return;
+        }
+
+        Ray ray = aftermathCamera.ScreenPointToRay(screenPosition);
+        if (!Physics.Raycast(ray, out RaycastHit hit, hitRaycastDistance))
+        {
+            ShowFeedback("The Feedback Hammer passes through empty phrasing.", HitFeedbackSeconds);
+            return;
+        }
+
+        AftermathDestructible destructible = hit.collider.GetComponentInParent<AftermathDestructible>();
+        if (destructible == null)
+        {
+            ShowFeedback("That part of the memory does not need clearing.", HitFeedbackSeconds);
+            return;
+        }
+
+        if (!destructible.TryProcessHit(out string feedbackText, out bool destroyedThisHit))
+        {
+            ShowFeedback("Already processed.", HitFeedbackSeconds);
+            return;
+        }
+
+        if (destroyedThisHit)
+        {
+            composure = Mathf.Clamp(composure + destructible.CatharsisValue, 0, ComposureTarget);
+            UpdateComposureUi();
+            Debug.Log($"Final Round P37: destroyed symbolic object '{destructible.ObjectId}' ({destructible.DisplayLabel}). Composure {composure}/{ComposureTarget}.");
+            ShowFeedback(feedbackText, DestroyedFeedbackSeconds);
+
+            if (composure >= ComposureTarget && !completionReached)
+            {
+                completionReached = true;
+                ShowFeedback("The room is quieter now.", CompletionFeedbackSeconds);
+            }
+            return;
+        }
+
+        ShowFeedback(feedbackText, HitFeedbackSeconds);
+    }
+
+    private void UpdateComposureUi()
+    {
+        float ratio = Mathf.Clamp01(composure / (float)ComposureTarget);
+        if (composureSlider != null)
+        {
+            composureSlider.value = ratio;
+        }
+
+        SetText(statusText, $"Composure {Mathf.RoundToInt(ratio * 100f)}% - {(completionReached ? "The room is quieter now." : "Process symbolic objects with the Feedback Hammer.")}");
+
+        if (returnToDeskButton != null)
+        {
+            Image buttonImage = returnToDeskButton.GetComponent<Image>();
+            if (buttonImage != null)
+            {
+                buttonImage.color = completionReached
+                    ? new Color32(57, 124, 104, 255)
+                    : new Color32(32, 82, 90, 255);
+            }
+        }
+    }
+
+    private void ShowFeedback(string message, float seconds)
+    {
+        if (feedbackRoutine != null)
+        {
+            StopCoroutine(feedbackRoutine);
+        }
+
+        feedbackRoutine = StartCoroutine(ShowFeedbackRoutine(message, seconds));
+    }
+
+    private IEnumerator ShowFeedbackRoutine(string message, float seconds)
+    {
+        SetText(hammerText, message);
+        yield return new WaitForSeconds(seconds);
+
+        if (completionReached)
+        {
+            SetText(hammerText, "The room is quieter now. Return to Desk when ready.");
+        }
+        else if (acceptsDestructibleInput)
+        {
+            SetText(hammerText, "Feedback Hammer: Left Click / E / Space to process symbolic objects.");
+        }
+
+        feedbackRoutine = null;
     }
 
     private static TMP_Text CreatePhrase(string text, Vector3 position, Transform parent)
@@ -361,5 +679,106 @@ public sealed class AftermathRoomController : MonoBehaviour
         rect.anchorMax = Vector2.one;
         rect.offsetMin = Vector2.zero;
         rect.offsetMax = Vector2.zero;
+    }
+
+    private static void SetSharedMaterial(GameObject target, Material material)
+    {
+        Renderer renderer = target.GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            renderer.sharedMaterial = material;
+        }
+    }
+
+    private static bool IsPointerOverUi()
+    {
+        return EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+    }
+
+    private static bool WasPrimaryHitPressed()
+    {
+#if ENABLE_INPUT_SYSTEM
+        return Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
+#else
+        return Input.GetMouseButtonDown(0);
+#endif
+    }
+
+    private static bool WasKeyboardHitPressed()
+    {
+#if ENABLE_INPUT_SYSTEM
+        return Keyboard.current != null
+            && (Keyboard.current.eKey.wasPressedThisFrame || Keyboard.current.spaceKey.wasPressedThisFrame);
+#else
+        return Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Space);
+#endif
+    }
+
+    private static bool IsLookHeld()
+    {
+#if ENABLE_INPUT_SYSTEM
+        return Mouse.current != null && Mouse.current.rightButton.isPressed;
+#else
+        return Input.GetMouseButton(1);
+#endif
+    }
+
+    private static Vector2 GetLookDelta()
+    {
+#if ENABLE_INPUT_SYSTEM
+        return Mouse.current == null ? Vector2.zero : Mouse.current.delta.ReadValue();
+#else
+        return new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
+#endif
+    }
+
+    private static Vector3 GetPointerPosition()
+    {
+#if ENABLE_INPUT_SYSTEM
+        return Mouse.current == null ? new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f) : Mouse.current.position.ReadValue();
+#else
+        return Input.mousePosition;
+#endif
+    }
+
+    private static bool IsMoveKeyHeld(MoveKey key)
+    {
+#if ENABLE_INPUT_SYSTEM
+        if (Keyboard.current == null)
+        {
+            return false;
+        }
+
+        return key switch
+        {
+            MoveKey.Forward => Keyboard.current.wKey.isPressed,
+            MoveKey.Back => Keyboard.current.sKey.isPressed,
+            MoveKey.Left => Keyboard.current.aKey.isPressed,
+            MoveKey.Right => Keyboard.current.dKey.isPressed,
+            _ => false
+        };
+#else
+        return key switch
+        {
+            MoveKey.Forward => Input.GetKey(KeyCode.W),
+            MoveKey.Back => Input.GetKey(KeyCode.S),
+            MoveKey.Left => Input.GetKey(KeyCode.A),
+            MoveKey.Right => Input.GetKey(KeyCode.D),
+            _ => false
+        };
+#endif
+    }
+
+    private static float NormalizePitch(float pitch)
+    {
+        return pitch > 180f ? pitch - 360f : pitch;
+    }
+
+    private enum MoveKey
+    {
+        Forward,
+        Back,
+        Left,
+        Right
     }
 }
