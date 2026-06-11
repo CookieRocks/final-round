@@ -100,6 +100,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
     private const string RecruiterSender = "Maya Patel";
     private const string RecruiterSubject = "Northbridge Cyber Systems - quick screen";
     private const string RecruiterIntroMessage = "Hi,\n\nThanks for applying. Your profile looks relevant for the Senior Solutions Engineer - Security Presales role. The team is moving fairly quickly, so I would like to run through a short screen before I forward your profile to the panel.\n\nA few quick questions below.";
+    private const string AftermathRoomSceneName = "AftermathRoom";
 
     [Header("Scene")]
     [SerializeField] private string interviewRoomSceneName = "InterviewRoom";
@@ -139,6 +140,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
     private Button confirmApplicationButton;
     private Button recruiterButton;
     private Button interviewButton;
+    private Button clearRoomButton;
     private Button processSummaryButton;
     private Button mainMenuButton;
     private Button resetButton;
@@ -612,9 +614,16 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
     private static string BuildOutcomeFeedbackLine(CandidateState state)
     {
+        string aftermathLine = state.AftermathCompleted
+            ? "\nAftermath: Clear the Room completed."
+            : IsAftermathEntryAvailable(state)
+                ? "\nAftermath: Clear the Room is available."
+                : string.Empty;
+
         return
             $"Outcome: {FormatId(state.RoomOutcome)}\n" +
-            $"Process signal: job {FormatId(state.SelectedJobId)}, application {FormatId(state.ApplicationChoiceId)}, recruiter path {FormatId(state.RecruiterPathId)}.";
+            $"Process signal: job {FormatId(state.SelectedJobId)}, application {FormatId(state.ApplicationChoiceId)}, recruiter path {FormatId(state.RecruiterPathId)}." +
+            aftermathLine;
     }
 
     private static string BuildProcessSummary(CandidateState state)
@@ -626,11 +635,24 @@ public sealed class DeskPrototypeController : MonoBehaviour
             $"Recruiter: {FormatId(state.RecruiterPathId)}\n" +
             $"Replies: {FormatId(state.RecruiterResponseIds)}\n" +
             $"Room outcome: {FormatId(state.RoomOutcome)}\n\n" +
+            $"Aftermath: {(state.AftermathCompleted ? "completed" : state.AftermathAvailable ? "available" : "not available")}\n\n" +
             "CandidateState\n" +
             $"Role {FormatSigned(state.RoleFit)} | Trust {FormatSigned(state.RecruiterTrust)} | Confidence {FormatSigned(state.CandidateConfidence)} | Energy {FormatSigned(state.Energy)}\n" +
             $"Overclaim {FormatSigned(state.OverclaimRisk)} | Tech Ready {FormatSigned(state.TechnicalReadiness)} | Rapport {FormatSigned(state.RapportMomentum)}\n\n" +
             "Room modifiers\n" +
             BuildRoomModifierBrief(state.RoomModifierSummary);
+    }
+
+    public void EnterAftermathRoom()
+    {
+        if (!FinalRoundRunState.TryGetActiveState(out CandidateState state) || !IsAftermathEntryAvailable(state))
+        {
+            SetText(feedbackText, "No active Reject aftermath is available.");
+            return;
+        }
+
+        Debug.Log("Final Round P36: Clear the Room selected from Desk.\n" + state.BuildDebugSummary());
+        SceneManager.LoadScene(AftermathRoomSceneName);
     }
 
     private static string BuildRoomModifierBrief(string modifierSummary)
@@ -859,6 +881,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         confirmApplicationButtonObject = confirmApplicationButton.gameObject;
         recruiterButton = CreateButton("Recruiter Message", buttonRow.transform, ShowRecruiterScreen, 170f, 46f, 16);
         interviewButton = CreateButton("Debug: Go To Interview", buttonRow.transform, GoToInterviewRoom, 220f, 46f, 16);
+        clearRoomButton = CreateButton("Clear the Room", buttonRow.transform, EnterAftermathRoom, 165f, 46f, 16);
         processSummaryButton = CreateButton("Process Summary", buttonRow.transform, ShowProcessSummary, 170f, 46f, 16);
         mainMenuButton = CreateButton("Main Menu", buttonRow.transform, ReturnToMainMenu, 130f, 46f, 16);
         resetButton = CreateButton("Reset Desk Run", buttonRow.transform, ResetDeskRun, 150f, 46f, 16);
@@ -1047,6 +1070,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         SetButtonVisible(applicationStrategyButton, !visible);
         SetButtonVisible(recruiterButton, !visible);
         SetButtonVisible(interviewButton, !visible);
+        SetButtonVisible(clearRoomButton, visible && IsAftermathEntryAvailable());
         SetButtonVisible(processSummaryButton, visible);
         SetButtonVisible(mainMenuButton, visible);
         SetResetButtonLabel(visible ? "Start New Run" : "Reset Desk Run");
@@ -1069,6 +1093,21 @@ public sealed class DeskPrototypeController : MonoBehaviour
     {
         return FinalRoundRunState.TryGetActiveState(out CandidateState state)
             && !string.IsNullOrWhiteSpace(state.RoomOutcome);
+    }
+
+    private static bool IsAftermathEntryAvailable()
+    {
+        return FinalRoundRunState.TryGetActiveState(out CandidateState state)
+            && IsAftermathEntryAvailable(state);
+    }
+
+    private static bool IsAftermathEntryAvailable(CandidateState state)
+    {
+        return state != null
+            && state.HasActiveDeskRun
+            && state.AftermathAvailable
+            && !state.AftermathCompleted
+            && state.RoomOutcome == nameof(InterviewOutcomeType.Reject);
     }
 
     private static string FormatId(string value)

@@ -14,6 +14,8 @@ public sealed class CandidateState
     [SerializeField] private string roomOutcome;
     [SerializeField] private string roomModifierSummary;
     [SerializeField] private bool hasActiveDeskRun;
+    [SerializeField] private bool aftermathAvailable;
+    [SerializeField] private bool aftermathCompleted;
     [SerializeField] private int roleFit;
     [SerializeField] private int recruiterTrust;
     [SerializeField] private int candidateConfidence;
@@ -62,6 +64,18 @@ public sealed class CandidateState
     {
         get => hasActiveDeskRun;
         set => hasActiveDeskRun = value;
+    }
+
+    public bool AftermathAvailable
+    {
+        get => aftermathAvailable;
+        set => aftermathAvailable = value;
+    }
+
+    public bool AftermathCompleted
+    {
+        get => aftermathCompleted;
+        set => aftermathCompleted = value;
     }
 
     public int RoleFit
@@ -116,7 +130,9 @@ public sealed class CandidateState
             recruiterPathId = string.Empty,
             recruiterResponseIds = string.Empty,
             roomOutcome = string.Empty,
-            roomModifierSummary = string.Empty
+            roomModifierSummary = string.Empty,
+            aftermathAvailable = false,
+            aftermathCompleted = false
         };
     }
 
@@ -148,6 +164,7 @@ public sealed class CandidateState
             $"Recruiter Responses: {FormatId(recruiterResponseIds)}\n" +
             $"Room Outcome: {FormatId(roomOutcome)}\n" +
             $"Room Modifiers: {FormatId(roomModifierSummary)}\n" +
+            $"Aftermath Available: {aftermathAvailable}, Aftermath Completed: {aftermathCompleted}\n" +
             $"Role Fit: {roleFit}, Recruiter Trust: {recruiterTrust}, Candidate Confidence: {candidateConfidence}, Energy: {energy}\n" +
             $"Overclaim Risk: {overclaimRisk}, Technical Readiness: {technicalReadiness}, Rapport Momentum: {rapportMomentum}";
     }

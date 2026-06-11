@@ -1282,6 +1282,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         }
 
         state.RoomOutcome = outcome.ToString();
+        state.AftermathAvailable = outcome == InterviewOutcomeType.Reject;
+        state.AftermathCompleted = false;
     }
 
     private static string GetCandidateStateDebugLine()

@@ -12,6 +12,7 @@ public static class FinalRoundPlaytestBuild
 {
     private const string InterviewRoomScenePath = "Assets/Scenes/InterviewRoom.unity";
     private const string DeskScenePath = "Assets/Scenes/DeskScene.unity";
+    private const string AftermathRoomScenePath = "Assets/Scenes/AftermathRoom.unity";
     private const string OutputRoot = "Builds/Playtest";
     private const string BuildFolder = OutputRoot + "/FinalRound_VS2_Windows";
     private const string ExecutablePath = BuildFolder + "/FinalRound.exe";
@@ -22,7 +23,8 @@ public static class FinalRoundPlaytestBuild
     private static readonly string[] RequiredScenePaths =
     {
         InterviewRoomScenePath,
-        DeskScenePath
+        DeskScenePath,
+        AftermathRoomScenePath
     };
 
     [MenuItem("Final Round/Build Playtest Windows")]
@@ -138,34 +140,36 @@ public static class FinalRoundPlaytestBuild
 
     private static void EnsureRequiredScenesInBuildSettings()
     {
-        List<EditorBuildSettingsScene> scenes = EditorBuildSettings.scenes.ToList();
-        bool changed = false;
+        EditorBuildSettingsScene[] existingScenes = EditorBuildSettings.scenes;
+        List<EditorBuildSettingsScene> orderedScenes = RequiredScenePaths
+            .Select(scenePath => new EditorBuildSettingsScene(scenePath, true))
+            .ToList();
 
-        foreach (string scenePath in RequiredScenePaths)
+        orderedScenes.AddRange(existingScenes.Where(scene => !RequiredScenePaths.Contains(scene.path)));
+
+        if (!BuildSettingsMatch(existingScenes, orderedScenes))
         {
-            int existingIndex = scenes.FindIndex(scene => scene.path == scenePath);
-            EditorBuildSettingsScene verifiedScene = new EditorBuildSettingsScene(scenePath, true);
-
-            if (existingIndex >= 0)
-            {
-                if (!scenes[existingIndex].enabled)
-                {
-                    scenes[existingIndex] = verifiedScene;
-                    changed = true;
-                }
-
-                continue;
-            }
-
-            scenes.Add(verifiedScene);
-            changed = true;
-        }
-
-        if (changed)
-        {
-            EditorBuildSettings.scenes = scenes.ToArray();
+            EditorBuildSettings.scenes = orderedScenes.ToArray();
             Debug.Log("Final Round P34: Build Settings repaired with required playtest scenes.");
         }
+    }
+
+    private static bool BuildSettingsMatch(IReadOnlyList<EditorBuildSettingsScene> existingScenes, IReadOnlyList<EditorBuildSettingsScene> orderedScenes)
+    {
+        if (existingScenes.Count != orderedScenes.Count)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < existingScenes.Count; i++)
+        {
+            if (existingScenes[i].path != orderedScenes[i].path || existingScenes[i].enabled != orderedScenes[i].enabled)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static void CopyReadmeToBuildFolder()

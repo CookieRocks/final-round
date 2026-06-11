@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-11_  
-_Current milestone context: VS2 complete; first playtest feedback pass complete; VS3 Aftermath planning in progress_
+_Current milestone context: VS2 complete; P36 Aftermath Room skeleton in progress_
 
 ## 1. Purpose of this document
 
@@ -599,10 +599,10 @@ P35 - Aftermath Planning
   -> plan symbolic Rage Room rules, targets, and state integration
 
 P36 - Rage Room Scene / Mode Skeleton
-  -> add safe aftermath entry mode without destruction yet
-  -> reuse or runtime-generate empty distorted Room
-  -> hide/remove people and human targets
-  -> add placeholder Catharsis / Composure meter and return path
+  -> safe aftermath entry mode skeleton in progress
+  -> separate AftermathRoom scene creator added
+  -> Reject-only Clear the Room path added at the Desk
+  -> placeholder Composure meter and return path added
 
 P37 - Destructible Objects Prototype
   -> add simple symbolic hit interaction
