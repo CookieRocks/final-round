@@ -1,5 +1,87 @@
 # Changelog
 
+## VS4 - The Job Board
+
+Released: 2026-06-11
+
+### Overview
+
+`Final Round VS4: The Job Board` adds authored opportunity choice to the connected hiring loop. The current playtest build covers the Job Board -> application -> recruiter -> Room -> outcome -> Desk loop, with optional Reject-only Aftermath.
+
+### Added
+
+- Added three authored job listings:
+  - Northbridge Cyber Systems: balanced security presales baseline.
+  - Helios Cloud Platform: technical stretch / architecture-heavy role.
+  - Redgate Financial Risk: commercial / compliance bureaucracy role.
+- Added a three-card Opportunity Board on the Desk laptop.
+- Added selected-job run state:
+  - `CandidateState.SelectedJobId`
+  - default job deltas applied once per run
+  - job switching before application submission
+  - job lock after application submission
+- Added selected-job carry-through into listing, application feedback, recruiter identity/copy, Room context, outcome inbox, and process summary.
+- Added P46 VS4 playtest packaging docs:
+  - `Docs/FinalRound_P46_VS4PlaytestGuide.md`
+  - `Docs/FinalRound_P46_VS4PlaytestPackaging.md`
+- Added the prebuilt VS4 playtest archive:
+  - `FinalRound_VS4_Windows.zip`
+
+### Changed
+
+- Updated playtest build tooling to target VS4 package names:
+  - `Builds/Playtest/FinalRound_VS4_Windows/`
+  - `Builds/Playtest/FinalRound_VS4_Playtest.zip`
+- Updated generated prototype material creation to use build-safe shader fallback order, fixing the magenta Desk/table and dark Room void in external builds.
+- Updated README and current game plan for the promoted VS4 state.
+
+### Validation
+
+- Full three-job loop was manually verified through Desk -> Room -> Desk.
+- External exe build was manually verified after material hardening.
+- `dotnet build "Assembly-CSharp.csproj"` passed with 0 warnings and 0 errors during P46 checkpoint.
+- `dotnet build "Assembly-CSharp-Editor.csproj"` passed with 0 warnings and 0 errors during P46 checkpoint.
+
+## VS3 - The Aftermath
+
+Released: 2026-06-11
+
+### Overview
+
+`Final Round VS3: The Aftermath` adds a Reject-only symbolic aftermath mode. After a rejection, the player can return to the Desk, enter a distorted empty version of The Room, process symbolic corporate/rejection objects with the Feedback Hammer, fill Composure, and return to the Desk for a small closure choice.
+
+### Added
+
+- Added `AftermathRoom`.
+- Added Reject-only `Clear the Room` routing from the Desk.
+- Added safe symbolic destructible objects and `AftermathDestructible`.
+- Added Feedback Hammer interaction:
+  - left click
+  - `E`
+  - `Space`
+- Added Composure meter and completion line.
+- Added post-aftermath Desk choices:
+  - Apply Again
+  - Take a Break
+  - Ask for Feedback
+  - Review Summary
+- Added Desk escape menu.
+- Added VS3 docs:
+  - `Docs/FinalRound_VS3_TheAftermath.md`
+  - `Docs/FinalRound_P39_VS3ReadinessReview.md`
+  - `Docs/FinalRound_P40_PostAftermathDeskChoices.md`
+
+### Safety Boundary
+
+- No people, recruiters, interviewers, civilians, mannequins, human targets, firearms, blood, gore, or revenge framing.
+- Aftermath targets are symbolic objects, text, phrases, and room artifacts only.
+
+### Validation
+
+- Reject-only Aftermath routing was reviewed in P39.
+- VS1/VS2 direct paths remained protected.
+- `dotnet build "Assembly-CSharp.csproj"` and `dotnet build "Assembly-CSharp-Editor.csproj"` passed during the VS3 promotion and P40 checkpoints.
+
 ## VS2 - The Desk
 
 Released: 2026-06-11

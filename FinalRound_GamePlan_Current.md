@@ -476,7 +476,9 @@ Current P46 packaging status:
 - playtest build metadata targets `FinalRound_VS4_Windows`;
 - playtest package metadata targets `FinalRound_VS4_Playtest.zip`;
 - `Docs/FinalRound_P46_VS4PlaytestGuide.md` is the external playtest README source;
-- feedback questions focus on Job Board choice clarity, selected-job carry-through, Room clarity, Aftermath tone, and replay interest.
+- feedback questions focus on Job Board choice clarity, selected-job carry-through, Room clarity, Aftermath tone, and replay interest;
+- generated prototype materials have been hardened for player builds to avoid magenta/black shader fallback failures;
+- root playtest archive `FinalRound_VS4_Windows.zip` is checked in for external testing.
 
 ### VS5 — Hiring Manager Screen
 
@@ -692,6 +694,12 @@ P45 - VS4 Readiness Review
   -> verify all three job paths reach Room and return to Desk
   -> verify Reject-only Aftermath still works
   -> no blockers found; The Job Board promoted to VS4
+
+P46 - VS4 Playtest Packaging and Feedback Pass
+  -> external playtest guide and packaging report added
+  -> VS4 Windows playtest archive checked in at repo root
+  -> generated prototype material path hardened after player-build magenta/void regression
+  -> editor and external exe smoke checks passed after rebuild
 ```
 
 Avoid adding more room polish until friend/playtester feedback returns, unless something is clearly broken.
