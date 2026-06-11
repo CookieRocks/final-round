@@ -22,6 +22,7 @@ public class InterviewGameManager : MonoBehaviour
     private const string BuildVersion = "Final Round VS4: The Job Board";
     private const string DeskSceneName = "DeskScene";
     private const string AftermathRoomSceneName = "AftermathRoom";
+    private const string Vs4JobListingsResourcePath = "FinalRound/VS4/JobListings";
     private const int MaxDisplayedRunBadges = 4;
     private const string PrefMasterVolume = "FinalRound.MasterVolume";
     private const string PrefSfxVolume = "FinalRound.SfxVolume";
@@ -3149,7 +3150,35 @@ public class InterviewGameManager : MonoBehaviour
     {
         return deskHandoffState == null
             ? "Find the highlighted chair and press E to sit."
-            : "Maya has forwarded your profile. The panel has her screening notes. Find the highlighted chair and press E to sit.";
+            : $"{GetRecruiterNameForDeskHandoff(deskHandoffState)} has forwarded your profile. The panel has the screening notes. Find the highlighted chair and press E to sit.";
+    }
+
+    private static string GetRecruiterNameForDeskHandoff(CandidateState deskHandoffState)
+    {
+        if (deskHandoffState == null || string.IsNullOrWhiteSpace(deskHandoffState.SelectedJobId))
+        {
+            return "The recruiter";
+        }
+
+        JobListingData[] listings = Resources.LoadAll<JobListingData>(Vs4JobListingsResourcePath);
+        if (listings == null)
+        {
+            return "The recruiter";
+        }
+
+        foreach (JobListingData listing in listings)
+        {
+            if (listing == null || !string.Equals(listing.jobId, deskHandoffState.SelectedJobId, System.StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            return string.IsNullOrWhiteSpace(listing.recruiterName)
+                ? "The recruiter"
+                : listing.recruiterName;
+        }
+
+        return "The recruiter";
     }
 
     private void SetRuntimeBackgroundVisible(bool visible)

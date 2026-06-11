@@ -626,9 +626,10 @@ public sealed class DeskPrototypeController : MonoBehaviour
     private void SelectApplicationChoice(ApplicationStrategyChoice choice)
     {
         selectedApplicationChoice = choice;
+        JobListingData activeJob = GetActiveJobListing();
         SetText(
             feedbackText,
-            $"{choice.label}\n{choice.bodyText}\n\n{BuildSelectedJobApplicationPreview(choice, GetActiveJobListing())}\n\nConfirm this application strategy to continue.");
+            $"{choice.label}\n{BuildSelectedJobApplicationBody(choice, activeJob)}\n\n{BuildSelectedJobApplicationPreview(choice, activeJob)}\n\nConfirm this application strategy to continue.");
         SetConfirmInteractable(true);
         RefreshStrategyButtonLabels();
     }
@@ -2001,6 +2002,98 @@ public sealed class DeskPrototypeController : MonoBehaviour
         }
 
         return BuildSelectedJobApplicationLine(job);
+    }
+
+    private static string BuildSelectedJobApplicationBody(ApplicationStrategyChoice choice, JobListingData job)
+    {
+        if (choice == null)
+        {
+            return "Choose how to position this application before the recruiter decides whether to move you forward.";
+        }
+
+        switch (choice.choiceId)
+        {
+            case "APP-HONEST-FIT":
+                return BuildHonestFitApplicationBody(job, choice.bodyText);
+            case "APP-TAILORED-CREDIBLE":
+                return BuildTailoredApplicationBody(job, choice.bodyText);
+            case "APP-AGGRESSIVE-POSITIONING":
+                return BuildAggressiveApplicationBody(job, choice.bodyText);
+            case "APP-QUICK-APPLY":
+                return BuildQuickApplyApplicationBody(job, choice.bodyText);
+            default:
+                return !string.IsNullOrWhiteSpace(choice.bodyText)
+                    ? choice.bodyText
+                    : $"Position the application for {GetCompanyName(job)} and the {GetRoleTitle(job)} role.";
+        }
+    }
+
+    private static string BuildHonestFitApplicationBody(JobListingData job, string fallback)
+    {
+        switch (job != null ? job.jobId : string.Empty)
+        {
+            case NorthbridgeJobId:
+                return "Emphasise customer-facing security experience, then plainly name detection engineering and executive-demo areas as growth zones.";
+            case HeliosJobId:
+                return "Emphasise cloud security and architecture exposure, then plainly name the platform-depth areas that would need ramp-up.";
+            case RedgateJobId:
+                return "Emphasise regulated stakeholder communication and commercial judgement, then plainly name deeper technical compliance areas as growth zones.";
+            default:
+                return !string.IsNullOrWhiteSpace(fallback)
+                    ? fallback
+                    : $"Present a grounded fit for {GetCompanyName(job)} without overstating the parts of the role that still need ramp-up.";
+        }
+    }
+
+    private static string BuildTailoredApplicationBody(JobListingData job, string fallback)
+    {
+        switch (job != null ? job.jobId : string.Empty)
+        {
+            case NorthbridgeJobId:
+                return "Map previous workshops, customer discovery calls, and security architecture decisions to the listing. Avoid claiming full ownership of every listed outcome.";
+            case HeliosJobId:
+                return "Map previous architecture workshops, cloud security trade-offs, and platform conversations to the listing. Avoid claiming ownership of every deep technical outcome.";
+            case RedgateJobId:
+                return "Map regulated stakeholder work, careful scope control, and commercial judgement to the listing. Avoid claiming ownership of every legal or compliance outcome.";
+            default:
+                return !string.IsNullOrWhiteSpace(fallback)
+                    ? fallback
+                    : $"Tailor the application around the clearest parts of {GetCompanyName(job)}'s listing while keeping the claims defensible.";
+        }
+    }
+
+    private static string BuildAggressiveApplicationBody(JobListingData job, string fallback)
+    {
+        switch (job != null ? job.jobId : string.Empty)
+        {
+            case NorthbridgeJobId:
+                return "Position as a near-perfect match for enterprise security presales, implying direct ownership of outcomes the listing only hints at.";
+            case HeliosJobId:
+                return "Position as a near-perfect match for cloud security architecture consulting, implying direct ownership of platform outcomes the listing only hints at.";
+            case RedgateJobId:
+                return "Position as a near-perfect match for regulated risk and compliance presales, implying direct ownership of stakeholder outcomes the listing only hints at.";
+            default:
+                return !string.IsNullOrWhiteSpace(fallback)
+                    ? fallback
+                    : $"Position as a near-perfect match for {GetCompanyName(job)}'s {GetRoleTitle(job)} role, even where the listing leaves room for interpretation.";
+        }
+    }
+
+    private static string BuildQuickApplyApplicationBody(JobListingData job, string fallback)
+    {
+        switch (job != null ? job.jobId : string.Empty)
+        {
+            case NorthbridgeJobId:
+                return "Send a lightly tailored version that mentions security presales, customer workshops, and architecture without doing much deeper mapping.";
+            case HeliosJobId:
+                return "Send a lightly tailored version that mentions cloud security, platform workshops, and architecture without doing much deeper mapping.";
+            case RedgateJobId:
+                return "Send a lightly tailored version that mentions regulated stakeholders, compliance language, and commercial judgement without doing much deeper mapping.";
+            default:
+                return !string.IsNullOrWhiteSpace(fallback)
+                    ? fallback
+                    : $"Send a lightly tailored version for {GetCompanyName(job)} without doing much deeper mapping.";
+        }
     }
 
     private static string BuildSelectedJobApplicationFeedback(ApplicationStrategyChoice choice, JobListingData job)
