@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-11_  
-_Current milestone context: P40 post-aftermath Desk choices in progress_
+_Current milestone context: VS4 Job Board planning_
 
 ## 1. Purpose of this document
 
@@ -407,37 +407,43 @@ State effects should stay small:
 
 The mode should feel like a memory or emotional processing space, not a real office being attacked.
 
-### VS4 — Recruiter Screen
+### VS4 - The Job Board
 
 Core question:
 
-> Can a friendly, transactional recruiter interaction feel like a meaningful game stage?
+> Can choosing between a few authored opportunities make the hiring pipeline more replayable and strategic?
 
-Possible style:
+Recommended first scope:
 
-- phone call,
-- video-call UI,
-- chat/email thread,
-- split-screen desk interface.
+- three authored job cards;
+- Northbridge Cyber Systems as the balanced baseline;
+- Helios Cloud Platform as the technical stretch / overclaim-risk role;
+- Redgate Financial Risk as the commercial/compliance bureaucracy role;
+- existing Desk/laptop UI foundation;
+- existing application/recruiter/Room pipeline reused wherever possible;
+- selected job carried through CandidateState, recruiter copy, Room context, inbox, and process summary.
 
 Gameplay themes:
 
-- salary expectations,
-- role fit,
-- availability,
-- confidence,
-- asking useful questions,
-- deciding whether to continue.
+- choosing whether an opportunity is worth the risk;
+- balancing fit, ambition, energy, and overclaim risk;
+- reading green flags and red flags before committing;
+- seeing a selected job lightly shape later pressure.
 
 Carry-over:
 
-- Recruiter Trust,
-- Company Interest,
-- Compensation Alignment,
+- selectedJobId,
+- Role Fit,
+- Candidate Confidence,
+- Energy,
 - Overclaim Risk,
-- Energy/Stress.
+- Technical Readiness,
+- Recruiter Trust,
+- Rapport Momentum.
 
-Recruiter Screen can move to VS4 because VS2 already contains a lightweight recruiter screen, and the next major emotional opportunity is post-rejection recovery.
+The Job Board should stay small. Do not build a giant job marketplace, procedural listings, salary negotiation, full CV editor, or new Room variants for VS4.
+
+The deeper Recruiter Screen remains a later expansion because VS2 already contains a lightweight recruiter interaction.
 
 ### VS5 — Hiring Manager Screen
 
@@ -626,6 +632,30 @@ P40 - Post-Aftermath Desk Choices
   -> add small closure choices after aftermath completion
   -> keep Start New Run available
   -> avoid new jobs, recruiter branches, scoring changes, or new systems
+
+P41 - Job Board Architecture / Data Model
+  -> extend JobListingData for compact job cards, recruiter identity, default CandidateState deltas, and selected-job context lines
+  -> keep Northbridge working as the default/fallback path
+  -> avoid final Helios/Redgate content unless placeholders are needed
+
+P42 - Three Authored Job Listings
+  -> author Northbridge, Helios Cloud Platform, and Redgate Financial Risk listings
+  -> give each job a readable risk/reward profile, green flags, red flags, and small default modifiers
+  -> keep application, recruiter, and Room mechanics shared
+
+P43 - Job Selection UI
+  -> add a compact three-card Job Board view at the Desk
+  -> selecting a role opens the existing listing detail view
+  -> avoid a giant marketplace, filters, saved jobs, or procedural listings
+
+P44 - Selected-Job Carry-Through
+  -> carry selected job into application feedback, recruiter copy, Room intro/context, outcome inbox, and process summary
+  -> keep Room scoring, question data, thresholds, and Aftermath flow unchanged
+
+P45 - VS4 Readiness Review
+  -> verify all three job paths reach Room and return to Desk
+  -> verify Reject-only Aftermath still works
+  -> decide whether to promote The Job Board to VS4
 ```
 
 Avoid adding more room polish until friend/playtester feedback returns, unless something is clearly broken.
@@ -768,8 +798,8 @@ Final Round should evolve from a single interview-room prototype into a connecte
 
 The current Room slice is the late-stage pressure moment, and The Desk is the start/end hub around it.
 
-The next major creative step should likely be:
+The next major creative step should be:
 
-> **VS3: The Aftermath - a safe, symbolic post-rejection recovery slice.**
+> **VS4: The Job Board - a small authored opportunity-choice slice.**
 
-Build one Reject-only aftermath path, one distorted empty Room mode, one symbolic destruction mechanic, and one return-to-Desk recovery choice set. If that works, rejection becomes part of the playable emotional loop rather than just a fail state.
+Build three authored job choices, keep the existing Desk -> recruiter -> Room pipeline intact, and let selectedJobId lightly affect CandidateState, recruiter copy, Room context, inbox copy, and process summary. If that works, the hiring pipeline becomes more replayable without turning into a giant job-search simulator.
