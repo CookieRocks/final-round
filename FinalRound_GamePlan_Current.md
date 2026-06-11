@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-11_  
-_Current milestone context: VS2 complete; P38 Aftermath feel pass in progress_
+_Current milestone context: VS3 promoted: The Aftermath_
 
 ## 1. Purpose of this document
 
@@ -328,6 +328,8 @@ Keep VS2 emotionally focused on uncertainty, cautious hope, recruiter ambiguity,
 
 ### VS3 — The Aftermath
 
+**Status:** promoted vertical slice.
+
 Core question:
 
 > Can rejection recovery become a playable symbolic aftermath without becoming a revenge fantasy?
@@ -618,7 +620,7 @@ P39 - VS3 Readiness Review
   -> validate Reject-only routing
   -> confirm safety boundary
   -> confirm VS1/VS2 direct paths remain protected
-  -> decide whether to promote to VS3
+  -> promote The Aftermath to VS3
 ```
 
 Avoid adding more room polish until friend/playtester feedback returns, unless something is clearly broken.
