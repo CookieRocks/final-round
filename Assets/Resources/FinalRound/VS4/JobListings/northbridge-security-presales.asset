@@ -1,0 +1,71 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2f97d5a259ae472d8180193516c16ff7, type: 3}
+  m_Name: northbridge-security-presales
+  m_EditorClassIdentifier: Assembly-CSharp::JobListingData
+  jobId: northbridge-security-presales
+  companyName: Northbridge Cyber Systems
+  roleTitle: Senior Solutions Engineer - Security Presales
+  jobCardSummary: Balanced enterprise security presales role with familiar customer,
+    technical, and commercial pressure.
+  difficultyProfile: Balanced baseline
+  recruiterName: Maya Patel
+  recruiterTitle: Senior Talent Partner
+  recruiterCompany: Northbridge Cyber Systems
+  summary: Northbridge Cyber Systems is hiring a customer-facing security presales
+    engineer to guide enterprise buyers through architecture, proof-of-value workshops,
+    and executive risk conversations. The role is senior and visible, with enough
+    ambiguity around workload and process maturity to require judgement.
+  responsibilities:
+  - Lead discovery and security architecture conversations with SOC, risk, and platform
+    teams.
+  - Run proof-of-value workshops that connect detection and response outcomes to
+    executive priorities.
+  - Translate product capabilities into credible customer stories without overpromising
+    coverage.
+  - Partner with sales on account strategy, technical qualification, and late-stage
+    stakeholder alignment.
+  requirements:
+  - Experience in cybersecurity, detection and response, cloud security, or adjacent
+    technical presales.
+  - Ability to explain architecture and risk trade-offs to practitioners and executives.
+  - Comfort handling ambiguous customer requirements and competitive vendor claims.
+  - Strong communication discipline under pressure.
+  niceToHaves:
+  - SOC tooling or incident response background.
+  - Experience building demo narratives for skeptical enterprise buyers.
+  - Familiarity with data residency, compliance, and executive security reporting.
+  salaryRange: Competitive base with variable compensation discussed later in process.
+  processNotes: Recruiter screen, technical/presales panel, final customer-scenario
+    round. Timeline is described as fast if the team aligns.
+  redFlags:
+  - Fast-paced is not clearly defined around travel, after-hours workshops, or escalation
+    load.
+  - Compensation and success measures are described broadly rather than concretely.
+  - The role sits between Sales, Product, and Security with some ownership ambiguity.
+  greenFlags:
+  - The work is close to real customer problems rather than generic demo theatre.
+  - The role values judgement, communication, and technical credibility together.
+  - The current Room content maps cleanly to the role's expected pressure.
+  defaultRoleFitDelta: 0
+  defaultRecruiterTrustDelta: 0
+  defaultCandidateConfidenceDelta: 0
+  defaultEnergyDelta: 0
+  defaultOverclaimRiskDelta: 0
+  defaultTechnicalReadinessDelta: 0
+  defaultRapportMomentumDelta: 0
+  defaultRoomProfileId: InterviewRoom-Balanced
+  roomContextLine: Northbridge frames the panel as a balanced enterprise security
+    presales final round.
+  outcomeContextLine: The final decision reflects both the Desk process and the Room
+    panel signal for the Northbridge role.
+  processSummaryNote: Northbridge was the balanced baseline opportunity.

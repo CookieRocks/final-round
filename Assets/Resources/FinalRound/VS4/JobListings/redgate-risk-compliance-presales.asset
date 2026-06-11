@@ -1,0 +1,67 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2f97d5a259ae472d8180193516c16ff7, type: 3}
+  m_Name: redgate-risk-compliance-presales
+  m_EditorClassIdentifier: Assembly-CSharp::JobListingData
+  jobId: redgate-risk-compliance-presales
+  companyName: Redgate Financial Risk
+  roleTitle: Risk & Compliance Presales Consultant
+  jobCardSummary: Compliance-heavy presales role with less deep technical demand,
+    more process and stakeholder pressure.
+  difficultyProfile: Commercial / compliance bureaucracy
+  recruiterName: Eleanor Shaw
+  recruiterTitle: Risk Solutions Recruiting Lead
+  recruiterCompany: Redgate Financial Risk
+  summary: Redgate Financial Risk is hiring a presales consultant to support regulated
+    financial customers through risk, compliance, procurement, and legal review.
+    The technical bar is less architecture-heavy than Helios, but the process language
+    suggests careful stakeholder management and slow-moving committees.
+  responsibilities:
+  - Support discovery with risk, compliance, procurement, and security stakeholders.
+  - Translate product capability into careful regulatory and business-value language.
+  - Prepare customer-facing material for committees that need defensible claims.
+  - Coordinate with sales and legal teams when customer expectations become ambiguous.
+  requirements:
+  - Experience with compliance, risk, governance, or regulated customer environments.
+  - Commercial judgement when technical claims may have legal or audit implications.
+  - Patience with multi-stakeholder evaluation and formal buying processes.
+  - Ability to communicate clearly without overstating control coverage.
+  niceToHaves:
+  - Financial services customer experience.
+  - Familiarity with audit evidence, policy mapping, or third-party risk workflows.
+  - Comfort presenting to mixed legal, risk, security, and executive audiences.
+  salaryRange: Stable compensation range with bonus potential described as tied to
+    regional performance.
+  processNotes: Recruiter screen, stakeholder-fit discussion, final customer-scenario
+    round. The process may move slowly because legal and risk teams are involved.
+  redFlags:
+  - Bureaucracy and legal review may slow decisions after strong conversations.
+  - The listing uses careful language around customer commitments and control claims.
+  - Success may depend on navigating committees more than solving technical problems.
+  greenFlags:
+  - The role rewards precise communication and commercial patience.
+  - Deep cloud architecture is less central than credibility with regulated stakeholders.
+  - The company appears to understand compliance buyer complexity.
+  defaultRoleFitDelta: 1
+  defaultRecruiterTrustDelta: 0
+  defaultCandidateConfidenceDelta: 0
+  defaultEnergyDelta: -1
+  defaultOverclaimRiskDelta: 0
+  defaultTechnicalReadinessDelta: -1
+  defaultRapportMomentumDelta: 1
+  defaultRoomProfileId: InterviewRoom-ComplianceCommercial
+  roomContextLine: Redgate shifts the pressure toward careful claims, stakeholder
+    patience, and compliance ambiguity.
+  outcomeContextLine: The panel weighed commercial care, compliance judgement, and
+    patience with process drag.
+  processSummaryNote: Redgate was the commercial/compliance opportunity with heavier
+    process pressure.

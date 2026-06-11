@@ -1,0 +1,72 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2f97d5a259ae472d8180193516c16ff7, type: 3}
+  m_Name: helios-cloud-security-consultant
+  m_EditorClassIdentifier: Assembly-CSharp::JobListingData
+  jobId: helios-cloud-security-consultant
+  companyName: Helios Cloud Platform
+  roleTitle: Cloud Security Solutions Consultant
+  jobCardSummary: Architecture-heavy cloud security stretch role with stronger upside
+    and sharper proof pressure.
+  difficultyProfile: Technical stretch / architecture-heavy
+  recruiterName: Iris Chen
+  recruiterTitle: Cloud Security Talent Partner
+  recruiterCompany: Helios Cloud Platform
+  summary: Helios Cloud Platform is hiring a cloud security consultant to help enterprise
+    customers reason about identity, exposure, platform controls, and executive risk.
+    The opportunity looks attractive and ambitious, but the listing expects enough
+    architecture depth that over-positioning would be easy to regret later.
+  responsibilities:
+  - Lead cloud security discovery across identity, network exposure, data protection,
+    and platform governance.
+  - Shape architecture workshops for security, platform, and executive stakeholders.
+  - Explain trade-offs between customer risk, implementation effort, and platform
+    capability.
+  - Support late-stage technical validation without promising custom outcomes the
+    product cannot support.
+  requirements:
+  - Strong understanding of cloud security architecture and enterprise platform constraints.
+  - Experience translating technical risk into buying and implementation decisions.
+  - Comfort defending technical depth under customer and internal scrutiny.
+  - Ability to keep claims precise when the role sounds like a stretch.
+  niceToHaves:
+  - Multi-cloud security or CNAPP experience.
+  - Identity, access, or data exposure assessment background.
+  - Experience with platform engineering or security architecture review boards.
+  salaryRange: Upper-band compensation range advertised, with meaningful variable
+    upside if targets are met.
+  processNotes: Recruiter screen, technical architecture panel, final customer-scenario
+    round. The process sounds efficient, but the technical panel is likely to probe
+    depth.
+  redFlags:
+  - The listing blends consulting, architecture, and presales ownership into one
+    broad role.
+  - Strong compensation may be paired with aggressive expectations.
+  - The phrase hands-on enough is not defined and may invite overclaiming.
+  greenFlags:
+  - The platform scope could build stronger cloud security credibility.
+  - The process is presented clearly and appears well funded.
+  - The role offers a meaningful stretch if the candidate prepares honestly.
+  defaultRoleFitDelta: 0
+  defaultRecruiterTrustDelta: 0
+  defaultCandidateConfidenceDelta: 1
+  defaultEnergyDelta: -1
+  defaultOverclaimRiskDelta: 1
+  defaultTechnicalReadinessDelta: -1
+  defaultRapportMomentumDelta: 0
+  defaultRoomProfileId: InterviewRoom-TechnicalStretch
+  roomContextLine: Helios gives the panel more reason to test the architecture detail
+    behind earlier claims.
+  outcomeContextLine: The panel weighed the strength of the cloud security positioning
+    against scenario depth.
+  processSummaryNote: Helios was the technical stretch opportunity with higher overclaim
+    risk.

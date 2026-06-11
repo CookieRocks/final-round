@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-11_  
-_Current milestone context: P41 Job Board architecture / data model_
+_Current milestone context: P42 three authored Job Board listings_
 
 ## 1. Purpose of this document
 
@@ -641,9 +641,10 @@ P41 - Job Board Architecture / Data Model
   -> final Helios/Redgate content and final Job Board UI remain deferred
 
 P42 - Three Authored Job Listings
-  -> author Northbridge, Helios Cloud Platform, and Redgate Financial Risk listings
-  -> give each job a readable risk/reward profile, green flags, red flags, and small default modifiers
-  -> keep application, recruiter, and Room mechanics shared
+  -> authored Northbridge, Helios Cloud Platform, and Redgate Financial Risk listings
+  -> each job has a readable risk/reward profile, green flags, red flags, recruiter identity, and small default modifiers
+  -> Create/Repair VS4 Job Listings menu added for asset repair and DeskScene assignment
+  -> application, recruiter, and Room mechanics remain shared
 
 P43 - Job Selection UI
   -> add a compact three-card Job Board view at the Desk
