@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-11_  
-_Current milestone context: VS2 complete; first playtest feedback pass complete; ready to plan VS3_
+_Current milestone context: VS2 complete; first playtest feedback pass complete; VS3 Aftermath planning in progress_
 
 ## 1. Purpose of this document
 
@@ -175,6 +175,7 @@ Possible physical/digital spaces:
 | Technical Panel | Whiteboard / architecture room | Ambiguity, credibility, judgement |
 | Final Round | Formal interview room | Pressure, performance, evaluation |
 | Waiting | Inbox / desk / silent room | Uncertainty and loss of control |
+| Aftermath | Distorted empty Room / symbolic rage room | Rejection, catharsis, recovery |
 | Offer/Reject | Email / call / negotiation | Relief, frustration, trade-off |
 
 ---
@@ -325,7 +326,86 @@ First shared run-state variables should be deliberately small:
 
 Keep VS2 emotionally focused on uncertainty, cautious hope, recruiter ambiguity, and the temptation to overstate experience without making the player pathetic.
 
-### VS3 — Recruiter Screen
+### VS3 — The Aftermath
+
+Core question:
+
+> Can rejection recovery become a playable symbolic aftermath without becoming a revenge fantasy?
+
+Working mode:
+
+- The Rage Room.
+
+Recommended first trigger:
+
+- Reject outcome only.
+
+Proposed flow:
+
+```text
+Reject outcome
+  -> Return to Desk
+  -> read rejection inbox message
+  -> choose Clear the Room / Process Rejection
+  -> enter distorted empty Room
+  -> smash symbolic objects
+  -> fill Catharsis / Composure meter
+  -> return to Desk
+  -> Apply Again / Take a Break / Ask for Feedback / Start New Run
+```
+
+Tone:
+
+- frustration,
+- absurdity,
+- disappointment,
+- catharsis,
+- dark humour,
+- recovery.
+
+Safety boundary:
+
+- no harming people;
+- no recruiters, interviewers, civilians, or human targets present;
+- no firearms;
+- no blood or gore;
+- no workplace attack fantasy;
+- destructible targets are objects, text, symbols, and corporate phrases only.
+
+Destroyable examples:
+
+- empty chairs,
+- table,
+- laptop,
+- feedback forms,
+- nameplates,
+- rejection email fragments,
+- job-ad panels,
+- floating corporate phrases,
+- whiteboard,
+- assessment tablets.
+
+Recommended prototype mechanic:
+
+- first-person movement,
+- symbolic `Feedback Hammer`,
+- simple raycast hit,
+- destructible object component,
+- intact/broken prefab swap,
+- catharsis value,
+- short text reaction,
+- session ends when the meter fills or a timer completes.
+
+State effects should stay small:
+
+- slightly restore Energy,
+- slightly stabilise Candidate Confidence,
+- unlock a clean Apply Again path,
+- do not change the Room outcome retroactively.
+
+The mode should feel like a memory or emotional processing space, not a real office being attacked.
+
+### VS4 — Recruiter Screen
 
 Core question:
 
@@ -355,7 +435,9 @@ Carry-over:
 - Overclaim Risk,
 - Energy/Stress.
 
-### VS4 — Hiring Manager Screen
+Recruiter Screen can move to VS4 because VS2 already contains a lightweight recruiter screen, and the next major emotional opportunity is post-rejection recovery.
+
+### VS5 — Hiring Manager Screen
 
 Core question:
 
@@ -384,7 +466,7 @@ Carry-over:
 - Candidate Confidence,
 - Hiring Manager Confidence.
 
-### VS5 — Technical / Presales Panel
+### VS6 — Technical / Presales Panel
 
 Core question:
 
@@ -416,7 +498,7 @@ Carry-over:
 - Overclaim Risk,
 - Energy.
 
-### VS6 — Waiting / Inbox
+### VS7 — Waiting / Inbox
 
 Core question:
 
@@ -510,6 +592,33 @@ P33 â€” Post-VS2 Playtest Hardening
 P34 â€” External Playtest Packaging
   -> repeatable Unity Editor Windows build menu added
   -> playtest README and package workflow added
+
+P35 - Aftermath Planning
+  -> define Reject-only aftermath slice
+  -> set safety and tone boundary
+  -> plan symbolic Rage Room rules, targets, and state integration
+
+P36 - Rage Room Scene / Mode Skeleton
+  -> add safe aftermath entry mode without destruction yet
+  -> reuse or runtime-generate empty distorted Room
+  -> hide/remove people and human targets
+  -> add placeholder Catharsis / Composure meter and return path
+
+P37 - Destructible Objects Prototype
+  -> add simple symbolic hit interaction
+  -> add destructible object component
+  -> intact/broken swap, catharsis value, and short text reactions
+
+P38 - Desk Integration After Reject
+  -> add Reject inbox option such as Clear the Room
+  -> return to Desk after aftermath
+  -> add Apply Again / Take a Break / Ask for Feedback / Start New Run actions
+
+P39 - VS3 Readiness Review
+  -> validate Reject-only routing
+  -> confirm safety boundary
+  -> confirm VS1/VS2 direct paths remain protected
+  -> decide whether to promote to VS3
 ```
 
 Avoid adding more room polish until friend/playtester feedback returns, unless something is clearly broken.
@@ -631,18 +740,18 @@ The project has stayed alive because we have kept slices focused. Keep doing tha
 
 ## 13. Open questions
 
-Things to decide after VS1 feedback and before VS2 implementation:
+Things to decide after VS2 feedback and before VS3 implementation:
 
 1. Is the player always interviewing for cybersecurity / technical presales, or can roles vary later?
 2. Is the game mostly realistic, or should it gradually become surreal?
 3. Does the player have a visible character/profile/archetype?
-4. Should The Desk be first-person spatial, UI-driven, or a hybrid?
+4. Should The Aftermath be a separate scene or a mode inside `InterviewRoom`?
 5. Should the game have runs with multiple job opportunities at once?
-6. How punishing should rejection be?
+6. How restorative should the Reject aftermath be?
 7. Should the player be able to walk away from bad opportunities?
 8. Should “success” always mean getting the offer, or sometimes recognising the role is wrong?
 9. How much should earlier overclaiming come back to haunt the player?
-10. Should the final outcome be offer/pass/reject, or a more nuanced career-path result?
+10. Should the Rage Room option appear only once per Reject run?
 
 ---
 
@@ -650,10 +759,10 @@ Things to decide after VS1 feedback and before VS2 implementation:
 
 Final Round should evolve from a single interview-room prototype into a connected hiring-pipeline game.
 
-The current Room slice should become the late-stage pressure moment, not the whole game.
+The current Room slice is the late-stage pressure moment, and The Desk is the start/end hub around it.
 
 The next major creative step should likely be:
 
-> **VS2: The Desk — the beginning of the job hunt, feeding into The Room.**
+> **VS3: The Aftermath - a safe, symbolic post-rejection recovery slice.**
 
-Build one opportunity, one recruiter, one application path, and one transition into VS1. If that works, the game has a real spine.
+Build one Reject-only aftermath path, one distorted empty Room mode, one symbolic destruction mechanic, and one return-to-Desk recovery choice set. If that works, rejection becomes part of the playable emotional loop rather than just a fail state.

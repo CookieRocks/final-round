@@ -246,15 +246,17 @@ No Room thresholds, question content, score deltas, or six-question stage struct
 
 Recommended next direction:
 
-`Final Round - Vertical Slice VS3: Recruiter Screen`
+`Final Round - Vertical Slice VS3: The Aftermath`
 
 Possible focus:
 
-- make the recruiter interaction its own stronger stage;
-- add clearer recruiter warmth/trust feedback through message tone;
-- introduce salary/process ambiguity;
-- add a prep/action choice before the Room;
-- keep the existing VS2 Desk -> Room -> Desk loop protected.
+- add a Reject-only post-outcome aftermath path;
+- let the player return from the rejection inbox into a distorted empty Room;
+- prototype symbolic object destruction with strict safety boundaries;
+- return to Desk with recovery choices such as Apply Again, Take a Break, Ask for Feedback, or Start New Run;
+- keep the existing VS2 Desk -> Room -> Desk loop protected for non-Reject outcomes.
+
+The expanded Recruiter Screen can move to VS4 because VS2 already includes a lightweight Maya Patel recruiter screen.
 
 If the next step should be hardening rather than expansion, use a small P33 pass for:
 
