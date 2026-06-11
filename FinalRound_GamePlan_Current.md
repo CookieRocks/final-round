@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-11_  
-_Current milestone context: P44 Selected-Job Carry-Through_
+_Current milestone context: VS4 promoted - The Job Board_
 
 ## 1. Purpose of this document
 
@@ -409,7 +409,7 @@ The mode should feel like a memory or emotional processing space, not a real off
 
 ### VS4 - The Job Board
 
-**Status:** in prototype implementation. P41 data architecture and P42 authored listings are complete; P43 adds the first playable three-card Job Board UI on the Desk laptop. P44 carries the selected job through application feedback, recruiter identity/copy, Room context, outcome inbox, and process summary.
+**Status:** promoted vertical slice. P41 data architecture and P42 authored listings are complete; P43 adds the first playable three-card Job Board UI on the Desk laptop; P44 carries the selected job through application feedback, recruiter identity/copy, Room context, outcome inbox, and process summary; P45 found no VS4 blockers and VS4 is now promoted.
 
 Core question:
 
@@ -455,10 +455,6 @@ Current P43 behavior:
 - after application submission, job switching is blocked until a new run;
 - Northbridge remains the fallback path if the full Job Board asset set is unavailable.
 
-Remaining VS4 work:
-
-- P45 should review whether VS4 is ready to promote.
-
 Current P44 behavior:
 
 - application feedback references the selected company/role profile;
@@ -466,6 +462,14 @@ Current P44 behavior:
 - Room intro and outcome email can include selected-job context lines;
 - Desk inbox sender, subject, context line, and process summary reflect the selected job;
 - fallback remains Northbridge/default copy if selected job data is unavailable.
+
+Current P45 review result:
+
+- all three authored jobs are present and wired through the shared pipeline;
+- selected-job switching/default-delta guards are in place;
+- direct Room, direct Desk, and Reject-only Aftermath protections remain intact;
+- no Room scoring, question data, thresholds, or Aftermath mechanics were changed;
+- The Job Board promoted to VS4.
 
 ### VS5 — Hiring Manager Screen
 
@@ -680,7 +684,7 @@ P44 - Selected-Job Carry-Through
 P45 - VS4 Readiness Review
   -> verify all three job paths reach Room and return to Desk
   -> verify Reject-only Aftermath still works
-  -> decide whether to promote The Job Board to VS4
+  -> no blockers found; The Job Board promoted to VS4
 ```
 
 Avoid adding more room polish until friend/playtester feedback returns, unless something is clearly broken.

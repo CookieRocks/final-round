@@ -1235,7 +1235,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
             : "none";
 
         debugText.text =
-            $"VS2 Desk Debug\nState: {currentState}\nTarget Scene: {interviewRoomSceneName}\nApplication Confirmed: {applicationConfirmed}\nRecruiter Complete: {recruiterCompleted}\n" +
+            $"VS4 Job Board Debug\nState: {currentState}\nTarget Scene: {interviewRoomSceneName}\nApplication Confirmed: {applicationConfirmed}\nRecruiter Complete: {recruiterCompleted}\n" +
             $"Available Jobs: {GetAvailableJobListings().Length}\nActive Job: {GetActiveJobId()} / {GetCompanyName(GetActiveJobListing())}\nJob Defaults Applied: {jobDefaults}\n\n{summary}";
     }
 
