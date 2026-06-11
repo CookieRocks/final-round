@@ -114,6 +114,10 @@ public sealed class DeskPrototypeController : MonoBehaviour
     [SerializeField] private RecruiterMessageData recruiterIntroMessage;
     [SerializeField] private RecruiterScreenQuestionData[] authoredRecruiterQuestions;
 
+    [Header("Debug")]
+    [SerializeField] private bool showDebugReadoutByDefault;
+    [SerializeField] private bool allowDeskDebugToggle = true;
+
     [Header("Input")]
 #if !ENABLE_INPUT_SYSTEM
     [SerializeField] private KeyCode openLaptopKey = KeyCode.E;
@@ -149,6 +153,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
     private int currentRecruiterPromptIndex;
     private bool applicationConfirmed;
     private bool recruiterCompleted;
+    private bool deskDebugVisible;
     private string recruiterResponseIds;
 
     public DeskPrototypeState CurrentState => currentState;
@@ -161,13 +166,20 @@ public sealed class DeskPrototypeController : MonoBehaviour
         }
 
         BuildPrototypeUi();
+        deskDebugVisible = showDebugReadoutByDefault;
         ShowCompletedRunInboxIfAvailable();
         RefreshDebugDisplay();
-        Debug.Log("Final Round P31: Desk prototype ready. Press E/Space or click the laptop to open the job listing UI.");
+        RefreshDebugVisibility();
+        Debug.Log("Final Round P33: Desk ready. Press E/Space or click the laptop to open the job listing UI. Press F1 to toggle the Desk debug readout.");
     }
 
     private void Update()
     {
+        if (WasDebugTogglePressed())
+        {
+            ToggleDeskDebug();
+        }
+
         if (WasOpenLaptopPressed() || WasLaptopClicked())
         {
             OpenLaptopInterface();
@@ -231,7 +243,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         SetLaptopTextAreaLayout(250f, 96f, 18, 16);
 
         SetText(modeText, "View Listing");
-        SetText(feedbackText, "Review the opportunity, then choose how to position the application.");
+        SetText(feedbackText, "Review the role, then choose how to position your application.");
         ShowListingSection(currentListingSectionIndex);
         SetListingSectionButtonsVisible(true);
         SetStrategyButtonsVisible(false);
@@ -257,11 +269,11 @@ public sealed class DeskPrototypeController : MonoBehaviour
         {
             listingSummaryText.text =
                 "Choose an application strategy.\n\n" +
-                "This VS2 step changes CandidateState. The Room receives the state and applies small prototype modifiers.";
+                "Choose how to position your application before Maya decides whether to move you forward.";
         }
 
         SetText(modeText, "Choose Application Strategy");
-        SetText(feedbackText, "No strategy selected.");
+        SetText(feedbackText, "Select a strategy, then confirm the application.");
         SetListingSectionButtonsVisible(false);
         SetStrategyButtonsVisible(true);
         SetRecruiterChoiceButtonsVisible(false);
@@ -304,7 +316,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
             "Application submitted.\n\n" +
             selectedApplicationChoice.feedbackText +
             "\n\nMaya Patel has replied with a short recruiter screen.");
-        SetText(feedbackText, "CandidateState updated.\n" + selectedApplicationChoice.BuildDeltaSummary() + "\n\nContinue to the recruiter message when ready.");
+        SetText(feedbackText, "Application confirmed. Complete the recruiter screen to continue.");
         SetListingSectionButtonsVisible(false);
         SetStrategyButtonsVisible(false);
         SetRecruiterChoiceButtonsVisible(false);
@@ -343,7 +355,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         SetConfirmInteractable(false);
         SetConfirmVisible(false);
         SetRecruiterChoiceButtonsVisible(!recruiterCompleted);
-        SetText(feedbackText, recruiterCompleted ? "Recruiter screen complete." : "Choose one reply below.");
+        SetText(feedbackText, recruiterCompleted ? "Recruiter screen complete. Continue to the interview when ready." : "Choose one reply below.");
         SetPostOutcomeButtonsVisible(false);
         RenderRecruiterPrompt();
         RefreshDebugDisplay();
@@ -388,7 +400,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
             SetText(
                 listingSummaryText,
                 "Maya has forwarded your profile to the panel.\n\nYou have been invited to the final interview.");
-            SetText(feedbackText, "Recruiter screen complete. CandidateState updated.");
+            SetText(feedbackText, "Recruiter screen complete. Continue to the interview when ready.");
             SetRecruiterChoiceButtonsVisible(false);
             SetInterviewButtonLabel("Continue to Interview");
             SetRecruiterInteractable(false);
@@ -410,7 +422,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         selectedApplicationChoice = choice;
         SetText(
             feedbackText,
-            $"{choice.label}\n{choice.bodyText}\n\nCandidateState deltas: {choice.BuildDeltaSummary()}");
+            $"{choice.label}\n{choice.bodyText}\n\nConfirm this application strategy to continue.");
         SetConfirmInteractable(true);
         RefreshStrategyButtonLabels();
     }
@@ -460,7 +472,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         currentListingSectionIndex = 0;
         currentRecruiterPromptIndex = 0;
         SetText(modeText, "View Listing");
-        SetText(feedbackText, "Desk run reset. Open the laptop to begin again.");
+        SetText(feedbackText, "Desk run reset. Open the laptop to review the role.");
         SetListingSectionButtonsVisible(true);
         SetStrategyButtonsVisible(false);
         SetRecruiterChoiceButtonsVisible(false);
@@ -742,7 +754,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         rect.anchoredPosition = new Vector2(42f, -34f);
         rect.sizeDelta = new Vector2(700f, 48f);
 
-        TMP_Text prompt = CreateText("Desk Prompt", parent, "Press E / Space or click the laptop", 20, FontStyles.Normal, TextAlignmentOptions.Left);
+        TMP_Text prompt = CreateText("Desk Prompt", parent, "Open the laptop to review the role. Press E / Space or click.", 20, FontStyles.Normal, TextAlignmentOptions.Left);
         RectTransform promptRect = prompt.rectTransform;
         promptRect.anchorMin = new Vector2(0f, 1f);
         promptRect.anchorMax = new Vector2(0f, 1f);
@@ -890,7 +902,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
             : "No active CandidateState.\nDirect Room launch will use neutral VS1 fallback.";
 
         debugText.text =
-            $"P31 Desk Prototype\nState: {currentState}\nTarget Scene: {interviewRoomSceneName}\nApplication Confirmed: {applicationConfirmed}\nRecruiter Complete: {recruiterCompleted}\n\n{summary}";
+            $"VS2 Desk Debug\nState: {currentState}\nTarget Scene: {interviewRoomSceneName}\nApplication Confirmed: {applicationConfirmed}\nRecruiter Complete: {recruiterCompleted}\n\n{summary}";
     }
 
     private void SetLaptopPanelVisible(bool visible)
@@ -902,8 +914,31 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
         if (debugPanel != null)
         {
-            debugPanel.SetActive(!visible);
+            RefreshDebugVisibility();
         }
+    }
+
+    private void ToggleDeskDebug()
+    {
+        if (!allowDeskDebugToggle)
+        {
+            return;
+        }
+
+        deskDebugVisible = !deskDebugVisible;
+        RefreshDebugDisplay();
+        RefreshDebugVisibility();
+    }
+
+    private void RefreshDebugVisibility()
+    {
+        if (debugPanel == null)
+        {
+            return;
+        }
+
+        bool laptopIsOpen = laptopPanel != null && laptopPanel.activeSelf;
+        debugPanel.SetActive(deskDebugVisible && !laptopIsOpen);
     }
 
     private void RenderRecruiterPrompt()
@@ -1770,6 +1805,20 @@ public sealed class DeskPrototypeController : MonoBehaviour
         return Keyboard.current.eKey.wasPressedThisFrame || Keyboard.current.spaceKey.wasPressedThisFrame;
 #else
         return Input.GetKeyDown(openLaptopKey) || Input.GetKeyDown(alternateOpenLaptopKey);
+#endif
+    }
+
+    private bool WasDebugTogglePressed()
+    {
+        if (!allowDeskDebugToggle)
+        {
+            return false;
+        }
+
+#if ENABLE_INPUT_SYSTEM
+        return Keyboard.current != null && Keyboard.current.f1Key.wasPressedThisFrame;
+#else
+        return Input.GetKeyDown(KeyCode.F1);
 #endif
     }
 

@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-10_  
-_Current milestone context: VS2 complete; The Desk promoted to vertical slice_
+_Current milestone context: VS2 complete; P34 external playtest packaging in progress_
 
 ## 1. Purpose of this document
 
@@ -501,6 +501,15 @@ P32 — VS2 Readiness Review
   -> review complete Desk -> Room -> Desk loop
   -> manual smoke test passed
   -> The Desk promoted to VS2
+
+P33 â€” Post-VS2 Playtest Hardening
+  -> Desk debug hidden by default
+  -> main menu labels clarified for external playtesting
+  -> first-time guidance and readability tightened
+
+P34 â€” External Playtest Packaging
+  -> repeatable Unity Editor Windows build menu added
+  -> playtest README and package workflow added
 ```
 
 Avoid adding more room polish until friend/playtester feedback returns, unless something is clearly broken.

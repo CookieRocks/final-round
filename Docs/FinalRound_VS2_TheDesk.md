@@ -68,6 +68,7 @@ VS2 demonstrates:
 - `Space`: open laptop.
 - Mouse click on laptop: open laptop.
 - Mouse: select listing sections, strategy choices, recruiter replies, and Desk actions.
+- `F1`: toggle Desk debug readout.
 
 Desk actions include:
 
@@ -102,7 +103,9 @@ The Room debug panel includes:
 - CandidateState debug line;
 - resolved Room modifier summary.
 
-The Desk debug readout shows:
+The Desk debug readout is hidden by default for playtesting. Press `F1` in `DeskScene` to toggle it.
+
+When visible, the Desk debug readout shows:
 
 - active run state;
 - selected job ID;
@@ -113,6 +116,32 @@ The Desk debug readout shows:
 - target interview scene.
 
 Debug surfaces remain intentionally available while the run-state bridge is still being tested.
+
+## External Playtest Packaging
+
+P34 adds a repeatable Unity Editor packaging workflow for external Windows playtests.
+
+Unity menu items:
+
+- `Final Round > Build Playtest Windows`
+- `Final Round > Package Latest Playtest Build`
+- `Final Round > Validate Playtest Build Settings`
+
+Build output:
+
+```text
+Builds/Playtest/FinalRound_VS2_Windows/
+```
+
+Packaged zip:
+
+```text
+Builds/Playtest/FinalRound_VS2_Playtest.zip
+```
+
+The build script copies `Docs/FinalRound_Playtest_README.md` into the player folder as `README_Playtest.md`.
+
+Generated build folders and zips are intentionally ignored by git.
 
 ## Content
 
@@ -188,10 +217,12 @@ No Room thresholds, question content, score deltas, or six-question stage struct
 - VS2 has one company, one role, and one recruiter.
 - There is no prep/action choice yet.
 - Main Menu is still hosted by `InterviewRoom`; there is no separate menu scene.
-- Desk debug readout is still visible in prototype play.
+- Desk debug readout remains available through `F1`, but is hidden by default.
+- Main Menu is still hosted by `InterviewRoom`; there is no separate menu scene.
 - Room score saturation remains technical debt from the Room scoring model.
 - Question assets still live under a legacy `RC11` resource path.
 - Unity player build/distribution depends on local Unity licensing and build setup.
+- Windows playtest packaging now has a project-owned Editor menu path, but it still requires local Unity licensing and Windows build support.
 
 ## Intentionally Deferred
 
@@ -228,6 +259,11 @@ If the next step should be hardening rather than expansion, use a small P33 pass
 - Desk UI layout cleanup;
 - debug visibility toggle;
 - Unity player build/distribution cleanup.
+
+After P34, external playtest builds should use:
+
+- `Final Round > Build Playtest Windows`
+- `Final Round > Package Latest Playtest Build`
 
 ## Validation
 
