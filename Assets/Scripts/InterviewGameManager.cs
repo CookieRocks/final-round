@@ -276,6 +276,12 @@ public class InterviewGameManager : MonoBehaviour
             return;
         }
 
+        if (ShouldAutoEnterRoomFromDesk(out CandidateState deskHandoffState))
+        {
+            StartCoroutine(AutoEnterRoomFromDeskAfterSetup(deskHandoffState));
+            return;
+        }
+
         ShowMenu();
     }
 
@@ -3084,7 +3090,36 @@ public class InterviewGameManager : MonoBehaviour
         return FindAnyObjectByType<TheRoomPrototypeController>() != null;
     }
 
-    private void ShowRoomStandby()
+    private bool ShouldAutoEnterRoomFromDesk(out CandidateState state)
+    {
+        state = null;
+
+        return IsRoomPrototypeScene()
+            && FinalRoundRunState.TryGetActiveState(out state)
+            && string.IsNullOrWhiteSpace(state.RoomOutcome)
+            && !string.IsNullOrWhiteSpace(state.RecruiterPathId);
+    }
+
+    private IEnumerator AutoEnterRoomFromDeskAfterSetup(CandidateState initialDeskHandoffState)
+    {
+        yield return null;
+
+        CandidateState deskHandoffState = initialDeskHandoffState;
+        if (!ShouldAutoEnterRoomFromDesk(out CandidateState activeState))
+        {
+            yield break;
+        }
+
+        if (activeState != null)
+        {
+            deskHandoffState = activeState;
+        }
+
+        ShowRoomStandby(deskHandoffState);
+        Debug.Log("Final Round VS2: Desk handoff detected after Room setup; bypassing Room menu.\n" + deskHandoffState.BuildDebugSummary());
+    }
+
+    private void ShowRoomStandby(CandidateState deskHandoffState = null)
     {
         PrepareMenuRunPreview();
         HidePauseOverlay();
@@ -3103,8 +3138,15 @@ public class InterviewGameManager : MonoBehaviour
         outcomeScreen.SetActive(false);
         SetRuntimeBackgroundVisible(false);
 
-        SetRoomObjectiveText("Find the interview chair.");
+        SetRoomObjectiveText(BuildRoomStandbyObjective(deskHandoffState));
         UpdateRoomBackdrop("Main Menu");
+    }
+
+    private static string BuildRoomStandbyObjective(CandidateState deskHandoffState)
+    {
+        return deskHandoffState == null
+            ? "Find the interview chair."
+            : "Maya has forwarded your profile. Find the interview chair.";
     }
 
     private void SetRuntimeBackgroundVisible(bool visible)
