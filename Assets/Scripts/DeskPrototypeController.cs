@@ -82,6 +82,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
     {
         Standby,
         LaptopFocus,
+        JobBoard,
         JobListing,
         ApplicationChoice,
         Recruiter,
@@ -111,6 +112,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
     [Header("Run State")]
     [SerializeField] private DeskPrototypeState currentState = DeskPrototypeState.Standby;
     [SerializeField] private JobListingData defaultJobListing;
+    [SerializeField] private JobListingData[] availableJobListings;
     [SerializeField] private ApplicationChoiceData[] authoredApplicationChoices;
     [SerializeField] private RecruiterMessageData recruiterIntroMessage;
     [SerializeField] private RecruiterScreenQuestionData[] authoredRecruiterQuestions;
@@ -135,6 +137,8 @@ public sealed class DeskPrototypeController : MonoBehaviour
     private GameObject postAftermathChoiceRow;
     private TMP_Text debugText;
     private TMP_Text modeText;
+    private TMP_Text roleLineText;
+    private TMP_Text companyLineText;
     private TMP_Text listingSummaryText;
     private TMP_Text feedbackText;
     private Button viewListingButton;
@@ -159,6 +163,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
     private Button[] recruiterChoiceButtons;
     private ApplicationStrategyChoice[] fallbackApplicationChoices;
     private RecruiterScreenPrompt[] fallbackRecruiterPrompts;
+    private JobListingData selectedJobListing;
     private ApplicationStrategyChoice selectedApplicationChoice;
     private int currentListingSectionIndex;
     private int currentRecruiterPromptIndex;
@@ -211,7 +216,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
     public void BeginDeskRun()
     {
         CandidateState state = FinalRoundRunState.CreateNeutralRun();
-        state.SelectedJobId = GetActiveJobId();
+        SelectJobForRun(GetFallbackJobListing(), state);
         currentState = DeskPrototypeState.LaptopFocus;
         applicationConfirmed = false;
         recruiterCompleted = false;
@@ -225,7 +230,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
     public CandidateState CreateNeutralCandidateState()
     {
         CandidateState state = FinalRoundRunState.CreateNeutralRun();
-        state.SelectedJobId = GetActiveJobId();
+        SelectJobForRun(GetFallbackJobListing(), state);
         currentState = DeskPrototypeState.Standby;
         RefreshDebugDisplay();
         return state;
@@ -236,6 +241,10 @@ public sealed class DeskPrototypeController : MonoBehaviour
         if (!FinalRoundRunState.HasActiveRun())
         {
             BeginDeskRun();
+        }
+        else if (FinalRoundRunState.TryGetActiveState(out CandidateState state))
+        {
+            EnsureSelectedJobForState(state);
         }
 
         if (ShowCompletedRunInboxIfAvailable())
@@ -253,16 +262,56 @@ public sealed class DeskPrototypeController : MonoBehaviour
         RefreshDebugDisplay();
     }
 
-    public void ShowListingView()
+    public bool SelectJobById(string jobId)
+    {
+        JobListingData job = FindJobListingById(jobId);
+        if (job == null)
+        {
+            Debug.LogWarning($"Final Round P41: no job listing found for id '{jobId}'. Keeping current/default listing.");
+            return false;
+        }
+
+        CandidateState state = FinalRoundRunState.HasActiveRun()
+            ? FinalRoundRunState.Instance.State
+            : FinalRoundRunState.CreateNeutralRun();
+
+        SelectJobForRun(job, state);
+        currentState = DeskPrototypeState.JobBoard;
+        RefreshJobHeaderText();
+        ShowListingView();
+        return true;
+    }
+
+    public void ViewSelectedListing()
     {
         if (!FinalRoundRunState.HasActiveRun())
         {
             BeginDeskRun();
         }
 
+        if (FinalRoundRunState.TryGetActiveState(out CandidateState state))
+        {
+            EnsureSelectedJobForState(state);
+        }
+
+        ShowListingView();
+    }
+
+    public void ShowListingView()
+    {
+        if (!FinalRoundRunState.HasActiveRun())
+        {
+            BeginDeskRun();
+        }
+        else if (FinalRoundRunState.TryGetActiveState(out CandidateState state))
+        {
+            EnsureSelectedJobForState(state);
+        }
+
         currentState = DeskPrototypeState.JobListing;
         selectedApplicationChoice = null;
         SetLaptopTextAreaLayout(250f, 96f, 18, 16);
+        RefreshJobHeaderText();
 
         SetText(modeText, "View Listing");
         SetText(feedbackText, "Review the role, then choose how to position your application.");
@@ -317,7 +366,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
             ? FinalRoundRunState.Instance.State
             : FinalRoundRunState.CreateNeutralRun();
 
-        state.SelectedJobId = GetActiveJobId();
+        EnsureSelectedJobForState(state);
         state.ApplicationChoiceId = selectedApplicationChoice.choiceId;
         state.ApplyDeltas(
             selectedApplicationChoice.roleFitDelta,
@@ -337,7 +386,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
             listingSummaryText,
             "Application submitted.\n\n" +
             selectedApplicationChoice.feedbackText +
-            "\n\nMaya Patel has replied with a short recruiter screen.");
+            $"\n\n{GetRecruiterName()} has replied with a short recruiter screen.");
         SetText(feedbackText, "Application confirmed. Complete the recruiter screen to continue.");
         SetListingSectionButtonsVisible(false);
         SetStrategyButtonsVisible(false);
@@ -394,7 +443,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
             ? FinalRoundRunState.Instance.State
             : FinalRoundRunState.CreateNeutralRun();
 
-        state.SelectedJobId = string.IsNullOrWhiteSpace(state.SelectedJobId) ? GetActiveJobId() : state.SelectedJobId;
+        EnsureSelectedJobForState(state);
         state.ApplyDeltas(
             choice.roleFitDelta,
             choice.recruiterTrustDelta,
@@ -421,7 +470,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
             SetText(modeText, "Recruiter Screen Complete");
             SetText(
                 listingSummaryText,
-                "Maya forwards your profile to the interview panel.\n\n" +
+                $"{GetRecruiterName()} forwards your profile to the interview panel.\n\n" +
                 "Your application notes are attached to the invite.\n\n" +
                 "Final round scheduled.");
             SetText(feedbackText, "Recruiter screen complete. Continue to the interview when ready.");
@@ -457,9 +506,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
             ? FinalRoundRunState.Instance.State
             : FinalRoundRunState.CreateNeutralRun();
 
-        state.SelectedJobId = string.IsNullOrWhiteSpace(state.SelectedJobId)
-            ? GetActiveJobId()
-            : state.SelectedJobId;
+        EnsureSelectedJobForState(state);
 
         currentState = DeskPrototypeState.TransitioningToRoom;
         Debug.Log(
@@ -492,6 +539,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         applicationConfirmed = false;
         recruiterCompleted = false;
         recruiterResponseIds = string.Empty;
+        selectedJobListing = null;
         selectedApplicationChoice = null;
         currentListingSectionIndex = 0;
         currentRecruiterPromptIndex = 0;
@@ -541,7 +589,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
             SetLaptopPanelVisible(true);
         }
 
-        SetText(modeText, "Northbridge Mail / Inbox");
+        SetText(modeText, $"{GetRecruiterCompany()} Mail / Inbox");
         SetLaptopTextAreaLayout(state.AftermathCompleted ? 285f : 330f, state.AftermathCompleted ? 105f : 54f, 17, 15);
         SetText(listingSummaryText, BuildOutcomeInboxMessage(state));
         SetText(feedbackText, BuildOutcomeFeedbackLine(state));
@@ -603,7 +651,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
     private void AskForFeedbackAfterAftermath()
     {
-        SetText(feedbackText, "Maya says she'll ask the panel, but can't promise detailed feedback.");
+        SetText(feedbackText, $"{GetRecruiterName()} says they'll ask the panel, but can't promise detailed feedback.");
     }
 
     private void ReviewProcessSummaryAfterAftermath()
@@ -622,9 +670,10 @@ public sealed class DeskPrototypeController : MonoBehaviour
         SceneManager.LoadScene(interviewRoomSceneName);
     }
 
-    private static string BuildOutcomeInboxMessage(CandidateState state)
+    private string BuildOutcomeInboxMessage(CandidateState state)
     {
         string outcome = string.IsNullOrWhiteSpace(state.RoomOutcome) ? "Hold" : state.RoomOutcome;
+        JobListingData job = FindJobListingById(state.SelectedJobId) ?? GetActiveJobListing();
         string subject;
         string body;
         switch (outcome)
@@ -656,11 +705,12 @@ public sealed class DeskPrototypeController : MonoBehaviour
         }
 
         return
-            "From  Maya Patel, Northbridge Recruiting\n" +
+            $"From  {GetRecruiterName(job)}, {GetRecruiterCompany(job)} Recruiting\n" +
             "Time  Today, 17:18\n" +
             $"{subject}\n\n" +
             "Hi,\n\n" +
             body + "\n\n" +
+            FormatOptionalLine(GetOutcomeContextLine(job)) +
             BuildCandidateContextLine(state);
     }
 
@@ -678,11 +728,16 @@ public sealed class DeskPrototypeController : MonoBehaviour
             aftermathLine;
     }
 
-    private static string BuildProcessSummary(CandidateState state)
+    private string BuildProcessSummary(CandidateState state)
     {
+        JobListingData job = FindJobListingById(state.SelectedJobId) ?? GetActiveJobListing();
         return
             "Desk-to-Room process summary\n\n" +
             $"Job: {FormatId(state.SelectedJobId)}\n" +
+            $"Company: {GetCompanyName(job)}\n" +
+            $"Role: {GetRoleTitle(job)}\n" +
+            $"Profile: {FormatId(GetDifficultyProfile(job))}\n" +
+            FormatOptionalLine(GetProcessSummaryNote(job)) +
             $"Application: {FormatId(state.ApplicationChoiceId)}\n" +
             $"Recruiter: {FormatId(state.RecruiterPathId)}\n" +
             $"Replies: {FormatId(state.RecruiterResponseIds)}\n" +
@@ -858,8 +913,8 @@ public sealed class DeskPrototypeController : MonoBehaviour
         layout.childForceExpandHeight = false;
 
         CreateText("Laptop Title", laptopPanel.transform, "Northbridge Jobs", 34, FontStyles.Bold, TextAlignmentOptions.Left);
-        CreateText("Laptop Role", laptopPanel.transform, GetRoleLine(), 24, FontStyles.Bold, TextAlignmentOptions.Left);
-        CreateText("Laptop Company", laptopPanel.transform, GetCompanyLine(), 20, FontStyles.Normal, TextAlignmentOptions.Left);
+        roleLineText = CreateText("Laptop Role", laptopPanel.transform, GetRoleLine(), 24, FontStyles.Bold, TextAlignmentOptions.Left);
+        companyLineText = CreateText("Laptop Company", laptopPanel.transform, GetCompanyLine(), 20, FontStyles.Normal, TextAlignmentOptions.Left);
 
         modeText = CreateText("Laptop Mode", laptopPanel.transform, "View Listing", 20, FontStyles.Bold, TextAlignmentOptions.Left);
         modeText.color = new Color32(98, 218, 195, 255);
@@ -1022,7 +1077,8 @@ public sealed class DeskPrototypeController : MonoBehaviour
             : "No active CandidateState.\nDirect Room launch will use neutral VS1 fallback.";
 
         debugText.text =
-            $"VS2 Desk Debug\nState: {currentState}\nTarget Scene: {interviewRoomSceneName}\nApplication Confirmed: {applicationConfirmed}\nRecruiter Complete: {recruiterCompleted}\n\n{summary}";
+            $"VS2 Desk Debug\nState: {currentState}\nTarget Scene: {interviewRoomSceneName}\nApplication Confirmed: {applicationConfirmed}\nRecruiter Complete: {recruiterCompleted}\n" +
+            $"Available Jobs: {GetAvailableJobListings().Length}\nActive Job: {GetActiveJobId()} / {GetCompanyName(GetActiveJobListing())}\n\n{summary}";
     }
 
     private void SetLaptopPanelVisible(bool visible)
@@ -1100,7 +1156,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
         RecruiterScreenPrompt prompt = prompts[Mathf.Clamp(currentRecruiterPromptIndex, 0, prompts.Length - 1)];
         string intro = currentRecruiterPromptIndex == 0
-            ? $"{RecruiterSender} - Senior Talent Partner\nSubject: {RecruiterSubject}\n\nMaya says your profile looks relevant and the team is moving quickly. She wants a short screen before forwarding you to the panel.\n\n"
+            ? $"{GetRecruiterName()} - {GetRecruiterTitle()}\nSubject: {GetRecruiterSubject()}\n\n{GetRecruiterName()} says your profile looks relevant and the team is moving quickly. They want a short screen before forwarding you to the panel.\n\n"
             : string.Empty;
 
         SetText(
@@ -1262,25 +1318,266 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
     private string GetActiveJobId()
     {
-        return defaultJobListing != null && !string.IsNullOrWhiteSpace(defaultJobListing.jobId)
-            ? defaultJobListing.jobId
+        JobListingData job = GetActiveJobListing();
+        return job != null && !string.IsNullOrWhiteSpace(job.jobId)
+            ? job.jobId
             : PlaceholderJobId;
     }
 
     private string GetRoleLine()
     {
-        string role = defaultJobListing != null && !string.IsNullOrWhiteSpace(defaultJobListing.roleTitle)
-            ? defaultJobListing.roleTitle
-            : PlaceholderRole;
-        return $"Role: {role}";
+        return $"Role: {GetRoleTitle(GetActiveJobListing())}";
     }
 
     private string GetCompanyLine()
     {
-        string company = defaultJobListing != null && !string.IsNullOrWhiteSpace(defaultJobListing.companyName)
-            ? defaultJobListing.companyName
+        return $"Company: {GetCompanyName(GetActiveJobListing())}";
+    }
+
+    private void RefreshJobHeaderText()
+    {
+        SetText(roleLineText, GetRoleLine());
+        SetText(companyLineText, GetCompanyLine());
+    }
+
+    private JobListingData GetActiveJobListing()
+    {
+        if (selectedJobListing != null)
+        {
+            return selectedJobListing;
+        }
+
+        if (FinalRoundRunState.TryGetActiveState(out CandidateState state) && !string.IsNullOrWhiteSpace(state.SelectedJobId))
+        {
+            selectedJobListing = FindJobListingById(state.SelectedJobId);
+            if (selectedJobListing != null)
+            {
+                return selectedJobListing;
+            }
+        }
+
+        selectedJobListing = GetFallbackJobListing();
+        return selectedJobListing;
+    }
+
+    private JobListingData GetFallbackJobListing()
+    {
+        if (defaultJobListing != null)
+        {
+            return defaultJobListing;
+        }
+
+        JobListingData[] jobs = GetAvailableJobListings();
+        return jobs.Length > 0 ? jobs[0] : null;
+    }
+
+    private JobListingData[] GetAvailableJobListings()
+    {
+        if (availableJobListings == null || availableJobListings.Length == 0)
+        {
+            return defaultJobListing != null ? new[] { defaultJobListing } : System.Array.Empty<JobListingData>();
+        }
+
+        int count = 0;
+        for (int i = 0; i < availableJobListings.Length; i++)
+        {
+            if (availableJobListings[i] != null)
+            {
+                count++;
+            }
+        }
+
+        if (count == 0)
+        {
+            return defaultJobListing != null ? new[] { defaultJobListing } : System.Array.Empty<JobListingData>();
+        }
+
+        JobListingData[] jobs = new JobListingData[count];
+        int index = 0;
+        for (int i = 0; i < availableJobListings.Length; i++)
+        {
+            if (availableJobListings[i] != null)
+            {
+                jobs[index++] = availableJobListings[i];
+            }
+        }
+
+        return jobs;
+    }
+
+    private JobListingData FindJobListingById(string jobId)
+    {
+        if (string.IsNullOrWhiteSpace(jobId))
+        {
+            return null;
+        }
+
+        JobListingData[] jobs = GetAvailableJobListings();
+        for (int i = 0; i < jobs.Length; i++)
+        {
+            if (jobs[i] != null && jobs[i].jobId == jobId)
+            {
+                return jobs[i];
+            }
+        }
+
+        if (defaultJobListing != null && defaultJobListing.jobId == jobId)
+        {
+            return defaultJobListing;
+        }
+
+        return null;
+    }
+
+    private void EnsureSelectedJobForState(CandidateState state)
+    {
+        if (state == null)
+        {
+            return;
+        }
+
+        JobListingData job = !string.IsNullOrWhiteSpace(state.SelectedJobId)
+            ? FindJobListingById(state.SelectedJobId)
+            : null;
+
+        SelectJobForRun(job ?? GetActiveJobListing(), state);
+    }
+
+    private void SelectJobForRun(JobListingData job, CandidateState state)
+    {
+        if (state == null)
+        {
+            return;
+        }
+
+        selectedJobListing = job ?? GetFallbackJobListing();
+        string jobId = selectedJobListing != null && !string.IsNullOrWhiteSpace(selectedJobListing.jobId)
+            ? selectedJobListing.jobId
+            : PlaceholderJobId;
+
+        state.SelectedJobId = jobId;
+        ApplyJobDefaultDeltasOnce(state, selectedJobListing, jobId);
+        RefreshJobHeaderText();
+    }
+
+    private static void ApplyJobDefaultDeltasOnce(CandidateState state, JobListingData job, string jobId)
+    {
+        if (state == null || job == null || string.IsNullOrWhiteSpace(jobId))
+        {
+            return;
+        }
+
+        if (state.JobDefaultDeltasAppliedJobId == jobId)
+        {
+            return;
+        }
+
+        state.ApplyDeltas(
+            job.defaultRoleFitDelta,
+            job.defaultRecruiterTrustDelta,
+            job.defaultCandidateConfidenceDelta,
+            job.defaultEnergyDelta,
+            job.defaultOverclaimRiskDelta,
+            job.defaultTechnicalReadinessDelta,
+            job.defaultRapportMomentumDelta);
+        state.JobDefaultDeltasAppliedJobId = jobId;
+
+        Debug.Log(
+            $"Final Round P41: selected job '{jobId}' and applied default job deltas once.\n" +
+            BuildJobDefaultDeltaSummary(job) +
+            "\n" +
+            state.BuildDebugSummary());
+    }
+
+    private static string BuildJobDefaultDeltaSummary(JobListingData job)
+    {
+        if (job == null)
+        {
+            return "No JobListingData defaults available.";
+        }
+
+        return
+            $"Job defaults: Role Fit {FormatSigned(job.defaultRoleFitDelta)}, " +
+            $"Recruiter Trust {FormatSigned(job.defaultRecruiterTrustDelta)}, " +
+            $"Confidence {FormatSigned(job.defaultCandidateConfidenceDelta)}, " +
+            $"Energy {FormatSigned(job.defaultEnergyDelta)}, " +
+            $"Overclaim {FormatSigned(job.defaultOverclaimRiskDelta)}, " +
+            $"Tech Ready {FormatSigned(job.defaultTechnicalReadinessDelta)}, " +
+            $"Rapport {FormatSigned(job.defaultRapportMomentumDelta)}";
+    }
+
+    private static string GetCompanyName(JobListingData job)
+    {
+        return job != null && !string.IsNullOrWhiteSpace(job.companyName)
+            ? job.companyName
             : PlaceholderCompany;
-        return $"Company: {company}";
+    }
+
+    private static string GetRoleTitle(JobListingData job)
+    {
+        return job != null && !string.IsNullOrWhiteSpace(job.roleTitle)
+            ? job.roleTitle
+            : PlaceholderRole;
+    }
+
+    private static string GetDifficultyProfile(JobListingData job)
+    {
+        return job != null && !string.IsNullOrWhiteSpace(job.difficultyProfile)
+            ? job.difficultyProfile
+            : "Balanced baseline";
+    }
+
+    private string GetRecruiterName()
+    {
+        return GetRecruiterName(GetActiveJobListing());
+    }
+
+    private static string GetRecruiterName(JobListingData job)
+    {
+        return job != null && !string.IsNullOrWhiteSpace(job.recruiterName)
+            ? job.recruiterName
+            : RecruiterSender;
+    }
+
+    private string GetRecruiterTitle()
+    {
+        JobListingData job = GetActiveJobListing();
+        return job != null && !string.IsNullOrWhiteSpace(job.recruiterTitle)
+            ? job.recruiterTitle
+            : "Senior Talent Partner";
+    }
+
+    private string GetRecruiterCompany()
+    {
+        return GetRecruiterCompany(GetActiveJobListing());
+    }
+
+    private static string GetRecruiterCompany(JobListingData job)
+    {
+        return job != null && !string.IsNullOrWhiteSpace(job.recruiterCompany)
+            ? job.recruiterCompany
+            : GetCompanyName(job);
+    }
+
+    private string GetRecruiterSubject()
+    {
+        JobListingData job = GetActiveJobListing();
+        return $"{GetRecruiterCompany(job)} - quick screen";
+    }
+
+    private static string GetOutcomeContextLine(JobListingData job)
+    {
+        return job != null ? job.outcomeContextLine : string.Empty;
+    }
+
+    private static string GetProcessSummaryNote(JobListingData job)
+    {
+        return job != null ? job.processSummaryNote : string.Empty;
+    }
+
+    private static string FormatOptionalLine(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim() + "\n\n";
     }
 
     private void ShowListingSection(int sectionIndex)
@@ -1320,15 +1617,17 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
     private string GetListingSummary()
     {
-        return defaultJobListing != null && !string.IsNullOrWhiteSpace(defaultJobListing.summary)
-            ? defaultJobListing.summary
+        JobListingData job = GetActiveJobListing();
+        return job != null && !string.IsNullOrWhiteSpace(job.summary)
+            ? job.summary
             : "Northbridge Cyber Systems is hiring a customer-facing security presales engineer to guide enterprise buyers through architecture, proof-of-value workshops, and executive risk conversations. The role sounds senior, visible, and useful, but the listing leaves some room for interpretation around workload, travel, and how mature the process really is.";
     }
 
     private string[] GetResponsibilities()
     {
-        return defaultJobListing != null && defaultJobListing.responsibilities != null && defaultJobListing.responsibilities.Length > 0
-            ? defaultJobListing.responsibilities
+        JobListingData job = GetActiveJobListing();
+        return job != null && job.responsibilities != null && job.responsibilities.Length > 0
+            ? job.responsibilities
             : new[]
             {
                 "Lead discovery and security architecture conversations with SOC, risk, and platform teams.",
@@ -1340,8 +1639,9 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
     private string[] GetRequirements()
     {
-        return defaultJobListing != null && defaultJobListing.requirements != null && defaultJobListing.requirements.Length > 0
-            ? defaultJobListing.requirements
+        JobListingData job = GetActiveJobListing();
+        return job != null && job.requirements != null && job.requirements.Length > 0
+            ? job.requirements
             : new[]
             {
                 "Experience in cybersecurity, detection/response, cloud security, or adjacent technical presales.",
@@ -1353,8 +1653,9 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
     private string[] GetNiceToHaves()
     {
-        return defaultJobListing != null && defaultJobListing.niceToHaves != null && defaultJobListing.niceToHaves.Length > 0
-            ? defaultJobListing.niceToHaves
+        JobListingData job = GetActiveJobListing();
+        return job != null && job.niceToHaves != null && job.niceToHaves.Length > 0
+            ? job.niceToHaves
             : new[]
             {
                 "SOC tooling or incident response background.",
@@ -1365,22 +1666,25 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
     private string GetSalaryRange()
     {
-        return defaultJobListing != null && !string.IsNullOrWhiteSpace(defaultJobListing.salaryRange)
-            ? defaultJobListing.salaryRange
+        JobListingData job = GetActiveJobListing();
+        return job != null && !string.IsNullOrWhiteSpace(job.salaryRange)
+            ? job.salaryRange
             : DefaultSalaryRange;
     }
 
     private string GetProcessNotes()
     {
-        return defaultJobListing != null && !string.IsNullOrWhiteSpace(defaultJobListing.processNotes)
-            ? defaultJobListing.processNotes
+        JobListingData job = GetActiveJobListing();
+        return job != null && !string.IsNullOrWhiteSpace(job.processNotes)
+            ? job.processNotes
             : DefaultProcessNotes;
     }
 
     private string[] GetRedFlags()
     {
-        return defaultJobListing != null && defaultJobListing.redFlags != null && defaultJobListing.redFlags.Length > 0
-            ? defaultJobListing.redFlags
+        JobListingData job = GetActiveJobListing();
+        return job != null && job.redFlags != null && job.redFlags.Length > 0
+            ? job.redFlags
             : new[]
             {
                 "The listing says fast-paced without clarifying travel, after-hours workshops, or escalation load.",
@@ -1391,8 +1695,9 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
     private string[] GetGreenFlags()
     {
-        return defaultJobListing != null && defaultJobListing.greenFlags != null && defaultJobListing.greenFlags.Length > 0
-            ? defaultJobListing.greenFlags
+        JobListingData job = GetActiveJobListing();
+        return job != null && job.greenFlags != null && job.greenFlags.Length > 0
+            ? job.greenFlags
             : new[]
             {
                 "The work is close to real customer problems rather than generic demo theatre.",

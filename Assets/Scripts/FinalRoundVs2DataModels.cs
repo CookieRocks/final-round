@@ -6,6 +6,11 @@ public sealed class JobListingData : ScriptableObject
     public string jobId;
     public string companyName;
     public string roleTitle;
+    [TextArea(2, 5)] public string jobCardSummary;
+    public string difficultyProfile;
+    public string recruiterName;
+    public string recruiterTitle;
+    public string recruiterCompany;
     [TextArea(3, 8)] public string summary;
     [TextArea(2, 8)] public string[] responsibilities;
     [TextArea(2, 8)] public string[] requirements;
@@ -14,7 +19,17 @@ public sealed class JobListingData : ScriptableObject
     [TextArea(2, 6)] public string processNotes;
     [TextArea(2, 6)] public string[] redFlags;
     [TextArea(2, 6)] public string[] greenFlags;
+    [Range(CandidateState.MinPrototypeModifier, CandidateState.MaxPrototypeModifier)] public int defaultRoleFitDelta;
+    [Range(CandidateState.MinPrototypeModifier, CandidateState.MaxPrototypeModifier)] public int defaultRecruiterTrustDelta;
+    [Range(CandidateState.MinPrototypeModifier, CandidateState.MaxPrototypeModifier)] public int defaultCandidateConfidenceDelta;
+    [Range(CandidateState.MinPrototypeModifier, CandidateState.MaxPrototypeModifier)] public int defaultEnergyDelta;
+    [Range(CandidateState.MinPrototypeModifier, CandidateState.MaxPrototypeModifier)] public int defaultOverclaimRiskDelta;
+    [Range(CandidateState.MinPrototypeModifier, CandidateState.MaxPrototypeModifier)] public int defaultTechnicalReadinessDelta;
+    [Range(CandidateState.MinPrototypeModifier, CandidateState.MaxPrototypeModifier)] public int defaultRapportMomentumDelta;
     public string defaultRoomProfileId;
+    [TextArea(2, 5)] public string roomContextLine;
+    [TextArea(2, 5)] public string outcomeContextLine;
+    [TextArea(2, 5)] public string processSummaryNote;
 }
 
 [CreateAssetMenu(fileName = "RoomModifierData", menuName = "Final Round/VS2/Room Modifier")]

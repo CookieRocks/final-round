@@ -8,6 +8,7 @@ public sealed class CandidateState
     public const int MaxPrototypeModifier = 3;
 
     [SerializeField] private string selectedJobId;
+    [SerializeField] private string jobDefaultDeltasAppliedJobId;
     [SerializeField] private string applicationChoiceId;
     [SerializeField] private string recruiterPathId;
     [SerializeField] private string recruiterResponseIds;
@@ -28,6 +29,12 @@ public sealed class CandidateState
     {
         get => selectedJobId;
         set => selectedJobId = value;
+    }
+
+    public string JobDefaultDeltasAppliedJobId
+    {
+        get => jobDefaultDeltasAppliedJobId;
+        set => jobDefaultDeltasAppliedJobId = value;
     }
 
     public string ApplicationChoiceId
@@ -126,6 +133,7 @@ public sealed class CandidateState
         {
             hasActiveDeskRun = activeDeskRun,
             selectedJobId = string.Empty,
+            jobDefaultDeltasAppliedJobId = string.Empty,
             applicationChoiceId = string.Empty,
             recruiterPathId = string.Empty,
             recruiterResponseIds = string.Empty,
@@ -159,6 +167,7 @@ public sealed class CandidateState
         return
             $"Active Desk Run: {hasActiveDeskRun}\n" +
             $"Selected Job: {FormatId(selectedJobId)}\n" +
+            $"Job Defaults Applied: {FormatId(jobDefaultDeltasAppliedJobId)}\n" +
             $"Application Choice: {FormatId(applicationChoiceId)}\n" +
             $"Recruiter Path: {FormatId(recruiterPathId)}\n" +
             $"Recruiter Responses: {FormatId(recruiterResponseIds)}\n" +

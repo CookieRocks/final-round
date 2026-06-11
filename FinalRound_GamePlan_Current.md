@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-11_  
-_Current milestone context: VS4 Job Board planning_
+_Current milestone context: P41 Job Board architecture / data model_
 
 ## 1. Purpose of this document
 
@@ -634,9 +634,11 @@ P40 - Post-Aftermath Desk Choices
   -> avoid new jobs, recruiter branches, scoring changes, or new systems
 
 P41 - Job Board Architecture / Data Model
-  -> extend JobListingData for compact job cards, recruiter identity, default CandidateState deltas, and selected-job context lines
-  -> keep Northbridge working as the default/fallback path
-  -> avoid final Helios/Redgate content unless placeholders are needed
+  -> architecture implemented
+  -> JobListingData extended for compact job cards, recruiter identity, default CandidateState deltas, and selected-job context lines
+  -> selectedJobId remains the active-run source of truth
+  -> Northbridge remains the default/fallback path
+  -> final Helios/Redgate content and final Job Board UI remain deferred
 
 P42 - Three Authored Job Listings
   -> author Northbridge, Helios Cloud Platform, and Redgate Financial Risk listings
