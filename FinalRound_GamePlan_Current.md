@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-11_  
-_Current milestone context: P42 three authored Job Board listings_
+_Current milestone context: P43 Job Selection UI_
 
 ## 1. Purpose of this document
 
@@ -409,6 +409,8 @@ The mode should feel like a memory or emotional processing space, not a real off
 
 ### VS4 - The Job Board
 
+**Status:** in prototype implementation. P41 data architecture and P42 authored listings are complete; P43 adds the first playable three-card Job Board UI on the Desk laptop.
+
 Core question:
 
 > Can choosing between a few authored opportunities make the hiring pipeline more replayable and strategic?
@@ -444,6 +446,19 @@ Carry-over:
 The Job Board should stay small. Do not build a giant job marketplace, procedural listings, salary negotiation, full CV editor, or new Room variants for VS4.
 
 The deeper Recruiter Screen remains a later expansion because VS2 already contains a lightweight recruiter interaction.
+
+Current P43 behavior:
+
+- fresh Desk runs open to the Job Board when three valid authored listings are available;
+- the player selects one opportunity before viewing the listing or choosing an application strategy;
+- changing jobs before submission resets the Desk run to a neutral job-choice state and applies only the newly selected job defaults;
+- after application submission, job switching is blocked until a new run;
+- Northbridge remains the fallback path if the full Job Board asset set is unavailable.
+
+Remaining VS4 work:
+
+- P44 should carry selected-job flavor more clearly into recruiter copy, Room intro/context, inbox copy, and process summary;
+- P45 should review whether VS4 is ready to promote.
 
 ### VS5 — Hiring Manager Screen
 

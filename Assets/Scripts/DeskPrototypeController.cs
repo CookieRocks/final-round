@@ -102,6 +102,10 @@ public sealed class DeskPrototypeController : MonoBehaviour
     private const string RecruiterSubject = "Northbridge Cyber Systems - quick screen";
     private const string RecruiterIntroMessage = "Hi,\n\nThanks for applying. Your profile looks relevant for the Senior Solutions Engineer - Security Presales role. The team is moving fairly quickly, so I would like to run through a short screen before I forward your profile to the panel.\n\nA few quick questions below.";
     private const string AftermathRoomSceneName = "AftermathRoom";
+    private const string Vs4JobListingsResourcePath = "FinalRound/VS4/JobListings";
+    private const string NorthbridgeJobId = "northbridge-security-presales";
+    private const string HeliosJobId = "helios-cloud-security-consultant";
+    private const string RedgateJobId = "redgate-risk-compliance-presales";
 
     [Header("Scene")]
     [SerializeField] private string interviewRoomSceneName = "InterviewRoom";
@@ -131,16 +135,19 @@ public sealed class DeskPrototypeController : MonoBehaviour
     private GameObject laptopPanel;
     private GameObject pausePanel;
     private GameObject debugPanel;
+    private GameObject jobBoardRow;
     private GameObject listingSectionRow;
     private GameObject strategyRow;
     private GameObject recruiterRow;
     private GameObject postAftermathChoiceRow;
     private TMP_Text debugText;
+    private TMP_Text laptopTitleText;
     private TMP_Text modeText;
     private TMP_Text roleLineText;
     private TMP_Text companyLineText;
     private TMP_Text listingSummaryText;
     private TMP_Text feedbackText;
+    private Button backToJobBoardButton;
     private Button viewListingButton;
     private Button applicationStrategyButton;
     private Button confirmApplicationButton;
@@ -158,11 +165,13 @@ public sealed class DeskPrototypeController : MonoBehaviour
     private Button pauseMainMenuButton;
     private Button pauseStartNewRunButton;
     private GameObject confirmApplicationButtonObject;
+    private Button[] jobCardButtons;
     private Button[] listingSectionButtons;
     private Button[] strategyButtons;
     private Button[] recruiterChoiceButtons;
     private ApplicationStrategyChoice[] fallbackApplicationChoices;
     private RecruiterScreenPrompt[] fallbackRecruiterPrompts;
+    private JobListingData[] cachedResourceJobListings;
     private JobListingData selectedJobListing;
     private ApplicationStrategyChoice selectedApplicationChoice;
     private int currentListingSectionIndex;
@@ -216,7 +225,12 @@ public sealed class DeskPrototypeController : MonoBehaviour
     public void BeginDeskRun()
     {
         CandidateState state = FinalRoundRunState.CreateNeutralRun();
-        SelectJobForRun(GetFallbackJobListing(), state);
+        selectedJobListing = null;
+        if (!ShouldUseJobBoard())
+        {
+            SelectJobForRun(GetFallbackJobListing(), state);
+        }
+
         currentState = DeskPrototypeState.LaptopFocus;
         applicationConfirmed = false;
         recruiterCompleted = false;
@@ -230,7 +244,12 @@ public sealed class DeskPrototypeController : MonoBehaviour
     public CandidateState CreateNeutralCandidateState()
     {
         CandidateState state = FinalRoundRunState.CreateNeutralRun();
-        SelectJobForRun(GetFallbackJobListing(), state);
+        selectedJobListing = null;
+        if (!ShouldUseJobBoard())
+        {
+            SelectJobForRun(GetFallbackJobListing(), state);
+        }
+
         currentState = DeskPrototypeState.Standby;
         RefreshDebugDisplay();
         return state;
@@ -244,7 +263,10 @@ public sealed class DeskPrototypeController : MonoBehaviour
         }
         else if (FinalRoundRunState.TryGetActiveState(out CandidateState state))
         {
-            EnsureSelectedJobForState(state);
+            if (!ShouldUseJobBoard() || !string.IsNullOrWhiteSpace(state.SelectedJobId))
+            {
+                EnsureSelectedJobForState(state);
+            }
         }
 
         if (ShowCompletedRunInboxIfAvailable())
@@ -252,13 +274,20 @@ public sealed class DeskPrototypeController : MonoBehaviour
             return;
         }
 
-        currentState = DeskPrototypeState.JobListing;
         if (laptopPanel != null)
         {
             SetLaptopPanelVisible(true);
         }
 
-        ShowListingView();
+        if (ShouldShowJobBoardFirst())
+        {
+            ShowJobBoardView();
+        }
+        else
+        {
+            ShowListingView();
+        }
+
         RefreshDebugDisplay();
     }
 
@@ -271,15 +300,77 @@ public sealed class DeskPrototypeController : MonoBehaviour
             return false;
         }
 
-        CandidateState state = FinalRoundRunState.HasActiveRun()
-            ? FinalRoundRunState.Instance.State
-            : FinalRoundRunState.CreateNeutralRun();
+        SelectJobFromBoard(job);
+        return true;
+    }
+
+    public void ShowJobBoardView()
+    {
+        if (!ShouldUseJobBoard())
+        {
+            ShowListingView();
+            return;
+        }
+
+        if (!FinalRoundRunState.HasActiveRun())
+        {
+            BeginDeskRun();
+        }
+
+        currentState = DeskPrototypeState.JobBoard;
+        SetLaptopPanelVisible(true);
+        SetLaptopTextAreaLayout(40f, 62f, 16, 15);
+        RefreshJobHeaderText();
+        SetText(modeText, "Job Board");
+        SetText(
+            listingSummaryText,
+            "Choose one opportunity. You can switch before applying.");
+        SetText(feedbackText, HasSelectedJob()
+            ? $"Selected: {GetCompanyName(GetActiveJobListing())} - {GetRoleTitle(GetActiveJobListing())}"
+            : "Select a card to unlock the listing.");
+        SetJobBoardVisible(true);
+        SetListingSectionButtonsVisible(false);
+        SetStrategyButtonsVisible(false);
+        SetRecruiterChoiceButtonsVisible(false);
+        SetConfirmInteractable(false);
+        SetConfirmVisible(false);
+        SetRecruiterInteractable(false);
+        SetPostOutcomeButtonsVisible(false);
+        SetPostAftermathChoicesVisible(false);
+        SetBoardNavigationState();
+        RefreshJobCardButtonLabels();
+        RefreshDebugDisplay();
+    }
+
+    private void SelectJobFromBoard(JobListingData job)
+    {
+        if (job == null)
+        {
+            SetText(feedbackText, "That opportunity is unavailable.");
+            return;
+        }
+
+        if (applicationConfirmed)
+        {
+            SetText(feedbackText, "Application already submitted. Start a new run to choose another role.");
+            return;
+        }
+
+        CandidateState state = FinalRoundRunState.CreateNeutralRun();
+        applicationConfirmed = false;
+        recruiterCompleted = false;
+        recruiterResponseIds = string.Empty;
+        currentRecruiterPromptIndex = 0;
+        selectedApplicationChoice = null;
+        currentListingSectionIndex = 0;
 
         SelectJobForRun(job, state);
         currentState = DeskPrototypeState.JobBoard;
         RefreshJobHeaderText();
-        ShowListingView();
-        return true;
+        SetText(feedbackText, $"Selected: {GetCompanyName(job)} - {GetRoleTitle(job)}");
+        SetBoardNavigationState();
+        RefreshJobCardButtonLabels();
+        RefreshDebugDisplay();
     }
 
     public void ViewSelectedListing()
@@ -291,10 +382,27 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
         if (FinalRoundRunState.TryGetActiveState(out CandidateState state))
         {
+            if (ShouldUseJobBoard() && string.IsNullOrWhiteSpace(state.SelectedJobId))
+            {
+                ShowJobBoardView();
+                return;
+            }
+
             EnsureSelectedJobForState(state);
         }
 
         ShowListingView();
+    }
+
+    private void ReturnToJobBoard()
+    {
+        if (applicationConfirmed)
+        {
+            SetText(feedbackText, "Application already submitted. Start a new run to choose another role.");
+            return;
+        }
+
+        ShowJobBoardView();
     }
 
     public void ShowListingView()
@@ -303,9 +411,22 @@ public sealed class DeskPrototypeController : MonoBehaviour
         {
             BeginDeskRun();
         }
-        else if (FinalRoundRunState.TryGetActiveState(out CandidateState state))
+        else if (ShouldUseJobBoard()
+            && FinalRoundRunState.TryGetActiveState(out CandidateState boardState)
+            && string.IsNullOrWhiteSpace(boardState.SelectedJobId))
         {
-            EnsureSelectedJobForState(state);
+            ShowJobBoardView();
+            return;
+        }
+        else if (FinalRoundRunState.TryGetActiveState(out CandidateState activeState))
+        {
+            EnsureSelectedJobForState(activeState);
+        }
+
+        if (ShouldUseJobBoard() && !HasSelectedJob())
+        {
+            ShowJobBoardView();
+            return;
         }
 
         currentState = DeskPrototypeState.JobListing;
@@ -315,6 +436,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
         SetText(modeText, "View Listing");
         SetText(feedbackText, "Review the role, then choose how to position your application.");
+        SetJobBoardVisible(false);
         ShowListingSection(currentListingSectionIndex);
         SetListingSectionButtonsVisible(true);
         SetStrategyButtonsVisible(false);
@@ -323,6 +445,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         SetConfirmVisible(true);
         SetRecruiterInteractable(applicationConfirmed);
         SetPostOutcomeButtonsVisible(IsCompletedRoomRunActive());
+        SetBoardNavigationState();
         RefreshDebugDisplay();
     }
 
@@ -331,6 +454,13 @@ public sealed class DeskPrototypeController : MonoBehaviour
         if (!FinalRoundRunState.HasActiveRun())
         {
             BeginDeskRun();
+        }
+
+        if (ShouldUseJobBoard() && !HasSelectedJob())
+        {
+            ShowJobBoardView();
+            SetText(feedbackText, "Select an opportunity before choosing an application strategy.");
+            return;
         }
 
         currentState = DeskPrototypeState.ApplicationChoice;
@@ -345,12 +475,14 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
         SetText(modeText, "Choose Application Strategy");
         SetText(feedbackText, "Select a strategy, then confirm the application.");
+        SetJobBoardVisible(false);
         SetListingSectionButtonsVisible(false);
         SetStrategyButtonsVisible(true);
         SetRecruiterChoiceButtonsVisible(false);
         SetConfirmInteractable(false);
         SetConfirmVisible(true);
         SetPostOutcomeButtonsVisible(false);
+        SetBoardNavigationState();
         RefreshDebugDisplay();
     }
 
@@ -421,6 +553,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         currentState = DeskPrototypeState.Recruiter;
         SetLaptopTextAreaLayout(250f, 96f, 18, 16);
         SetText(modeText, recruiterCompleted ? "Recruiter Screen Complete" : $"Recruiter Screen {currentRecruiterPromptIndex + 1} of {GetRecruiterPrompts().Length}");
+        SetJobBoardVisible(false);
         SetListingSectionButtonsVisible(false);
         SetStrategyButtonsVisible(false);
         SetConfirmInteractable(false);
@@ -536,6 +669,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
             listingSummaryText.text = BuildListingSectionText(0);
         }
 
+        SetJobBoardVisible(false);
         applicationConfirmed = false;
         recruiterCompleted = false;
         recruiterResponseIds = string.Empty;
@@ -593,6 +727,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         SetLaptopTextAreaLayout(state.AftermathCompleted ? 285f : 330f, state.AftermathCompleted ? 105f : 54f, 17, 15);
         SetText(listingSummaryText, BuildOutcomeInboxMessage(state));
         SetText(feedbackText, BuildOutcomeFeedbackLine(state));
+        SetJobBoardVisible(false);
         SetListingSectionButtonsVisible(false);
         SetStrategyButtonsVisible(false);
         SetRecruiterChoiceButtonsVisible(false);
@@ -619,6 +754,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         SetLaptopTextAreaLayout(370f, 20f, 15, 14);
         SetText(listingSummaryText, BuildProcessSummary(state));
         SetText(feedbackText, string.Empty);
+        SetJobBoardVisible(false);
         SetListingSectionButtonsVisible(false);
         SetStrategyButtonsVisible(false);
         SetRecruiterChoiceButtonsVisible(false);
@@ -912,12 +1048,28 @@ public sealed class DeskPrototypeController : MonoBehaviour
         layout.childForceExpandWidth = true;
         layout.childForceExpandHeight = false;
 
-        CreateText("Laptop Title", laptopPanel.transform, "Northbridge Jobs", 34, FontStyles.Bold, TextAlignmentOptions.Left);
+        laptopTitleText = CreateText("Laptop Title", laptopPanel.transform, "Opportunity Board", 34, FontStyles.Bold, TextAlignmentOptions.Left);
         roleLineText = CreateText("Laptop Role", laptopPanel.transform, GetRoleLine(), 24, FontStyles.Bold, TextAlignmentOptions.Left);
         companyLineText = CreateText("Laptop Company", laptopPanel.transform, GetCompanyLine(), 20, FontStyles.Normal, TextAlignmentOptions.Left);
 
         modeText = CreateText("Laptop Mode", laptopPanel.transform, "View Listing", 20, FontStyles.Bold, TextAlignmentOptions.Left);
         modeText.color = new Color32(98, 218, 195, 255);
+
+        jobBoardRow = new GameObject("Job Board Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+        jobBoardRow.transform.SetParent(laptopPanel.transform, false);
+        HorizontalLayoutGroup jobBoardLayout = jobBoardRow.GetComponent<HorizontalLayoutGroup>();
+        jobBoardLayout.spacing = 12f;
+        jobBoardLayout.childForceExpandWidth = false;
+        jobBoardLayout.childForceExpandHeight = false;
+        jobBoardRow.GetComponent<LayoutElement>().preferredHeight = 238f;
+
+        jobCardButtons = new Button[3];
+        for (int i = 0; i < jobCardButtons.Length; i++)
+        {
+            int jobIndex = i;
+            jobCardButtons[i] = CreateButton($"Job {i + 1}", jobBoardRow.transform, () => SelectJobCard(jobIndex), 374f, 226f, 12);
+            ConfigureJobCardButton(jobCardButtons[i]);
+        }
 
         listingSectionRow = new GameObject("Listing Section Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
         listingSectionRow.transform.SetParent(laptopPanel.transform, false);
@@ -996,7 +1148,8 @@ public sealed class DeskPrototypeController : MonoBehaviour
         rowLayout.childForceExpandHeight = false;
         buttonRow.GetComponent<LayoutElement>().preferredHeight = 52f;
 
-        viewListingButton = CreateButton("View Listing", buttonRow.transform, ShowListingView, 130f, 46f, 16);
+        backToJobBoardButton = CreateButton("Back to Job Board", buttonRow.transform, ReturnToJobBoard, 170f, 46f, 16);
+        viewListingButton = CreateButton("View Listing", buttonRow.transform, ViewSelectedListing, 130f, 46f, 16);
         applicationStrategyButton = CreateButton("Application Strategy", buttonRow.transform, ShowApplicationChoices, 185f, 46f, 16);
         confirmApplicationButton = CreateButton("Confirm Application", buttonRow.transform, ConfirmApplication, 175f, 46f, 16);
         confirmApplicationButtonObject = confirmApplicationButton.gameObject;
@@ -1007,6 +1160,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         mainMenuButton = CreateButton("Main Menu", buttonRow.transform, ReturnToMainMenu, 130f, 46f, 16);
         resetButton = CreateButton("Reset Desk Run", buttonRow.transform, ResetDeskRun, 150f, 46f, 16);
 
+        SetJobBoardVisible(false);
         SetListingSectionButtonsVisible(true);
         SetStrategyButtonsVisible(false);
         SetRecruiterChoiceButtonsVisible(false);
@@ -1075,10 +1229,13 @@ public sealed class DeskPrototypeController : MonoBehaviour
         string summary = FinalRoundRunState.TryGetActiveState(out CandidateState state)
             ? state.BuildDebugSummary()
             : "No active CandidateState.\nDirect Room launch will use neutral VS1 fallback.";
+        string jobDefaults = FinalRoundRunState.TryGetActiveState(out CandidateState activeState)
+            ? FormatId(activeState.JobDefaultDeltasAppliedJobId)
+            : "none";
 
         debugText.text =
             $"VS2 Desk Debug\nState: {currentState}\nTarget Scene: {interviewRoomSceneName}\nApplication Confirmed: {applicationConfirmed}\nRecruiter Complete: {recruiterCompleted}\n" +
-            $"Available Jobs: {GetAvailableJobListings().Length}\nActive Job: {GetActiveJobId()} / {GetCompanyName(GetActiveJobListing())}\n\n{summary}";
+            $"Available Jobs: {GetAvailableJobListings().Length}\nActive Job: {GetActiveJobId()} / {GetCompanyName(GetActiveJobListing())}\nJob Defaults Applied: {jobDefaults}\n\n{summary}";
     }
 
     private void SetLaptopPanelVisible(bool visible)
@@ -1241,8 +1398,37 @@ public sealed class DeskPrototypeController : MonoBehaviour
         }
     }
 
+    private void SetBoardNavigationState()
+    {
+        bool onJobBoard = currentState == DeskPrototypeState.JobBoard;
+        bool canUseJobBoard = ShouldUseJobBoard();
+        bool hasSelectedJob = HasSelectedJob();
+        bool completedRun = IsCompletedRoomRunActive();
+
+        SetButtonVisible(backToJobBoardButton, canUseJobBoard && !onJobBoard && !completedRun);
+        SetButtonVisible(viewListingButton, !completedRun && (!onJobBoard || hasSelectedJob));
+        SetButtonVisible(applicationStrategyButton, !completedRun && !onJobBoard);
+
+        if (viewListingButton != null)
+        {
+            viewListingButton.interactable = !canUseJobBoard || hasSelectedJob;
+        }
+
+        if (applicationStrategyButton != null)
+        {
+            applicationStrategyButton.interactable = (!canUseJobBoard || hasSelectedJob) && currentState != DeskPrototypeState.JobBoard;
+        }
+
+        if (onJobBoard)
+        {
+            SetConfirmVisible(false);
+        }
+    }
+
     private void SetPostOutcomeButtonsVisible(bool visible)
     {
+        SetButtonVisible(backToJobBoardButton, !visible && ShouldUseJobBoard() && currentState != DeskPrototypeState.JobBoard);
+        SetButtonVisible(viewListingButton, !visible);
         SetButtonVisible(applicationStrategyButton, !visible);
         SetButtonVisible(recruiterButton, !visible);
         SetButtonVisible(interviewButton, !visible);
@@ -1255,6 +1441,10 @@ public sealed class DeskPrototypeController : MonoBehaviour
         if (visible)
         {
             SetConfirmVisible(false);
+        }
+        else
+        {
+            SetBoardNavigationState();
         }
     }
 
@@ -1277,6 +1467,69 @@ public sealed class DeskPrototypeController : MonoBehaviour
         {
             button.gameObject.SetActive(visible);
         }
+    }
+
+    private void SetJobBoardVisible(bool visible)
+    {
+        if (jobBoardRow != null)
+        {
+            jobBoardRow.SetActive(visible);
+        }
+
+        if (jobCardButtons == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < jobCardButtons.Length; i++)
+        {
+            if (jobCardButtons[i] != null)
+            {
+                jobCardButtons[i].gameObject.SetActive(visible);
+            }
+        }
+
+        if (visible)
+        {
+            RefreshJobCardButtonLabels();
+        }
+    }
+
+    private void RefreshJobCardButtonLabels()
+    {
+        if (jobCardButtons == null)
+        {
+            return;
+        }
+
+        JobListingData[] jobs = GetAvailableJobListings();
+        for (int i = 0; i < jobCardButtons.Length; i++)
+        {
+            bool hasJob = i < jobs.Length && jobs[i] != null;
+            jobCardButtons[i].gameObject.SetActive(currentState == DeskPrototypeState.JobBoard && hasJob);
+            if (!hasJob)
+            {
+                continue;
+            }
+
+            TMP_Text label = jobCardButtons[i].GetComponentInChildren<TMP_Text>();
+            if (label != null)
+            {
+                label.text = BuildJobCardText(jobs[i], IsSelectedJob(jobs[i]));
+            }
+        }
+    }
+
+    private void SelectJobCard(int jobIndex)
+    {
+        JobListingData[] jobs = GetAvailableJobListings();
+        if (jobIndex < 0 || jobIndex >= jobs.Length)
+        {
+            SetText(feedbackText, "That opportunity is unavailable.");
+            return;
+        }
+
+        SelectJobFromBoard(jobs[jobIndex]);
     }
 
     private static bool IsCompletedRoomRunActive()
@@ -1316,6 +1569,108 @@ public sealed class DeskPrototypeController : MonoBehaviour
         return value >= 0 ? $"+{value}" : value.ToString();
     }
 
+    private bool ShouldShowJobBoardFirst()
+    {
+        return ShouldUseJobBoard()
+            && !applicationConfirmed
+            && !HasSelectedJob();
+    }
+
+    private bool ShouldUseJobBoard()
+    {
+        JobListingData[] jobs = GetAvailableJobListings();
+        if (jobs.Length < 3)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < 3; i++)
+        {
+            if (jobs[i] == null
+                || string.IsNullOrWhiteSpace(jobs[i].jobId)
+                || string.IsNullOrWhiteSpace(jobs[i].companyName)
+                || string.IsNullOrWhiteSpace(jobs[i].roleTitle))
+            {
+                return false;
+            }
+
+            for (int j = i + 1; j < 3; j++)
+            {
+                if (jobs[j] != null && jobs[i].jobId == jobs[j].jobId)
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private bool HasSelectedJob()
+    {
+        return FinalRoundRunState.TryGetActiveState(out CandidateState state)
+            && !string.IsNullOrWhiteSpace(state.SelectedJobId)
+            && FindJobListingById(state.SelectedJobId) != null;
+    }
+
+    private bool IsSelectedJob(JobListingData job)
+    {
+        return job != null
+            && FinalRoundRunState.TryGetActiveState(out CandidateState state)
+            && state.SelectedJobId == job.jobId;
+    }
+
+    private static string BuildJobCardText(JobListingData job, bool selected)
+    {
+        string marker = selected ? "Selected\n" : string.Empty;
+        string greenFlag = FormatSingleFlag(job.greenFlags);
+        string redFlag = FormatSingleFlag(job.redFlags);
+        string recruiter = string.IsNullOrWhiteSpace(job.recruiterName) ? "Recruiter pending" : job.recruiterName;
+
+        return
+            $"{marker}{job.companyName}\n" +
+            $"{job.roleTitle}\n" +
+            $"{FormatId(job.difficultyProfile)}\n" +
+            $"Recruiter: {recruiter}\n\n" +
+            $"Signal: {greenFlag}\n\n" +
+            $"Risk: {redFlag}\n\n" +
+            (selected ? "Selected" : "Select Opportunity");
+    }
+
+    private static string FormatSingleFlag(string[] flags)
+    {
+        if (flags == null || flags.Length == 0)
+        {
+            return "Not specified";
+        }
+
+        for (int i = 0; i < flags.Length; i++)
+        {
+            if (!string.IsNullOrWhiteSpace(flags[i]))
+            {
+                return TruncateForCard(flags[i], 94);
+            }
+        }
+
+        return "Not specified";
+    }
+
+    private static string TruncateForCard(string value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "Not specified";
+        }
+
+        string compact = value.Trim();
+        if (compact.Length <= maxLength)
+        {
+            return compact;
+        }
+
+        return compact.Substring(0, Mathf.Max(0, maxLength - 3)).TrimEnd() + "...";
+    }
+
     private string GetActiveJobId()
     {
         JobListingData job = GetActiveJobListing();
@@ -1336,6 +1691,24 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
     private void RefreshJobHeaderText()
     {
+        if (currentState == DeskPrototypeState.JobBoard)
+        {
+            SetText(laptopTitleText, "Opportunity Board");
+            if (!HasSelectedJob())
+            {
+                SetText(roleLineText, "Role: Choose an opportunity");
+                SetText(companyLineText, "Company: Three active listings");
+            }
+            else
+            {
+                SetText(roleLineText, GetRoleLine());
+                SetText(companyLineText, GetCompanyLine());
+            }
+
+            return;
+        }
+
+        SetText(laptopTitleText, $"{GetCompanyName(GetActiveJobListing())} Jobs");
         SetText(roleLineText, GetRoleLine());
         SetText(companyLineText, GetCompanyLine());
     }
@@ -1373,9 +1746,31 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
     private JobListingData[] GetAvailableJobListings()
     {
+        JobListingData[] assignedJobs = GetAssignedJobListings();
+        if (assignedJobs.Length >= 3)
+        {
+            return assignedJobs;
+        }
+
+        JobListingData[] resourceJobs = GetResourceJobListings();
+        if (resourceJobs.Length > 0)
+        {
+            return resourceJobs;
+        }
+
+        if (assignedJobs.Length > 0)
+        {
+            return assignedJobs;
+        }
+
+        return defaultJobListing != null ? new[] { defaultJobListing } : System.Array.Empty<JobListingData>();
+    }
+
+    private JobListingData[] GetAssignedJobListings()
+    {
         if (availableJobListings == null || availableJobListings.Length == 0)
         {
-            return defaultJobListing != null ? new[] { defaultJobListing } : System.Array.Empty<JobListingData>();
+            return System.Array.Empty<JobListingData>();
         }
 
         int count = 0;
@@ -1389,7 +1784,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
         if (count == 0)
         {
-            return defaultJobListing != null ? new[] { defaultJobListing } : System.Array.Empty<JobListingData>();
+            return System.Array.Empty<JobListingData>();
         }
 
         JobListingData[] jobs = new JobListingData[count];
@@ -1403,6 +1798,76 @@ public sealed class DeskPrototypeController : MonoBehaviour
         }
 
         return jobs;
+    }
+
+    private JobListingData[] GetResourceJobListings()
+    {
+        if (cachedResourceJobListings != null)
+        {
+            return cachedResourceJobListings;
+        }
+
+        JobListingData[] loadedJobs = Resources.LoadAll<JobListingData>(Vs4JobListingsResourcePath);
+        if (loadedJobs == null || loadedJobs.Length == 0)
+        {
+            cachedResourceJobListings = System.Array.Empty<JobListingData>();
+            return cachedResourceJobListings;
+        }
+
+        JobListingData northbridge = FindJobInArray(loadedJobs, NorthbridgeJobId);
+        JobListingData helios = FindJobInArray(loadedJobs, HeliosJobId);
+        JobListingData redgate = FindJobInArray(loadedJobs, RedgateJobId);
+
+        if (northbridge != null && helios != null && redgate != null)
+        {
+            cachedResourceJobListings = new[] { northbridge, helios, redgate };
+            return cachedResourceJobListings;
+        }
+
+        int count = 0;
+        for (int i = 0; i < loadedJobs.Length; i++)
+        {
+            if (loadedJobs[i] != null)
+            {
+                count++;
+            }
+        }
+
+        if (count == 0)
+        {
+            cachedResourceJobListings = System.Array.Empty<JobListingData>();
+            return cachedResourceJobListings;
+        }
+
+        cachedResourceJobListings = new JobListingData[count];
+        int index = 0;
+        for (int i = 0; i < loadedJobs.Length; i++)
+        {
+            if (loadedJobs[i] != null)
+            {
+                cachedResourceJobListings[index++] = loadedJobs[i];
+            }
+        }
+
+        return cachedResourceJobListings;
+    }
+
+    private static JobListingData FindJobInArray(JobListingData[] jobs, string jobId)
+    {
+        if (jobs == null || string.IsNullOrWhiteSpace(jobId))
+        {
+            return null;
+        }
+
+        for (int i = 0; i < jobs.Length; i++)
+        {
+            if (jobs[i] != null && jobs[i].jobId == jobId)
+            {
+                return jobs[i];
+            }
+        }
+
+        return null;
     }
 
     private JobListingData FindJobListingById(string jobId)
@@ -2387,6 +2852,30 @@ public sealed class DeskPrototypeController : MonoBehaviour
         textRect.offsetMin = new Vector2(10f, 6f);
         textRect.offsetMax = new Vector2(-10f, -6f);
         return button;
+    }
+
+    private static void ConfigureJobCardButton(Button button)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        TMP_Text text = button.GetComponentInChildren<TMP_Text>();
+        if (text == null)
+        {
+            return;
+        }
+
+        text.alignment = TextAlignmentOptions.TopLeft;
+        text.fontSize = 12;
+        text.fontStyle = FontStyles.Normal;
+        text.lineSpacing = -8f;
+        text.overflowMode = TextOverflowModes.Truncate;
+
+        RectTransform textRect = text.rectTransform;
+        textRect.offsetMin = new Vector2(14f, 10f);
+        textRect.offsetMax = new Vector2(-14f, -10f);
     }
 
     private static GameObject CreatePanel(string name, Transform parent, Color color)
