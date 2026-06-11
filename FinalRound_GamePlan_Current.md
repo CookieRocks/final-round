@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-11_  
-_Current milestone context: P43 Job Selection UI_
+_Current milestone context: P44 Selected-Job Carry-Through_
 
 ## 1. Purpose of this document
 
@@ -409,7 +409,7 @@ The mode should feel like a memory or emotional processing space, not a real off
 
 ### VS4 - The Job Board
 
-**Status:** in prototype implementation. P41 data architecture and P42 authored listings are complete; P43 adds the first playable three-card Job Board UI on the Desk laptop.
+**Status:** in prototype implementation. P41 data architecture and P42 authored listings are complete; P43 adds the first playable three-card Job Board UI on the Desk laptop. P44 carries the selected job through application feedback, recruiter identity/copy, Room context, outcome inbox, and process summary.
 
 Core question:
 
@@ -457,8 +457,15 @@ Current P43 behavior:
 
 Remaining VS4 work:
 
-- P44 should carry selected-job flavor more clearly into recruiter copy, Room intro/context, inbox copy, and process summary;
 - P45 should review whether VS4 is ready to promote.
+
+Current P44 behavior:
+
+- application feedback references the selected company/role profile;
+- recruiter identity and intro copy use the selected listing's recruiter fields;
+- Room intro and outcome email can include selected-job context lines;
+- Desk inbox sender, subject, context line, and process summary reflect the selected job;
+- fallback remains Northbridge/default copy if selected job data is unavailable.
 
 ### VS5 — Hiring Manager Screen
 

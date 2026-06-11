@@ -26,6 +26,7 @@ public readonly struct RoomModifierResult
     public ArchitectPressureLevel ArchitectPressure { get; }
     public RoomIntroTone IntroTone { get; }
     public int ReactionWarmthModifier { get; }
+    public string RoomContextLine { get; }
     public string OutcomeEmailContextLine { get; }
     public string DebugSummary { get; }
     public bool IsNeutral =>
@@ -37,6 +38,7 @@ public readonly struct RoomModifierResult
         && ArchitectPressure == ArchitectPressureLevel.Neutral
         && IntroTone == RoomIntroTone.Neutral
         && ReactionWarmthModifier == 0
+        && string.IsNullOrWhiteSpace(RoomContextLine)
         && string.IsNullOrWhiteSpace(OutcomeEmailContextLine);
 
     public RoomModifierResult(
@@ -48,6 +50,7 @@ public readonly struct RoomModifierResult
         ArchitectPressureLevel architectPressure,
         RoomIntroTone introTone,
         int reactionWarmthModifier,
+        string roomContextLine,
         string outcomeEmailContextLine,
         string debugSummary)
     {
@@ -59,6 +62,7 @@ public readonly struct RoomModifierResult
         ArchitectPressure = architectPressure;
         IntroTone = introTone;
         ReactionWarmthModifier = reactionWarmthModifier;
+        RoomContextLine = roomContextLine;
         OutcomeEmailContextLine = outcomeEmailContextLine;
         DebugSummary = debugSummary;
     }
@@ -66,6 +70,8 @@ public readonly struct RoomModifierResult
 
 public static class RoomModifierResolver
 {
+    private const string Vs4JobListingsResourcePath = "FinalRound/VS4/JobListings";
+
     public static RoomModifierResult Resolve(CandidateState state)
     {
         if (state == null)
@@ -104,7 +110,9 @@ public static class RoomModifierResolver
             ? ArchitectPressureLevel.Sharper
             : ArchitectPressureLevel.Neutral;
         int reactionWarmth = Mathf.Clamp(warmth, -1, 1);
-        string contextLine = ResolveOutcomeEmailContextLine(state);
+        JobListingData job = FindJobListingById(state.SelectedJobId);
+        string roomContextLine = job != null ? job.roomContextLine : string.Empty;
+        string contextLine = CombineContextLines(job != null ? job.outcomeContextLine : string.Empty, ResolveOutcomeEmailContextLine(state));
 
         technical = ClampStartModifier(technical);
         commercial = ClampStartModifier(commercial);
@@ -120,13 +128,14 @@ public static class RoomModifierResolver
             architectPressure,
             introTone,
             reactionWarmth,
+            roomContextLine,
             contextLine,
-            BuildDebugSummary(state, technical, commercial, rapport, energy, warmth, architectPressure, introTone, reactionWarmth, contextLine));
+            BuildDebugSummary(state, technical, commercial, rapport, energy, warmth, architectPressure, introTone, reactionWarmth, roomContextLine, contextLine));
     }
 
     private static RoomModifierResult CreateNeutral(string reason)
     {
-        return new RoomModifierResult(0, 0, 0, 0, 0, ArchitectPressureLevel.Neutral, RoomIntroTone.Neutral, 0, string.Empty, reason);
+        return new RoomModifierResult(0, 0, 0, 0, 0, ArchitectPressureLevel.Neutral, RoomIntroTone.Neutral, 0, string.Empty, string.Empty, reason);
     }
 
     private static int MapModifier(int value)
@@ -209,11 +218,13 @@ public static class RoomModifierResolver
         ArchitectPressureLevel architectPressure,
         RoomIntroTone introTone,
         int reactionWarmth,
+        string roomContextLine,
         string contextLine)
     {
         StringBuilder builder = new StringBuilder();
         builder.AppendLine($"Start modifiers: Technical {FormatDelta(technical)}, Commercial {FormatDelta(commercial)}, Rapport {FormatDelta(rapport)}, Energy {FormatDelta(energy)}");
         builder.AppendLine($"Tone: intro {introTone}, architect pressure {architectPressure}, recruiter warmth {FormatDelta(warmth)}, reaction warmth {FormatDelta(reactionWarmth)}");
+        builder.AppendLine($"Room context: {(string.IsNullOrWhiteSpace(roomContextLine) ? "none" : roomContextLine)}");
         builder.AppendLine($"Context line: {(string.IsNullOrWhiteSpace(contextLine) ? "none" : contextLine)}");
         builder.AppendLine($"Source: RoleFit {state.RoleFit}, RecruiterTrust {state.RecruiterTrust}, Confidence {state.CandidateConfidence}, Energy {state.Energy}, OverclaimRisk {state.OverclaimRisk}, TechnicalReadiness {state.TechnicalReadiness}, RapportMomentum {state.RapportMomentum}");
         return builder.ToString().TrimEnd();
@@ -222,5 +233,46 @@ public static class RoomModifierResolver
     private static string FormatDelta(int value)
     {
         return value >= 0 ? $"+{value}" : value.ToString();
+    }
+
+    private static string CombineContextLines(string primary, string secondary)
+    {
+        bool hasPrimary = !string.IsNullOrWhiteSpace(primary);
+        bool hasSecondary = !string.IsNullOrWhiteSpace(secondary);
+        if (hasPrimary && hasSecondary)
+        {
+            return primary.Trim() + "\n\n" + secondary.Trim();
+        }
+
+        if (hasPrimary)
+        {
+            return primary.Trim();
+        }
+
+        return hasSecondary ? secondary.Trim() : string.Empty;
+    }
+
+    private static JobListingData FindJobListingById(string jobId)
+    {
+        if (string.IsNullOrWhiteSpace(jobId))
+        {
+            return null;
+        }
+
+        JobListingData[] jobs = Resources.LoadAll<JobListingData>(Vs4JobListingsResourcePath);
+        if (jobs == null)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < jobs.Length; i++)
+        {
+            if (jobs[i] != null && jobs[i].jobId == jobId)
+            {
+                return jobs[i];
+            }
+        }
+
+        return null;
     }
 }

@@ -470,7 +470,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         {
             listingSummaryText.text =
                 "Choose an application strategy.\n\n" +
-                "Choose how to position your application before Maya decides whether to move you forward.";
+                $"Choose how to position your application before {GetRecruiterName()} decides whether to move you forward.";
         }
 
         SetText(modeText, "Choose Application Strategy");
@@ -517,7 +517,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         SetText(
             listingSummaryText,
             "Application submitted.\n\n" +
-            selectedApplicationChoice.feedbackText +
+            BuildSelectedJobApplicationFeedback(selectedApplicationChoice, GetActiveJobListing()) +
             $"\n\n{GetRecruiterName()} has replied with a short recruiter screen.");
         SetText(feedbackText, "Application confirmed. Complete the recruiter screen to continue.");
         SetListingSectionButtonsVisible(false);
@@ -599,12 +599,12 @@ public sealed class DeskPrototypeController : MonoBehaviour
         {
             recruiterCompleted = true;
             currentRecruiterPromptIndex = prompts.Length - 1;
-            state.RecruiterPathId = RecruiterPathId;
+            state.RecruiterPathId = GetRecruiterPathId(GetActiveJobListing());
             SetText(modeText, "Recruiter Screen Complete");
             SetText(
                 listingSummaryText,
-                $"{GetRecruiterName()} forwards your profile to the interview panel.\n\n" +
-                "Your application notes are attached to the invite.\n\n" +
+                $"{GetRecruiterName()} forwards your profile to the {GetCompanyName(GetActiveJobListing())} interview panel.\n\n" +
+                BuildSelectedJobRoomInviteLine(GetActiveJobListing()) + "\n\n" +
                 "Final round scheduled.");
             SetText(feedbackText, "Recruiter screen complete. Continue to the interview when ready.");
             SetRecruiterChoiceButtonsVisible(false);
@@ -628,7 +628,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
         selectedApplicationChoice = choice;
         SetText(
             feedbackText,
-            $"{choice.label}\n{choice.bodyText}\n\nConfirm this application strategy to continue.");
+            $"{choice.label}\n{choice.bodyText}\n\n{BuildSelectedJobApplicationPreview(choice, GetActiveJobListing())}\n\nConfirm this application strategy to continue.");
         SetConfirmInteractable(true);
         RefreshStrategyButtonLabels();
     }
@@ -815,25 +815,25 @@ public sealed class DeskPrototypeController : MonoBehaviour
         switch (outcome)
         {
             case nameof(InterviewOutcomeType.StrongPass):
-                subject = "Subject: Strong next step";
+                subject = $"Subject: Strong next step - {GetRoleTitle(job)}";
                 body =
                     "Thanks again for the final conversation. The panel came away with a strong signal and would like to continue quickly.\n\n" +
                     "We are aligning on the next practical step and will follow up with details shortly.";
                 break;
             case nameof(InterviewOutcomeType.Pass):
-                subject = "Subject: Interview follow-up";
+                subject = $"Subject: Interview follow-up - {GetRoleTitle(job)}";
                 body =
                     "Thank you for speaking with the panel. There are a few areas the team would want to calibrate, but the signal from the final round was strong enough to continue the process.\n\n" +
                     "We will come back once the hiring team has aligned on timing and next steps.";
                 break;
             case nameof(InterviewOutcomeType.Reject):
-                subject = "Subject: Final round update";
+                subject = $"Subject: Final round update - {GetRoleTitle(job)}";
                 body =
                     "Thank you for the time and preparation throughout the process.\n\n" +
                     "After review, the team has decided not to move forward. The feedback was not about one single answer, but about overall fit for this specific panel and role at this stage.";
                 break;
             default:
-                subject = "Subject: Final round update";
+                subject = $"Subject: Final round update - {GetRoleTitle(job)}";
                 body =
                     "Thank you for the conversation today. We appreciate the time and preparation.\n\n" +
                     "We are still aligning internally and will come back to you once we have completed the process. At this stage, feedback is not negative, but it is not fully settled.";
@@ -873,9 +873,10 @@ public sealed class DeskPrototypeController : MonoBehaviour
             $"Company: {GetCompanyName(job)}\n" +
             $"Role: {GetRoleTitle(job)}\n" +
             $"Profile: {FormatId(GetDifficultyProfile(job))}\n" +
+            $"Recruiter: {GetRecruiterName(job)}, {GetRecruiterTitle(job)}\n" +
             FormatOptionalLine(GetProcessSummaryNote(job)) +
             $"Application: {FormatId(state.ApplicationChoiceId)}\n" +
-            $"Recruiter: {FormatId(state.RecruiterPathId)}\n" +
+            $"Recruiter path: {FormatId(state.RecruiterPathId)}\n" +
             $"Replies: {FormatId(state.RecruiterResponseIds)}\n" +
             $"Room outcome: {FormatId(state.RoomOutcome)}\n\n" +
             $"Aftermath: {(state.AftermathCompleted ? "completed" : state.AftermathAvailable ? "available" : "not available")}\n\n" +
@@ -1313,7 +1314,7 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
         RecruiterScreenPrompt prompt = prompts[Mathf.Clamp(currentRecruiterPromptIndex, 0, prompts.Length - 1)];
         string intro = currentRecruiterPromptIndex == 0
-            ? $"{GetRecruiterName()} - {GetRecruiterTitle()}\nSubject: {GetRecruiterSubject()}\n\n{GetRecruiterName()} says your profile looks relevant and the team is moving quickly. They want a short screen before forwarding you to the panel.\n\n"
+            ? $"{GetRecruiterName()} - {GetRecruiterTitle()}\nSubject: {GetRecruiterSubject()}\n\n{BuildSelectedJobRecruiterIntro(GetActiveJobListing())}\n\n"
             : string.Empty;
 
         SetText(
@@ -1992,6 +1993,76 @@ public sealed class DeskPrototypeController : MonoBehaviour
             : "Balanced baseline";
     }
 
+    private static string BuildSelectedJobApplicationPreview(ApplicationStrategyChoice choice, JobListingData job)
+    {
+        if (choice == null)
+        {
+            return BuildSelectedJobApplicationLine(job);
+        }
+
+        return BuildSelectedJobApplicationLine(job);
+    }
+
+    private static string BuildSelectedJobApplicationFeedback(ApplicationStrategyChoice choice, JobListingData job)
+    {
+        string baseFeedback = choice != null && !string.IsNullOrWhiteSpace(choice.feedbackText)
+            ? choice.feedbackText
+            : "The application has been positioned for this opportunity.";
+
+        return baseFeedback + "\n\n" + BuildSelectedJobApplicationLine(job);
+    }
+
+    private static string BuildSelectedJobApplicationLine(JobListingData job)
+    {
+        if (job == null)
+        {
+            return "You frame the application around the selected role and keep the claims grounded enough for the panel to test.";
+        }
+
+        switch (job.jobId)
+        {
+            case NorthbridgeJobId:
+                return "You frame yourself as a balanced security presales fit for Northbridge's mixed technical and commercial panel.";
+            case HeliosJobId:
+                return "You lean into cloud architecture credibility. It fits Helios, but it gives the panel something specific to test.";
+            case RedgateJobId:
+                return "You position yourself around regulated stakeholders and careful commercial judgement. Redgate will care about precision.";
+            default:
+                return $"You frame the application for {GetCompanyName(job)} and the {GetRoleTitle(job)} role, with the {GetDifficultyProfile(job)} profile in mind.";
+        }
+    }
+
+    private static string BuildSelectedJobRecruiterIntro(JobListingData job)
+    {
+        string company = GetCompanyName(job);
+        string role = GetRoleTitle(job);
+        string recruiter = GetRecruiterName(job);
+        string profile = GetDifficultyProfile(job);
+
+        string baseLine = $"{recruiter} says your profile looks relevant for {company}'s {role} role. They want a short screen before forwarding you to the panel.";
+        switch (job != null ? job.jobId : string.Empty)
+        {
+            case NorthbridgeJobId:
+                return baseLine + " The screen is positioned as a balanced check across customer, technical, and commercial fit.";
+            case HeliosJobId:
+                return baseLine + " The team will want to understand how deep your cloud security architecture experience goes.";
+            case RedgateJobId:
+                return baseLine + " The process has a few more regulated stakeholder checkpoints than usual, so precision matters early.";
+            default:
+                return baseLine + $" The listing profile is {profile}.";
+        }
+    }
+
+    private static string BuildSelectedJobRoomInviteLine(JobListingData job)
+    {
+        if (job != null && !string.IsNullOrWhiteSpace(job.roomContextLine))
+        {
+            return job.roomContextLine;
+        }
+
+        return $"Your application notes for {GetCompanyName(job)} are attached to the invite.";
+    }
+
     private string GetRecruiterName()
     {
         return GetRecruiterName(GetActiveJobListing());
@@ -2006,7 +2077,11 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
     private string GetRecruiterTitle()
     {
-        JobListingData job = GetActiveJobListing();
+        return GetRecruiterTitle(GetActiveJobListing());
+    }
+
+    private static string GetRecruiterTitle(JobListingData job)
+    {
         return job != null && !string.IsNullOrWhiteSpace(job.recruiterTitle)
             ? job.recruiterTitle
             : "Senior Talent Partner";
@@ -2028,6 +2103,12 @@ public sealed class DeskPrototypeController : MonoBehaviour
     {
         JobListingData job = GetActiveJobListing();
         return $"{GetRecruiterCompany(job)} - quick screen";
+    }
+
+    private static string GetRecruiterPathId(JobListingData job)
+    {
+        string recruiter = GetRecruiterName(job).ToUpperInvariant().Replace(' ', '-');
+        return string.IsNullOrWhiteSpace(recruiter) ? RecruiterPathId : $"{recruiter}-SCREEN";
     }
 
     private static string GetOutcomeContextLine(JobListingData job)

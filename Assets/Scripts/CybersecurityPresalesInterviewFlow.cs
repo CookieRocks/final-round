@@ -30,6 +30,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private const string DeskSceneName = "DeskScene";
 
     private const string DefaultQuestionResourcePath = "FinalRound/Questions/RC11";
+    private const string Vs4JobListingsResourcePath = "FinalRound/VS4/JobListings";
 
     private readonly InterviewScore score = new InterviewScore();
     private static readonly RoomUiTheme uiTheme = RoomUiTheme.Default;
@@ -88,6 +89,7 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
     private TMP_Text questionText;
     private TMP_Text reactionText;
     private TMP_Text transitionText;
+    private TMP_Text outcomeClientHeaderText;
     private TMP_Text outcomeFromText;
     private TMP_Text outcomeTitleText;
     private TMP_Text outcomeOpeningText;
@@ -314,14 +316,17 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
         if (stage.StageIndex == 0)
         {
-            return activeRoomModifiers.IntroTone switch
+            string recruiterName = GetActiveRecruiterName();
+            string intro = activeRoomModifiers.IntroTone switch
             {
-                RoomIntroTone.Warm => "The Hiring Manager folds their hands. \"Maya's screen gave us a positive starting point. Let's build from there.\"",
-                RoomIntroTone.LimitedSignal => "The Hiring Manager checks Maya's notes. \"We have limited signal from the screen, so we'll use this session to go deeper.\"",
+                RoomIntroTone.Warm => $"The Hiring Manager folds their hands. \"{recruiterName}'s screen gave us a positive starting point. Let's build from there.\"",
+                RoomIntroTone.LimitedSignal => $"The Hiring Manager checks {recruiterName}'s notes. \"We have limited signal from the screen, so we'll use this session to go deeper.\"",
                 RoomIntroTone.DetailPressure => "The Hiring Manager looks up from the application notes. \"There were a few strong claims earlier. We'll test the detail through the scenarios.\"",
                 RoomIntroTone.ClearMomentum => "The Hiring Manager folds their hands. \"Your screen and application notes came through clearly. Let's see how you handle the scenarios.\"",
-                _ => "The Hiring Manager glances at Maya's screening notes. \"We'll use this session to understand how you work through customer scenarios.\""
+                _ => $"The Hiring Manager glances at {recruiterName}'s screening notes. \"We'll use this session to understand how you work through customer scenarios.\""
             };
+
+            return AddRoomContextLine(intro);
         }
 
         if (stage.StageIndex == 1 && activeRoomModifiers.ArchitectPressure == ArchitectPressureLevel.Sharper)
@@ -394,9 +399,8 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         InterviewOutcomeType outcome = GetOutcome();
         RecordRoomOutcome(outcome);
         OutcomeEmail email = OutcomeEmailGenerator.Generate(outcome, score.ToSnapshot());
-        outcomeFromText.text =
-            "<color=#647080>From</color>  recruitment@northbridge-cyber.example\n" +
-            "<color=#647080>Time</color>  Today, 16:42";
+        outcomeClientHeaderText.text = BuildOutcomeClientHeader();
+        outcomeFromText.text = BuildOutcomeFromLine();
         outcomeTitleText.text = email.SubjectLine;
         outcomeOpeningText.text = email.OpeningLine;
         outcomeBodyText.text = AddOutcomeContextLine(email.OutcomeParagraph);
@@ -414,6 +418,93 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         }
 
         return $"{outcomeParagraph}\n\n{activeRoomModifiers.OutcomeEmailContextLine}";
+    }
+
+    private string AddRoomContextLine(string intro)
+    {
+        if (!hasActiveRoomModifiers || string.IsNullOrWhiteSpace(activeRoomModifiers.RoomContextLine))
+        {
+            return intro;
+        }
+
+        return $"{activeRoomModifiers.RoomContextLine}\n\n{intro}";
+    }
+
+    private static string BuildOutcomeClientHeader()
+    {
+        JobListingData job = GetActiveJobListing();
+        string company = job != null && !string.IsNullOrWhiteSpace(job.companyName)
+            ? job.companyName
+            : "Northbridge";
+        return $"{ShortCompanyName(company).ToUpperInvariant()} MAIL  /  INBOX";
+    }
+
+    private static string BuildOutcomeFromLine()
+    {
+        JobListingData job = GetActiveJobListing();
+        if (job == null)
+        {
+            return
+                "<color=#647080>From</color>  recruitment@northbridge-cyber.example\n" +
+                "<color=#647080>Time</color>  Today, 16:42";
+        }
+
+        string recruiter = !string.IsNullOrWhiteSpace(job.recruiterName) ? job.recruiterName : "Recruiting";
+        string company = !string.IsNullOrWhiteSpace(job.recruiterCompany)
+            ? job.recruiterCompany
+            : !string.IsNullOrWhiteSpace(job.companyName) ? job.companyName : "Northbridge Cyber Systems";
+        return
+            $"<color=#647080>From</color>  {recruiter}, {company} Recruiting\n" +
+            "<color=#647080>Time</color>  Today, 16:42";
+    }
+
+    private static string GetActiveRecruiterName()
+    {
+        JobListingData job = GetActiveJobListing();
+        return job != null && !string.IsNullOrWhiteSpace(job.recruiterName)
+            ? job.recruiterName
+            : "the recruiter";
+    }
+
+    private static string ShortCompanyName(string company)
+    {
+        if (string.IsNullOrWhiteSpace(company))
+        {
+            return "Northbridge";
+        }
+
+        string trimmed = company.Trim();
+        if (trimmed.Length > 24)
+        {
+            int firstSpace = trimmed.IndexOf(' ');
+            return firstSpace > 0 ? trimmed.Substring(0, firstSpace) : trimmed.Substring(0, 24);
+        }
+
+        return trimmed;
+    }
+
+    private static JobListingData GetActiveJobListing()
+    {
+        if (!FinalRoundRunState.TryGetActiveState(out CandidateState state) || string.IsNullOrWhiteSpace(state.SelectedJobId))
+        {
+            return null;
+        }
+
+        JobListingData[] jobs = Resources.LoadAll<JobListingData>(Vs4JobListingsResourcePath);
+        if (jobs == null)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < jobs.Length; i++)
+        {
+            if (jobs[i] != null && jobs[i].jobId == state.SelectedJobId)
+            {
+                return jobs[i];
+            }
+        }
+
+        return null;
     }
 
     private void ShowScorecard()
@@ -969,9 +1060,9 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
         outcomeRect.offsetMax = Vector2.zero;
         AddVerticalLayout(outcomePanel, new RectOffset(28, 28, 18, 18), 8f);
 
-        TMP_Text clientHeaderText = CreateText("Email Client Header", outcomePanel.transform, "NORTHBRIDGE MAIL  /  INBOX", 15, FontStyles.Bold, TextAlignmentOptions.Left);
-        clientHeaderText.color = uiTheme.MutedText;
-        ConfigureLayout(clientHeaderText.gameObject, -1f, 22f);
+        outcomeClientHeaderText = CreateText("Email Client Header", outcomePanel.transform, "MAIL  /  INBOX", 15, FontStyles.Bold, TextAlignmentOptions.Left);
+        outcomeClientHeaderText.color = uiTheme.MutedText;
+        ConfigureLayout(outcomeClientHeaderText.gameObject, -1f, 22f);
 
         GameObject laptopScreen = CreatePanel("Email Message Body", outcomePanel.transform, uiTheme.EmailBody);
         AddVerticalLayout(laptopScreen, new RectOffset(32, 32, 22, 22), 7f);
@@ -988,17 +1079,17 @@ public sealed class CybersecurityPresalesInterviewFlow : MonoBehaviour
 
         outcomeOpeningText = CreateText("Email Opening", laptopScreen.transform, string.Empty, 16, FontStyles.Normal, TextAlignmentOptions.Left);
         outcomeOpeningText.color = uiTheme.EmailText;
-        ConfigureLayout(outcomeOpeningText.gameObject, -1f, 40f);
+        ConfigureLayout(outcomeOpeningText.gameObject, -1f, 28f);
 
-        outcomeBodyText = CreateText("Email Outcome", laptopScreen.transform, string.Empty, 16, FontStyles.Normal, TextAlignmentOptions.Left);
+        outcomeBodyText = CreateText("Email Outcome", laptopScreen.transform, string.Empty, 15, FontStyles.Normal, TextAlignmentOptions.Left);
         outcomeBodyText.color = uiTheme.EmailText;
         outcomeBodyText.lineSpacing = 2f;
-        ConfigureLayout(outcomeBodyText.gameObject, -1f, 96f);
+        ConfigureLayout(outcomeBodyText.gameObject, -1f, 150f);
 
-        outcomeFeedbackText = CreateText("Email Feedback", laptopScreen.transform, string.Empty, 16, FontStyles.Normal, TextAlignmentOptions.Left);
+        outcomeFeedbackText = CreateText("Email Feedback", laptopScreen.transform, string.Empty, 15, FontStyles.Normal, TextAlignmentOptions.Left);
         outcomeFeedbackText.color = uiTheme.EmailText;
         outcomeFeedbackText.lineSpacing = 2f;
-        ConfigureLayout(outcomeFeedbackText.gameObject, -1f, 82f);
+        ConfigureLayout(outcomeFeedbackText.gameObject, -1f, 92f);
 
         GameObject actionSpacer = new GameObject("Email Action Spacer", typeof(RectTransform), typeof(LayoutElement));
         actionSpacer.transform.SetParent(laptopScreen.transform, false);
