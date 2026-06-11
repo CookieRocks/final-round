@@ -18,6 +18,7 @@ public sealed class AftermathRoomController : MonoBehaviour
     private const int ComposureTarget = 100;
     private const float HitFeedbackSeconds = 1.25f;
     private const float DestroyedFeedbackSeconds = 2.5f;
+    private const float MilestoneFeedbackSeconds = 3f;
     private const float CompletionFeedbackSeconds = 4f;
     private const float MinLookPitch = -18f;
     private const float MaxLookPitch = 24f;
@@ -33,21 +34,55 @@ public sealed class AftermathRoomController : MonoBehaviour
     [SerializeField] private float hitRaycastDistance = 10f;
     [SerializeField] private float movementSpeed = 2.4f;
     [SerializeField] private float lookSensitivity = 1.5f;
+    [Header("P38 Feel Tuning")]
+    [SerializeField] private float hitShakeAmount = 0.035f;
+    [SerializeField] private float destroyShakeAmount = 0.075f;
+    [SerializeField] private float shakeDuration = 0.16f;
+    [SerializeField] private float hitPauseDuration = 0.035f;
+    [SerializeField] private float hitTextDuration = HitFeedbackSeconds;
+    [SerializeField] private float destroyTextDuration = 2.8f;
+    [SerializeField] private int burstPieceCount = 7;
+    [SerializeField] private float composurePulseAmount = 1.18f;
+    [SerializeField] private AudioClip swingClip;
+    [SerializeField] private AudioClip hitClip;
+    [SerializeField] private AudioClip destroyClip;
+    [SerializeField] private AudioClip completionClip;
+    [Range(0f, 1f)]
+    [SerializeField] private float swingVolume = 0.28f;
+    [Range(0f, 1f)]
+    [SerializeField] private float hitVolume = 0.42f;
+    [Range(0f, 1f)]
+    [SerializeField] private float destroyVolume = 0.5f;
+    [Range(0f, 1f)]
+    [SerializeField] private float completionVolume = 0.55f;
 
     private TMP_Text titleText;
     private TMP_Text objectiveText;
     private TMP_Text statusText;
     private TMP_Text hammerText;
+    private TMP_Text targetText;
+    private TMP_Text reticleText;
     private Slider composureSlider;
+    private RectTransform composureSliderRect;
+    private Image composureFillImage;
     private Button returnToDeskButton;
     private Button mainMenuButton;
     private Camera aftermathCamera;
+    private AudioSource audioSource;
+    private Material burstMaterial;
     private int composure;
+    private int lastMilestoneIndex;
     private bool acceptsDestructibleInput;
     private bool completionReached;
     private float cameraYaw;
     private float cameraPitch = 10f;
+    private Vector3 cameraShakeOffset;
+    private float shakeTimer;
+    private float activeShakeAmount;
     private Coroutine feedbackRoutine;
+    private Coroutine pauseRoutine;
+    private Coroutine composurePulseRoutine;
+    private AftermathDestructible focusedTarget;
     private readonly List<AftermathDestructible> destructibles = new List<AftermathDestructible>();
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -74,6 +109,15 @@ public sealed class AftermathRoomController : MonoBehaviour
         RefreshState();
     }
 
+    private void OnDisable()
+    {
+        Time.timeScale = 1f;
+        if (focusedTarget != null)
+        {
+            focusedTarget.SetHighlighted(false);
+        }
+    }
+
     private void BuildSceneShell()
     {
         aftermathCamera = Camera.main;
@@ -89,15 +133,16 @@ public sealed class AftermathRoomController : MonoBehaviour
         cameraPitch = NormalizePitch(aftermathCamera.transform.eulerAngles.x);
         aftermathCamera.clearFlags = CameraClearFlags.SolidColor;
         aftermathCamera.backgroundColor = backgroundColor;
+        EnsureAudioSource();
 
         if (FindAnyObjectByType<Light>() == null)
         {
             GameObject lightObject = new GameObject("Aftermath Overhead Light");
             Light light = lightObject.AddComponent<Light>();
             light.type = LightType.Directional;
-            light.intensity = 1.45f;
-            light.color = new Color32(220, 232, 240, 255);
-            lightObject.transform.rotation = Quaternion.Euler(56f, -22f, 0f);
+            light.intensity = 1.7f;
+            light.color = new Color32(196, 232, 224, 255);
+            lightObject.transform.rotation = Quaternion.Euler(62f, -18f, 0f);
         }
 
         Transform root = FindOrCreateChildRoot("Aftermath Symbolic Room");
@@ -113,6 +158,7 @@ public sealed class AftermathRoomController : MonoBehaviour
         Material paperMaterial = CreateMaterial("Aftermath Paper Material", new Color32(205, 205, 190, 255));
         Material brokenMaterial = CreateMaterial("Aftermath Processed Material", new Color32(88, 96, 108, 255));
         Material phraseMaterial = CreateMaterial("Aftermath Phrase Plaque Material", new Color32(42, 45, 54, 255));
+        burstMaterial = CreateMaterial("Aftermath Burst Material", new Color32(151, 225, 210, 255));
 
         CreateCube("Aftermath Room Floor", new Vector3(0f, -0.05f, 0f), new Vector3(7.4f, 0.1f, 7.4f), floorMaterial, root);
         CreateCube("Aftermath Back Wall", new Vector3(0f, 1.55f, 3.6f), new Vector3(7.4f, 3.1f, 0.12f), wallMaterial, root);
@@ -131,6 +177,9 @@ public sealed class AftermathRoomController : MonoBehaviour
         CreateDestructiblePhrase("details-on-file-placard", "Details on file placard", "We'll keep your details on file", new Vector3(2.2f, 2.25f, 3.43f), root, Quaternion.identity, phraseMaterial, brokenMaterial, 1, 10, "The promise feels weightless.", "The file can keep itself.");
         CreateDestructiblePhrase("no-feedback-available", "No feedback available", "No feedback available", new Vector3(3.55f, 1.36f, -0.35f), root, Quaternion.Euler(0f, -90f, 0f), phraseMaterial, brokenMaterial, 1, 10, "The blankness answers back.", "Silence has less leverage.");
         CreatePhrase("Circle back", new Vector3(0f, 1.05f, 0.62f), root);
+        CreatePhrase("Competitive process", new Vector3(-3.55f, 2.05f, 1.05f), root, Quaternion.Euler(0f, 90f, 0f));
+        CreatePhrase("More closely aligned", new Vector3(3.55f, 2.0f, 1.05f), root, Quaternion.Euler(0f, -90f, 0f));
+        CreatePhrase("We appreciate your interest", new Vector3(0.2f, 2.8f, 3.43f), root);
 
         CreateDestructibleCube("empty-nameplate", "Empty nameplate", new Vector3(-1.45f, 0.88f, 0.02f), new Vector3(0.7f, 0.08f, 0.18f), accentMaterial, brokenMaterial, root, 1, 8, "The blank nameplate clicks.", "The room remembers fewer titles.");
         CreateCube("Nameplate Architect", new Vector3(0f, 0.88f, 0.02f), new Vector3(0.7f, 0.08f, 0.18f), accentMaterial, root);
@@ -208,6 +257,30 @@ public sealed class AftermathRoomController : MonoBehaviour
 
         returnToDeskButton = CreateButton("Return To Desk", row.transform, ReturnToDesk);
         mainMenuButton = CreateButton("Main Menu", row.transform, ReturnToMainMenu);
+        BuildFocusUi(canvasObject.transform);
+    }
+
+    private void BuildFocusUi(Transform canvasTransform)
+    {
+        reticleText = CreateText("Aftermath Reticle", canvasTransform, "+", 24, FontStyles.Bold);
+        reticleText.color = new Color32(160, 178, 190, 210);
+        reticleText.alignment = TextAlignmentOptions.Center;
+        RectTransform reticleRect = reticleText.GetComponent<RectTransform>();
+        reticleRect.anchorMin = new Vector2(0.5f, 0.5f);
+        reticleRect.anchorMax = new Vector2(0.5f, 0.5f);
+        reticleRect.pivot = new Vector2(0.5f, 0.5f);
+        reticleRect.sizeDelta = new Vector2(32f, 32f);
+        reticleRect.anchoredPosition = Vector2.zero;
+
+        targetText = CreateText("Aftermath Target Label", canvasTransform, string.Empty, 18, FontStyles.Bold);
+        targetText.color = accentColor;
+        targetText.alignment = TextAlignmentOptions.Center;
+        RectTransform targetRect = targetText.GetComponent<RectTransform>();
+        targetRect.anchorMin = new Vector2(0.5f, 0.5f);
+        targetRect.anchorMax = new Vector2(0.5f, 0.5f);
+        targetRect.pivot = new Vector2(0.5f, 0.5f);
+        targetRect.sizeDelta = new Vector2(460f, 32f);
+        targetRect.anchoredPosition = new Vector2(0f, -38f);
     }
 
     private void RefreshState()
@@ -218,6 +291,7 @@ public sealed class AftermathRoomController : MonoBehaviour
         {
             composure = state.AftermathCompleted ? ComposureTarget : 0;
             completionReached = state.AftermathCompleted;
+            lastMilestoneIndex = state.AftermathCompleted ? 4 : 0;
             SetText(statusText, state.AftermathCompleted
                 ? "Composure 100% - aftermath already processed."
                 : "Composure 0% - Feedback Hammer ready.");
@@ -243,11 +317,15 @@ public sealed class AftermathRoomController : MonoBehaviour
         }
 
         UpdateCameraMovement();
+        UpdateCameraShake();
 
         if (IsPointerOverUi())
         {
+            SetFocusedTarget(null);
             return;
         }
+
+        UpdateTargetFocus();
 
         if (WasPrimaryHitPressed())
         {
@@ -261,6 +339,59 @@ public sealed class AftermathRoomController : MonoBehaviour
         }
     }
 
+    private void UpdateTargetFocus()
+    {
+        if (aftermathCamera == null)
+        {
+            SetFocusedTarget(null);
+            return;
+        }
+
+        Ray ray = aftermathCamera.ScreenPointToRay(new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f));
+        AftermathDestructible target = null;
+        if (Physics.Raycast(ray, out RaycastHit hit, hitRaycastDistance))
+        {
+            target = hit.collider.GetComponentInParent<AftermathDestructible>();
+            if (target != null && target.HasBeenDestroyed)
+            {
+                target = null;
+            }
+        }
+
+        SetFocusedTarget(target);
+    }
+
+    private void SetFocusedTarget(AftermathDestructible target)
+    {
+        if (focusedTarget == target)
+        {
+            return;
+        }
+
+        if (focusedTarget != null)
+        {
+            focusedTarget.SetHighlighted(false);
+        }
+
+        focusedTarget = target;
+
+        if (focusedTarget != null)
+        {
+            focusedTarget.SetHighlighted(true);
+            SetText(targetText, focusedTarget.GetProcessLabel());
+            SetText(reticleText, "◆");
+            reticleText.color = accentColor;
+            return;
+        }
+
+        SetText(targetText, string.Empty);
+        SetText(reticleText, "+");
+        if (reticleText != null)
+        {
+            reticleText.color = new Color32(160, 178, 190, 210);
+        }
+    }
+
     private void UpdateCameraMovement()
     {
         if (aftermathCamera == null)
@@ -271,6 +402,12 @@ public sealed class AftermathRoomController : MonoBehaviour
         if (aftermathCamera == null)
         {
             return;
+        }
+
+        if (cameraShakeOffset != Vector3.zero)
+        {
+            aftermathCamera.transform.position -= cameraShakeOffset;
+            cameraShakeOffset = Vector3.zero;
         }
 
         Vector3 forward = aftermathCamera.transform.forward;
@@ -324,6 +461,33 @@ public sealed class AftermathRoomController : MonoBehaviour
         aftermathCamera.transform.rotation = Quaternion.Euler(cameraPitch, cameraYaw, 0f);
     }
 
+    private void StartScreenShake(float amount)
+    {
+        activeShakeAmount = Mathf.Max(activeShakeAmount, amount);
+        shakeTimer = Mathf.Max(shakeTimer, shakeDuration);
+    }
+
+    private void UpdateCameraShake()
+    {
+        if (aftermathCamera == null)
+        {
+            return;
+        }
+
+        if (shakeTimer <= 0f)
+        {
+            cameraShakeOffset = Vector3.zero;
+            activeShakeAmount = 0f;
+            return;
+        }
+
+        shakeTimer -= Time.unscaledDeltaTime;
+        float falloff = Mathf.Clamp01(shakeTimer / Mathf.Max(0.01f, shakeDuration));
+        Vector2 randomOffset = Random.insideUnitCircle * activeShakeAmount * falloff;
+        cameraShakeOffset = new Vector3(randomOffset.x, randomOffset.y * 0.55f, 0f);
+        aftermathCamera.transform.position += cameraShakeOffset;
+    }
+
     private void ReturnToDesk()
     {
         if (HasActiveRejectAftermath(out CandidateState state))
@@ -348,6 +512,34 @@ public sealed class AftermathRoomController : MonoBehaviour
             && state.HasActiveDeskRun
             && state.AftermathAvailable
             && state.RoomOutcome == nameof(InterviewOutcomeType.Reject);
+    }
+
+    private void EnsureAudioSource()
+    {
+        if (audioSource != null)
+        {
+            return;
+        }
+
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+        }
+
+        audioSource.playOnAwake = false;
+        audioSource.spatialBlend = 0f;
+    }
+
+    private void PlayClip(AudioClip clip, float volume)
+    {
+        if (clip == null || volume <= 0f)
+        {
+            return;
+        }
+
+        EnsureAudioSource();
+        audioSource.PlayOneShot(clip, Mathf.Clamp01(volume));
     }
 
     private static Material CreateMaterial(string name, Color color)
@@ -452,14 +644,16 @@ public sealed class AftermathRoomController : MonoBehaviour
         GameObject brokenRoot = new GameObject(name);
         brokenRoot.transform.SetParent(parent, false);
 
-        for (int i = 0; i < 3; i++)
+        int fragmentCount = 5;
+        for (int i = 0; i < fragmentCount; i++)
         {
             GameObject shard = GameObject.CreatePrimitive(PrimitiveType.Cube);
             shard.name = $"Processed Fragment {i + 1}";
             shard.transform.SetParent(brokenRoot.transform, false);
-            shard.transform.localPosition = new Vector3((i - 1) * scale.x * 0.22f, -0.03f * i, -0.02f * i);
-            shard.transform.localRotation = Quaternion.Euler(0f, 0f, (i - 1) * 8f);
-            shard.transform.localScale = new Vector3(scale.x * 0.28f, scale.y * 0.7f, scale.z * 1.1f);
+            float offset = i - (fragmentCount - 1) * 0.5f;
+            shard.transform.localPosition = new Vector3(offset * scale.x * 0.16f, -0.035f * i, -0.025f * i);
+            shard.transform.localRotation = Quaternion.Euler(i * 5f, offset * 7f, offset * 11f);
+            shard.transform.localScale = new Vector3(scale.x * 0.18f, scale.y * (0.38f + i * 0.035f), scale.z * 1.08f);
             SetSharedMaterial(shard, material);
         }
 
@@ -468,6 +662,7 @@ public sealed class AftermathRoomController : MonoBehaviour
 
     private void TryFeedbackHammerHit(Vector3 screenPosition)
     {
+        PlayClip(swingClip, swingVolume);
         if (aftermathCamera == null)
         {
             aftermathCamera = Camera.main;
@@ -495,29 +690,45 @@ public sealed class AftermathRoomController : MonoBehaviour
 
         if (!destructible.TryProcessHit(out string feedbackText, out bool destroyedThisHit))
         {
-            ShowFeedback("Already processed.", HitFeedbackSeconds);
+            ShowFeedback("Already processed.", hitTextDuration);
             return;
         }
 
+        StartHitPause();
         if (destroyedThisHit)
         {
+            PlayClip(destroyClip, destroyVolume);
+            StartScreenShake(destroyShakeAmount);
+            CreateVisualBurst(destructible.EffectPosition, true);
             composure = Mathf.Clamp(composure + destructible.CatharsisValue, 0, ComposureTarget);
-            UpdateComposureUi();
-            Debug.Log($"Final Round P37: destroyed symbolic object '{destructible.ObjectId}' ({destructible.DisplayLabel}). Composure {composure}/{ComposureTarget}.");
-            ShowFeedback(feedbackText, DestroyedFeedbackSeconds);
+            string milestoneText = UpdateComposureUi();
+            Debug.Log($"Final Round P38: destroyed symbolic object '{destructible.ObjectId}' ({destructible.DisplayLabel}). Composure {composure}/{ComposureTarget}.");
+            ShowFeedback(feedbackText, destroyTextDuration);
+            SetFocusedTarget(null);
 
             if (composure >= ComposureTarget && !completionReached)
             {
                 completionReached = true;
+                ApplyQuietRoomMood();
+                PlayClip(completionClip, completionVolume);
+                StartScreenShake(destroyShakeAmount * 0.65f);
                 ShowFeedback("The room is quieter now.", CompletionFeedbackSeconds);
+                UpdateComposureUi();
+            }
+            else if (!string.IsNullOrWhiteSpace(milestoneText))
+            {
+                ShowFeedback(milestoneText, MilestoneFeedbackSeconds);
             }
             return;
         }
 
-        ShowFeedback(feedbackText, HitFeedbackSeconds);
+        PlayClip(hitClip, hitVolume);
+        StartScreenShake(hitShakeAmount);
+        CreateVisualBurst(destructible.EffectPosition, false);
+        ShowFeedback(feedbackText, hitTextDuration);
     }
 
-    private void UpdateComposureUi()
+    private string UpdateComposureUi()
     {
         float ratio = Mathf.Clamp01(composure / (float)ComposureTarget);
         if (composureSlider != null)
@@ -533,9 +744,37 @@ public sealed class AftermathRoomController : MonoBehaviour
             if (buttonImage != null)
             {
                 buttonImage.color = completionReached
-                    ? new Color32(57, 124, 104, 255)
+                    ? new Color32(74, 156, 124, 255)
                     : new Color32(32, 82, 90, 255);
             }
+        }
+
+        PulseComposureMeter();
+        int milestoneIndex = GetMilestoneIndex(ratio);
+        if (milestoneIndex > lastMilestoneIndex)
+        {
+            lastMilestoneIndex = milestoneIndex;
+            return GetMilestoneText(milestoneIndex);
+        }
+
+        return string.Empty;
+    }
+
+    private void ApplyQuietRoomMood()
+    {
+        if (aftermathCamera != null)
+        {
+            aftermathCamera.backgroundColor = new Color32(9, 13, 17, 255);
+        }
+
+        if (reticleText != null)
+        {
+            reticleText.color = new Color32(178, 220, 208, 230);
+        }
+
+        if (targetText != null)
+        {
+            targetText.color = new Color32(178, 220, 208, 255);
         }
     }
 
@@ -549,6 +788,155 @@ public sealed class AftermathRoomController : MonoBehaviour
         feedbackRoutine = StartCoroutine(ShowFeedbackRoutine(message, seconds));
     }
 
+    private void StartHitPause()
+    {
+        if (hitPauseDuration <= 0f)
+        {
+            return;
+        }
+
+        if (pauseRoutine != null)
+        {
+            StopCoroutine(pauseRoutine);
+            Time.timeScale = 1f;
+        }
+
+        pauseRoutine = StartCoroutine(HitPauseRoutine());
+    }
+
+    private IEnumerator HitPauseRoutine()
+    {
+        Time.timeScale = 0f;
+        yield return new WaitForSecondsRealtime(hitPauseDuration);
+        Time.timeScale = 1f;
+        pauseRoutine = null;
+    }
+
+    private void PulseComposureMeter()
+    {
+        if (composureSliderRect == null)
+        {
+            return;
+        }
+
+        if (composurePulseRoutine != null)
+        {
+            StopCoroutine(composurePulseRoutine);
+        }
+
+        composurePulseRoutine = StartCoroutine(ComposurePulseRoutine());
+    }
+
+    private IEnumerator ComposurePulseRoutine()
+    {
+        Vector3 baseScale = Vector3.one;
+        composureSliderRect.localScale = baseScale * composurePulseAmount;
+        if (composureFillImage != null)
+        {
+            composureFillImage.color = new Color32(166, 244, 225, 255);
+        }
+
+        yield return new WaitForSecondsRealtime(0.12f);
+        composureSliderRect.localScale = baseScale;
+        if (composureFillImage != null)
+        {
+            composureFillImage.color = completionReached
+                ? new Color32(176, 245, 205, 255)
+                : new Color32(120, 214, 190, 255);
+        }
+
+        composurePulseRoutine = null;
+    }
+
+    private void CreateVisualBurst(Vector3 position, bool destroyed)
+    {
+        int pieces = Mathf.Max(2, destroyed ? burstPieceCount : Mathf.CeilToInt(burstPieceCount * 0.45f));
+        float scale = destroyed ? 0.055f : 0.035f;
+
+        for (int i = 0; i < pieces; i++)
+        {
+            GameObject piece = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            piece.name = destroyed ? "Processed Phrase Fragment" : "Feedback Hammer Fleck";
+            Collider pieceCollider = piece.GetComponent<Collider>();
+            if (pieceCollider != null)
+            {
+                Destroy(pieceCollider);
+            }
+
+            piece.transform.position = position + Random.insideUnitSphere * 0.18f;
+            piece.transform.localRotation = Random.rotation;
+            piece.transform.localScale = Vector3.one * scale;
+            SetSharedMaterial(piece, burstMaterial);
+            StartCoroutine(BurstPieceRoutine(piece.transform, destroyed));
+        }
+    }
+
+    private IEnumerator BurstPieceRoutine(Transform piece, bool destroyed)
+    {
+        if (piece == null)
+        {
+            yield break;
+        }
+
+        Vector3 startPosition = piece.position;
+        Vector3 drift = Random.insideUnitSphere;
+        drift.y = Mathf.Abs(drift.y) + 0.35f;
+        drift *= destroyed ? 0.48f : 0.25f;
+        float duration = destroyed ? 0.48f : 0.28f;
+        float elapsed = 0f;
+
+        while (elapsed < duration && piece != null)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            piece.position = Vector3.Lerp(startPosition, startPosition + drift, t);
+            piece.localScale = Vector3.Lerp(piece.localScale, Vector3.zero, t * 0.35f);
+            yield return null;
+        }
+
+        if (piece != null)
+        {
+            Destroy(piece.gameObject);
+        }
+    }
+
+    private int GetMilestoneIndex(float ratio)
+    {
+        if (ratio >= 1f)
+        {
+            return 4;
+        }
+
+        if (ratio >= 0.75f)
+        {
+            return 3;
+        }
+
+        if (ratio >= 0.5f)
+        {
+            return 2;
+        }
+
+        if (ratio >= 0.25f)
+        {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    private static string GetMilestoneText(int milestoneIndex)
+    {
+        return milestoneIndex switch
+        {
+            1 => "The wording starts to lose its grip.",
+            2 => "The room feels less loud.",
+            3 => "You can hear yourself think again.",
+            4 => "The room is quieter now.",
+            _ => string.Empty
+        };
+    }
+
     private IEnumerator ShowFeedbackRoutine(string message, float seconds)
     {
         SetText(hammerText, message);
@@ -560,7 +948,7 @@ public sealed class AftermathRoomController : MonoBehaviour
         }
         else if (acceptsDestructibleInput)
         {
-            SetText(hammerText, "Feedback Hammer: Left Click / E / Space to process symbolic objects.");
+            SetText(hammerText, "Move: WASD. Look: hold right mouse. Feedback Hammer: Left Click / E / Space.");
         }
 
         feedbackRoutine = null;
@@ -601,7 +989,7 @@ public sealed class AftermathRoomController : MonoBehaviour
         return label;
     }
 
-    private static Slider CreateSlider(string name, Transform parent)
+    private Slider CreateSlider(string name, Transform parent)
     {
         GameObject sliderObject = new GameObject(name, typeof(RectTransform), typeof(Slider));
         sliderObject.transform.SetParent(parent, false);
@@ -625,10 +1013,12 @@ public sealed class AftermathRoomController : MonoBehaviour
         Image fillImage = fill.GetComponent<Image>();
         fillImage.color = new Color32(120, 214, 190, 255);
         Stretch(fill.GetComponent<RectTransform>());
+        composureFillImage = fillImage;
 
         slider.fillRect = fill.GetComponent<RectTransform>();
         slider.targetGraphic = fillImage;
         sliderObject.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, 18f);
+        composureSliderRect = sliderObject.GetComponent<RectTransform>();
         return slider;
     }
 

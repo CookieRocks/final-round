@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-11_  
-_Current milestone context: VS2 complete; P37 Aftermath destructible symbolic objects in progress_
+_Current milestone context: VS2 complete; P38 Aftermath feel pass in progress_
 
 ## 1. Purpose of this document
 
@@ -609,10 +609,10 @@ P37 - Destructible Objects Prototype
   -> add AftermathDestructible component
   -> intact/processed swap, catharsis value, short text reactions, and Composure meter fill
 
-P38 - Desk Integration After Reject
-  -> add Reject inbox option such as Clear the Room
-  -> return to Desk after aftermath
-  -> add Apply Again / Take a Break / Ask for Feedback / Start New Run actions
+P38 - Aftermath Feel Pass
+  -> add target readability, hit punch, subtle screen shake, hit pause, visual bursts, audio hooks, and Composure milestones
+  -> keep destruction symbolic and safe
+  -> defer final assets, sound pass, and post-aftermath Desk actions
 
 P39 - VS3 Readiness Review
   -> validate Reject-only routing
