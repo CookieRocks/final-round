@@ -200,17 +200,23 @@ MonoBehaviour:
   deskCamera: {fileID: 0}
   laptopInteractable: {fileID: 0}
   currentState: 0
-  defaultJobListing: {fileID: 0}
+  defaultJobListing: {fileID: 11400000, guid: da3c766f012547e4893f30c77a96327b, type: 2}
+  availableJobListings:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
   authoredApplicationChoices:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  recruiterIntroMessage: {fileID: 0}
+  - {fileID: 11400000, guid: 32ea442e767a4804f870b1926fb98223, type: 2}
+  - {fileID: 11400000, guid: e730ed4d6ab342f4991fdd3dfa7f9ef6, type: 2}
+  - {fileID: 11400000, guid: 0d1116220f2c7b44bb7388f51164365c, type: 2}
+  - {fileID: 11400000, guid: e4cafcb771635624dab3a7b43ebb5129, type: 2}
+  recruiterIntroMessage: {fileID: 11400000, guid: b08f9410487d5b346957939b72307dd9, type: 2}
   authoredRecruiterQuestions:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: d9d498e0edafd0d4891201180be72ae9, type: 2}
+  - {fileID: 11400000, guid: 0e976f697f239d14f968dd7c8cb8fb5f, type: 2}
+  - {fileID: 11400000, guid: 654b86024945a264e99d64013645fb19, type: 2}
+  showDebugReadoutByDefault: 0
+  allowDeskDebugToggle: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

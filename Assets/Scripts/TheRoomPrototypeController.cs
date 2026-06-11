@@ -11,6 +11,7 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
     private const string BootstrapSceneName = "InterviewRoom";
     private const float QuestionRevealDelay = 1f;
     private const float PrefabBoundsPadding = 0.96f;
+    private const string GeneratedRoomRootName = "The Room Greybox";
 
     private enum PrefabAnchor
     {
@@ -456,13 +457,14 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
     {
         if (playerController != null && interviewSeat != null && seatedCameraPoint != null)
         {
+            EnsureGeneratedRoomShellExists();
             return;
         }
 
         ConfigureReadablePrototypeLighting();
         ConfigureRoomHum();
 
-        Transform root = new GameObject("The Room Greybox").transform;
+        Transform root = new GameObject(GeneratedRoomRootName).transform;
         root.SetParent(transform, false);
 
         standingStartPoint = CreateMarker("Standing Start Point", new Vector3(-0.28f, 1.05f, -7.65f), Quaternion.Euler(0f, 2.5f, 0f), root);
@@ -472,6 +474,114 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
         CreateFurniture(root);
         interviewers = CreateInterviewers(root);
         CreatePlayer();
+    }
+
+    private void EnsureGeneratedRoomShellExists()
+    {
+        Transform root = transform.Find(GeneratedRoomRootName);
+        if (root == null)
+        {
+            root = new GameObject(GeneratedRoomRootName).transform;
+            root.SetParent(transform, false);
+        }
+
+        if (root.Find("Room Floor") != null && root.Find("Back Wall") != null && root.Find("Left Wall") != null && root.Find("Right Wall") != null)
+        {
+            RefreshGeneratedRoomMaterials(root);
+            return;
+        }
+
+        Debug.LogWarning("Final Round P46: generated Room shell was missing at runtime; rebuilding floor and walls.");
+        CreateRoomShell(root);
+        RefreshGeneratedRoomMaterials(root);
+    }
+
+    private static void RefreshGeneratedRoomMaterials(Transform root)
+    {
+        ApplyNamedChildMaterial(root, "Hall Floor", new Color32(56, 58, 64, 255));
+        ApplyNamedChildMaterial(root, "Hall Runner Strip", new Color32(36, 42, 48, 255));
+        ApplyNamedChildMaterial(root, "Room Floor", new Color32(44, 47, 54, 255));
+        ApplyNamedChildMaterial(root, "Room Perimeter Line", new Color32(96, 104, 116, 255));
+        ApplyNamedChildMaterial(root, "Back Wall", new Color32(70, 74, 82, 255));
+        ApplyNamedChildMaterial(root, "Left Wall", new Color32(61, 65, 73, 255));
+        ApplyNamedChildMaterial(root, "Right Wall", new Color32(61, 65, 73, 255));
+        ApplyNamedChildMaterial(root, "Left Hall Wall", new Color32(48, 52, 60, 255));
+        ApplyNamedChildMaterial(root, "Right Hall Wall", new Color32(48, 52, 60, 255));
+        ApplyNamedChildMaterial(root, "Front Left Wall", new Color32(65, 68, 76, 255));
+        ApplyNamedChildMaterial(root, "Front Right Wall", new Color32(65, 68, 76, 255));
+        ApplyNamedChildMaterial(root, "Door Header", new Color32(65, 68, 76, 255));
+        ApplyNamedChildMaterial(root, "Door Frame Left", new Color32(82, 94, 106, 255));
+        ApplyNamedChildMaterial(root, "Door Frame Right", new Color32(82, 94, 106, 255));
+        ApplyNamedChildMaterial(root, "Door Threshold Highlight", new Color32(70, 100, 104, 255));
+        ApplyNamedChildMaterial(root, "Ceiling Soft Panel", new Color32(52, 55, 62, 255));
+        ApplyNamedChildMaterial(root, "Wall Screen", new Color32(24, 31, 40, 255));
+        ApplyNamedChildMaterial(root, "Wall Screen Glow", new Color32(34, 70, 76, 255));
+        ApplyNamedChildMaterial(root, "Interviewer Backlight Strip", new Color32(78, 126, 132, 255));
+        ApplyNamedChildMaterial(root, "Whiteboard", new Color32(150, 156, 160, 255));
+        ApplyNamedChildMaterial(root, "Whiteboard Architecture Line", new Color32(70, 88, 96, 255));
+        ApplyNamedChildMaterial(root, "Whiteboard Risk Box", new Color32(78, 116, 126, 255));
+        ApplyNamedChildMaterial(root, "Meeting Room Sign", new Color32(78, 90, 102, 255));
+        ApplyNamedChildMaterial(root, "Corner Plant Pot", new Color32(46, 50, 56, 255));
+        ApplyNamedChildMaterial(root, "Corner Plant Silhouette", new Color32(38, 72, 60, 255));
+        ApplyNamedChildMaterial(root, "Interview Table", new Color32(94, 76, 58, 255));
+        ApplyNamedChildMaterial(root, "Table Light Edge", new Color32(154, 126, 90, 255));
+        ApplyNamedChildMaterial(root, "Table Front Modesty Panel", new Color32(58, 45, 35, 255));
+        ApplyNamedChildMaterial(root, "Table Left Leg", new Color32(56, 43, 34, 255));
+        ApplyNamedChildMaterial(root, "Table Right Leg", new Color32(56, 43, 34, 255));
+        ApplyNamedChildMaterial(root, "Interviewer Table Rear Modesty Panel", new Color32(72, 68, 60, 255));
+        ApplyNamedChildMaterial(root, "Candidate Chair Seat", new Color32(58, 86, 104, 255));
+        ApplyNamedChildMaterial(root, "Candidate Chair Back", new Color32(62, 92, 110, 255));
+        ApplyNamedChildMaterial(root, "Candidate Chair Left Arm", new Color32(44, 64, 78, 255));
+        ApplyNamedChildMaterial(root, "Candidate Chair Right Arm", new Color32(44, 64, 78, 255));
+        ApplyNamedChildMaterial(root, "Chair Back Highlight", new Color32(116, 196, 184, 255));
+        ApplyNamedChildMaterial(root, "Interview Chair Floor Marker", new Color32(62, 130, 118, 150));
+        ApplyNamedChildMaterial(root, "Chair Direction Arrow", new Color32(94, 176, 160, 190));
+        ApplyNamedChildMaterial(root, "Laptop Base", new Color32(26, 30, 36, 255));
+        ApplyNamedChildMaterial(root, "Laptop Screen", new Color32(36, 74, 82, 255));
+        ApplyNamedChildMaterial(root, "Candidate Notepad", new Color32(190, 184, 154, 255));
+        ApplyNamedChildMaterial(root, "Notepad Line 1", new Color32(82, 88, 92, 255));
+        ApplyNamedChildMaterial(root, "Water Glass", new Color32(130, 170, 184, 180));
+        ApplyNamedChildMaterial(root, "Interviewer Side Dais", new Color32(32, 36, 44, 255));
+    }
+
+    private static void ApplyNamedChildMaterial(Transform root, string childName, Color color)
+    {
+        Transform child = FindChildRecursive(root, childName);
+        if (child == null)
+        {
+            return;
+        }
+
+        Renderer renderer = child.GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            renderer.material = CreateMaterial(color);
+        }
+    }
+
+    private static Transform FindChildRecursive(Transform root, string childName)
+    {
+        if (root == null)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform child = root.GetChild(i);
+            if (child.name == childName)
+            {
+                return child;
+            }
+
+            Transform match = FindChildRecursive(child, childName);
+            if (match != null)
+            {
+                return match;
+            }
+        }
+
+        return null;
     }
 
     private void CreatePlayer()
@@ -878,6 +988,11 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
 
     private static void SetMaterialColor(Material material, Color color)
     {
+        if (material == null)
+        {
+            return;
+        }
+
         material.color = color;
         if (material.HasProperty("_BaseColor"))
         {
@@ -1181,7 +1296,8 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
         cube.transform.SetParent(parent, false);
         cube.transform.localPosition = position;
         cube.transform.localScale = scale;
-        cube.GetComponent<Renderer>().material = CreateMaterial(color);
+        Renderer renderer = cube.GetComponent<Renderer>();
+        renderer.material = CreateMaterial(color);
         return cube;
     }
 
@@ -1332,7 +1448,8 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
         sphere.transform.SetParent(parent, false);
         sphere.transform.localPosition = position;
         sphere.transform.localScale = scale;
-        sphere.GetComponent<Renderer>().material = CreateMaterial(color);
+        Renderer renderer = sphere.GetComponent<Renderer>();
+        renderer.material = CreateMaterial(color);
         return sphere;
     }
 
@@ -1343,35 +1460,20 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
         capsule.transform.SetParent(parent, false);
         capsule.transform.localPosition = position;
         capsule.transform.localScale = scale;
-        capsule.GetComponent<Renderer>().material = CreateMaterial(color);
+        Renderer renderer = capsule.GetComponent<Renderer>();
+        renderer.material = CreateMaterial(color);
         return capsule;
     }
 
     private static Material CreateMaterial(Color color)
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
-        if (shader == null)
-        {
-            shader = Shader.Find("Unlit/Color");
-        }
-
-        if (shader == null)
-        {
-            shader = Shader.Find("Standard");
-        }
-
+        Shader shader = Shader.Find("Sprites/Default")
+            ?? Shader.Find("Universal Render Pipeline/Unlit")
+            ?? Shader.Find("Universal Render Pipeline/Lit")
+            ?? Shader.Find("Standard");
         Material material = new Material(shader);
         material.name = "Room Prototype Material";
-        material.color = color;
-        if (material.HasProperty("_BaseColor"))
-        {
-            material.SetColor("_BaseColor", color);
-        }
-        if (material.HasProperty("_Color"))
-        {
-            material.SetColor("_Color", color);
-        }
-
+        SetMaterialColor(material, color);
         return material;
     }
 
@@ -1382,15 +1484,13 @@ public sealed class TheRoomPrototypeController : MonoBehaviour
             return;
         }
 
-        renderer.material.color = color;
-        if (renderer.material.HasProperty("_BaseColor"))
+        Material material = renderer.material;
+        if (material == null)
         {
-            renderer.material.SetColor("_BaseColor", color);
+            return;
         }
-        if (renderer.material.HasProperty("_Color"))
-        {
-            renderer.material.SetColor("_Color", color);
-        }
+
+        SetMaterialColor(material, color);
     }
 
     private void ConfigureRoomHum()

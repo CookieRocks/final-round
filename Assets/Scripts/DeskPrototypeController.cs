@@ -3076,10 +3076,32 @@ public sealed class DeskPrototypeController : MonoBehaviour
 
     private static Material CreateMaterial(string name, Color color)
     {
-        Material material = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+        Shader shader = Shader.Find("Sprites/Default")
+            ?? Shader.Find("Universal Render Pipeline/Unlit")
+            ?? Shader.Find("Universal Render Pipeline/Lit")
+            ?? Shader.Find("Standard");
+        Material material = new Material(shader);
         material.name = name;
-        material.color = color;
+        ApplyMaterialColor(material, color);
         return material;
+    }
+
+    private static void ApplyMaterialColor(Material material, Color color)
+    {
+        if (material == null)
+        {
+            return;
+        }
+
+        material.color = color;
+        if (material.HasProperty("_BaseColor"))
+        {
+            material.SetColor("_BaseColor", color);
+        }
+        if (material.HasProperty("_Color"))
+        {
+            material.SetColor("_Color", color);
+        }
     }
 
     private static void EnsureEventSystem()

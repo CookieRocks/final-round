@@ -14,10 +14,10 @@ public static class FinalRoundPlaytestBuild
     private const string DeskScenePath = "Assets/Scenes/DeskScene.unity";
     private const string AftermathRoomScenePath = "Assets/Scenes/AftermathRoom.unity";
     private const string OutputRoot = "Builds/Playtest";
-    private const string BuildFolder = OutputRoot + "/FinalRound_VS2_Windows";
+    private const string BuildFolder = OutputRoot + "/FinalRound_VS4_Windows";
     private const string ExecutablePath = BuildFolder + "/FinalRound.exe";
-    private const string PackagePath = OutputRoot + "/FinalRound_VS2_Playtest.zip";
-    private const string ReadmeSourcePath = "Docs/FinalRound_Playtest_README.md";
+    private const string PackagePath = OutputRoot + "/FinalRound_VS4_Playtest.zip";
+    private const string ReadmeSourcePath = "Docs/FinalRound_P46_VS4PlaytestGuide.md";
     private const string ReadmeBuildFileName = "README_Playtest.md";
 
     private static readonly string[] RequiredScenePaths =
@@ -46,7 +46,7 @@ public static class FinalRoundPlaytestBuild
             };
 
             Debug.Log(
-                "Final Round P34: starting Windows playtest build.\n" +
+                "Final Round P46: starting Windows VS4 playtest build.\n" +
                 $"- Output: {ExecutablePath}\n" +
                 $"- Scenes: {string.Join(", ", RequiredScenePaths)}");
 
@@ -56,7 +56,7 @@ public static class FinalRoundPlaytestBuild
             if (summary.result != BuildResult.Succeeded)
             {
                 throw new BuildFailedException(
-                    "Final Round P34: Windows playtest build failed.\n" +
+                    "Final Round P46: Windows VS4 playtest build failed.\n" +
                     $"- Result: {summary.result}\n" +
                     $"- Errors: {summary.totalErrors}\n" +
                     $"- Warnings: {summary.totalWarnings}\n" +
@@ -64,7 +64,7 @@ public static class FinalRoundPlaytestBuild
             }
 
             Debug.Log(
-                "Final Round P34: Windows playtest build complete.\n" +
+                "Final Round P46: Windows VS4 playtest build complete.\n" +
                 $"- Output folder: {BuildFolder}\n" +
                 $"- Executable: {ExecutablePath}\n" +
                 $"- Size: {FormatBytes(summary.totalSize)}\n" +
@@ -72,7 +72,7 @@ public static class FinalRoundPlaytestBuild
         }
         catch (Exception exception)
         {
-            Debug.LogError($"Final Round P34: Windows playtest build failed.\n{exception}");
+            Debug.LogError($"Final Round P46: Windows VS4 playtest build failed.\n{exception}");
             throw;
         }
     }
@@ -85,7 +85,7 @@ public static class FinalRoundPlaytestBuild
             if (!Directory.Exists(BuildFolder) || !File.Exists(ExecutablePath))
             {
                 throw new FileNotFoundException(
-                    "Final Round P34: no completed playtest build was found. Run Final Round > Build Playtest Windows first.",
+                    "Final Round P46: no completed VS4 playtest build was found. Run Final Round > Build Playtest Windows first.",
                     ExecutablePath);
             }
 
@@ -100,14 +100,14 @@ public static class FinalRoundPlaytestBuild
             ZipFile.CreateFromDirectory(BuildFolder, PackagePath, System.IO.Compression.CompressionLevel.Optimal, false);
 
             Debug.Log(
-                "Final Round P34: playtest package complete.\n" +
+                "Final Round P46: VS4 playtest package complete.\n" +
                 $"- Source folder: {BuildFolder}\n" +
                 $"- Zip: {PackagePath}\n" +
                 $"- README included: {BuildFolder}/{ReadmeBuildFileName}");
         }
         catch (Exception exception)
         {
-            Debug.LogError($"Final Round P34: playtest packaging failed.\n{exception}");
+            Debug.LogError($"Final Round P46: VS4 playtest packaging failed.\n{exception}");
             throw;
         }
     }
@@ -119,7 +119,7 @@ public static class FinalRoundPlaytestBuild
         EnsureRequiredScenesInBuildSettings();
 
         Debug.Log(
-            "Final Round P34: playtest Build Settings validated.\n" +
+            "Final Round P46: VS4 playtest Build Settings validated.\n" +
             $"- Required scenes: {string.Join(", ", RequiredScenePaths)}\n" +
             $"- Output folder: {BuildFolder}");
     }
@@ -133,7 +133,7 @@ public static class FinalRoundPlaytestBuild
         if (missingScenes.Count > 0)
         {
             throw new BuildFailedException(
-                "Final Round P34: required scene assets are missing.\n" +
+                "Final Round P46: required scene assets are missing.\n" +
                 string.Join("\n", missingScenes.Select(scenePath => $"- {scenePath}")));
         }
     }
@@ -150,7 +150,7 @@ public static class FinalRoundPlaytestBuild
         if (!BuildSettingsMatch(existingScenes, orderedScenes))
         {
             EditorBuildSettings.scenes = orderedScenes.ToArray();
-            Debug.Log("Final Round P34: Build Settings repaired with required playtest scenes.");
+            Debug.Log("Final Round P46: Build Settings repaired with required playtest scenes.");
         }
     }
 
@@ -177,7 +177,7 @@ public static class FinalRoundPlaytestBuild
         if (!File.Exists(ReadmeSourcePath))
         {
             throw new FileNotFoundException(
-                "Final Round P34: playtest README is missing. Create it before building or packaging.",
+                "Final Round P46: VS4 playtest guide is missing. Create it before building or packaging.",
                 ReadmeSourcePath);
         }
 

@@ -200,6 +200,22 @@ MonoBehaviour:
   hitRaycastDistance: 10
   movementSpeed: 2.4
   lookSensitivity: 1.5
+  hitShakeAmount: 0.035
+  destroyShakeAmount: 0.075
+  shakeDuration: 0.16
+  hitPauseDuration: 0.035
+  hitTextDuration: 1.25
+  destroyTextDuration: 2.8
+  burstPieceCount: 7
+  composurePulseAmount: 1.18
+  swingClip: {fileID: 0}
+  hitClip: {fileID: 0}
+  destroyClip: {fileID: 0}
+  completionClip: {fileID: 0}
+  swingVolume: 0.28
+  hitVolume: 0.42
+  destroyVolume: 0.5
+  completionVolume: 0.55
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

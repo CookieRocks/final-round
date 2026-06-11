@@ -1,7 +1,7 @@
 # Final Round — Current High-Level Game Plan
 
 _Last updated: 2026-06-11_  
-_Current milestone context: VS4 promoted - The Job Board_
+_Current milestone context: P46 VS4 playtest packaging and feedback pass_
 
 ## 1. Purpose of this document
 
@@ -409,7 +409,7 @@ The mode should feel like a memory or emotional processing space, not a real off
 
 ### VS4 - The Job Board
 
-**Status:** promoted vertical slice. P41 data architecture and P42 authored listings are complete; P43 adds the first playable three-card Job Board UI on the Desk laptop; P44 carries the selected job through application feedback, recruiter identity/copy, Room context, outcome inbox, and process summary; P45 found no VS4 blockers and VS4 is now promoted.
+**Status:** promoted vertical slice. P41 data architecture and P42 authored listings are complete; P43 adds the first playable three-card Job Board UI on the Desk laptop; P44 carries the selected job through application feedback, recruiter identity/copy, Room context, outcome inbox, and process summary; P45 found no VS4 blockers and VS4 is now promoted. P46 prepares a VS4 playtest package and focused feedback guide.
 
 Core question:
 
@@ -470,6 +470,13 @@ Current P45 review result:
 - direct Room, direct Desk, and Reject-only Aftermath protections remain intact;
 - no Room scoring, question data, thresholds, or Aftermath mechanics were changed;
 - The Job Board promoted to VS4.
+
+Current P46 packaging status:
+
+- playtest build metadata targets `FinalRound_VS4_Windows`;
+- playtest package metadata targets `FinalRound_VS4_Playtest.zip`;
+- `Docs/FinalRound_P46_VS4PlaytestGuide.md` is the external playtest README source;
+- feedback questions focus on Job Board choice clarity, selected-job carry-through, Room clarity, Aftermath tone, and replay interest.
 
 ### VS5 — Hiring Manager Screen
 
